@@ -26,9 +26,12 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (nonatomic, strong) UITableView* chatListTable;
 @property (nonatomic, weak) IBOutlet UIBarButtonItem* settingsButton;
-@property (weak, nonatomic) IBOutlet UIBarButtonItem* spinnerButton;
 @property (nonatomic, weak) IBOutlet UIBarButtonItem* composeButton;
 @property (nonatomic, strong) UIActivityIndicatorView* spinner;
+@property (nonatomic, strong) UILabel* titleLabel;
+@property (nonatomic, strong) UIView* titleView;
+// Deprecated: kept for storyboard compatibility, remove after disconnecting in storyboard
+@property (nonatomic, weak) IBOutlet UIBarButtonItem* spinnerButton __attribute__((deprecated("Remove this outlet connection from storyboard")));
 @property (atomic, strong) SizeClassWrapper* sizeClass;
 @property (atomic, readonly) chatViewController* _Nullable currentChatView;
 

@@ -32,6 +32,7 @@ NS_ASSUME_NONNULL_BEGIN
 -(void) openChatOfContact:(MLContact* _Nullable) contact;
 -(void) openChatOfContact:(MLContact* _Nullable) contact withCompletion:(monal_id_block_t _Nullable) completion;
 -(void) incomingWakeupWithCompletionHandler:(void (^)(UIBackgroundFetchResult result)) completionHandler;
+-(void) setupTabBarController;
 
 @end
 

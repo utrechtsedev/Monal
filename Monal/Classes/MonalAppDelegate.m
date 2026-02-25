@@ -42,6 +42,7 @@
 #import <monalxmpp/XMPPPresence.h>
 #import "XMPPMessage.h"
 #import "chatViewController.h"
+#import <Monal-Swift.h>
 
 @import Intents;
 
@@ -294,8 +295,6 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
     [center setNotificationCategories:[NSSet setWithObjects:messageCategory, reactionCategory, somethingRegardingAContactCategory, subscriptionCategory , nil]];
 
     UINavigationBarAppearance* appearance = [UINavigationBarAppearance new];
-    [appearance configureWithTransparentBackground];
-    appearance.backgroundColor = [UIColor systemBackgroundColor];
     
     [[UINavigationBar appearance] setScrollEdgeAppearance:appearance];
     [[UINavigationBar appearance] setStandardAppearance:appearance];
@@ -341,6 +340,9 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
     
     //initialize callkit (mus be done after connectIfNecessary to make sure the list of accounts is already populated when a voip push comes in)
     _voipProcessor = [MLVoIPProcessor new];
+    
+    // Set up tab bar controller
+    [self setupTabBarController];
 
     /*
     NSDictionary* options = launchOptions[UIApplicationLaunchOptionsUserActivityDictionaryKey];
@@ -479,6 +481,7 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
     {
         //hide spinner
         [self.activeChats.spinner stopAnimating];
+        self.activeChats.titleLabel.text = NSLocalizedString(@"Chats", @"");
     }
     
     //report pending crashes
@@ -1221,9 +1224,15 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
     //show/hide spinner (dispatch *async* to main queue to allow for ui changes)
     dispatch_async(dispatch_get_main_queue(), ^{
         if(([[MLXMPPManager sharedInstance] allAccountsIdle] && [MLFiletransfer isIdle]))
+        {
             [self.activeChats.spinner stopAnimating];
+            self.activeChats.titleLabel.text = NSLocalizedString(@"Chats", @"");
+        }
         else
+        {
             [self.activeChats.spinner startAnimating];
+            self.activeChats.titleLabel.text = NSLocalizedString(@"Waiting for network", @"");
+        }
     });
 }
 
@@ -1788,6 +1797,61 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
         };
         DDLogInfo(@"Added timer %@ to wakeup completion list...", completionId);
     }
+}
+
+-(void) setupTabBarController
+{
+    // Get the current root view controller (should be UISplitViewController from storyboard)
+    UISplitViewController* existingSplitViewController = (UISplitViewController*)self.window.rootViewController;
+    
+    // Create tab bar controller
+    UITabBarController* tabBarController = [[UITabBarController alloc] init];
+    
+    // Tab 1: Contacts - Create ContactsViewController and wrap in navigation controller
+    UIViewController* contactsVC = [[[SwiftuiInterface alloc] init] makeContactsTabView];
+    UINavigationController* contactsNav = [[UINavigationController alloc] initWithRootViewController:contactsVC];
+    contactsNav.tabBarItem = [[UITabBarItem alloc] initWithTitle:NSLocalizedString(@"Contacts", @"")
+                                                            image:[UIImage systemImageNamed:@"person.2.fill"]
+                                                              tag:0];
+    
+    // Tab 2: Chats (existing split view controller)
+    if(existingSplitViewController) {
+        existingSplitViewController.tabBarItem = [[UITabBarItem alloc] initWithTitle:NSLocalizedString(@"Chats", @"")
+                                                                                 image:[UIImage systemImageNamed:@"message.fill"]
+                                                                                   tag:1];
+    }
+    
+    // Tab 3: Settings - Use SwiftUI SettingsView
+    UIViewController* settingsViewController = [[SwiftuiInterface new] makeSettingsTabView];
+    UINavigationController* settingsNav = [[UINavigationController alloc] initWithRootViewController:settingsViewController];
+    settingsNav.tabBarItem = [[UITabBarItem alloc] initWithTitle:NSLocalizedString(@"Settings", @"")
+                                                            image:[UIImage systemImageNamed:@"gear"]
+                                                              tag:2];
+    
+    // Add all tabs to tab bar controller
+    NSMutableArray* viewControllers = [NSMutableArray array];
+    [viewControllers addObject:contactsNav];
+    if(existingSplitViewController) {
+        [viewControllers addObject:existingSplitViewController];
+    }
+    [viewControllers addObject:settingsNav];
+    
+    tabBarController.viewControllers = viewControllers;
+    
+    // Set the default selected tab to Chats (index 1)
+    tabBarController.selectedIndex = 1;
+    
+    // Set tab bar controller as root view controller
+    self.window.rootViewController = tabBarController;
+    
+    // Force the chats tab to load so activeChats gets set properly
+    // This ensures the ActiveChatsViewController's viewDidLoad is called
+    [self.window makeKeyAndVisible];
+    
+    // Access the view to trigger viewDidLoad on the selected tab
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [tabBarController.selectedViewController view];
+    });
 }
 
 

@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>UIDesignRequiresCompatibility</key>
-	<true/>
+	<false/>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>im.monal.process</string>

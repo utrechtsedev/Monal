@@ -293,14 +293,21 @@ static NSMutableSet* _pushWarningDisplayed;
 
 -(void) configureComposeButton
 {
-    UIImage* image = [[UIImage systemImageNamed:@"person.2.fill"] imageWithTintColor:UIColor.tintColor];
-    UITapGestureRecognizer* tapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(showContacts:)];
-    self.composeButton.customView = [HelperTools
-        buttonWithNotificationBadgeForImage:image
-        hasNotification:[[DataLayer sharedInstance] allContactRequests].count > 0
-        withTapHandler:tapRecognizer];
+    BOOL hasContactRequests = [[DataLayer sharedInstance] allContactRequests].count > 0;
+    
+    // Use imageWithNotificationBadge if there are contact requests, otherwise use plain image
+    UIImage* image = nil;
+    if(hasContactRequests)
+        image = [HelperTools imageWithNotificationBadgeForImage:[UIImage systemImageNamed:@"plus"]];
+    else
+        image = [UIImage systemImageNamed:@"plus"];
+    
+    self.composeButton.image = image;
+    self.composeButton.target = self;
+    self.composeButton.action = @selector(showContacts:);
+    
     [self.composeButton setIsAccessibilityElement:YES];
-    if([[DataLayer sharedInstance] allContactRequests].count > 0)
+    if(hasContactRequests)
         [self.composeButton setAccessibilityLabel:NSLocalizedString(@"Open contact list (contact requests pending)", @"")];
     else
         [self.composeButton setAccessibilityLabel:NSLocalizedString(@"Open contact list", @"")];
@@ -314,9 +321,6 @@ static NSMutableSet* _pushWarningDisplayed;
     
     _loginAlreadyAutodisplayed = NO;
     _startedOrientation = 0;
-    
-    self.spinner = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleMedium];
-    self.spinner.hidesWhenStopped = YES;
     
     self.view.backgroundColor = [UIColor lightGrayColor];
     self.view.autoresizingMask = UIViewAutoresizingFlexibleHeight|UIViewAutoresizingFlexibleWidth;
@@ -354,11 +358,42 @@ static NSMutableSet* _pushWarningDisplayed;
     self.settingsButton.image = [UIImage systemImageNamed:@"gearshape.fill"];
     [self configureComposeButton];
 
-    self.spinnerButton.customView = self.spinner;
+    // Create title view with spinner and label
+    self.titleView = [[UIView alloc] init];
+    
+    self.spinner = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleMedium];
+    self.spinner.hidesWhenStopped = YES;
+    self.spinner.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.titleView addSubview:self.spinner];
+    
+    self.titleLabel = [[UILabel alloc] init];
+    self.titleLabel.text = NSLocalizedString(@"Chats", @"");
+    self.titleLabel.font = [UIFont boldSystemFontOfSize:17.0];
+    self.titleLabel.textAlignment = NSTextAlignmentCenter;
+    self.titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.titleView addSubview:self.titleLabel];
+    
+    
+    // Set up constraints
+    [NSLayoutConstraint activateConstraints:@[
+        [self.spinner.leadingAnchor constraintEqualToAnchor:self.titleView.leadingAnchor],
+        [self.spinner.centerYAnchor constraintEqualToAnchor:self.titleView.centerYAnchor],
+        
+        [self.titleLabel.leadingAnchor constraintEqualToAnchor:self.spinner.trailingAnchor constant:8.0],
+        [self.titleLabel.trailingAnchor constraintEqualToAnchor:self.titleView.trailingAnchor],
+        [self.titleLabel.centerYAnchor constraintEqualToAnchor:self.titleView.centerYAnchor],
+        [self.titleLabel.topAnchor constraintEqualToAnchor:self.titleView.topAnchor],
+        [self.titleLabel.bottomAnchor constraintEqualToAnchor:self.titleView.bottomAnchor],
+    ]];
+    
+    self.navigationItem.titleView = self.titleView;
     
     self.chatListTable.emptyDataSetSource = self;
     self.chatListTable.emptyDataSetDelegate = self;
+    self.chatListTable.tableHeaderView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, self.chatListTable.bounds.size.width, 0.1f)];
     
+    // remove left inset
+    self.chatListTable.separatorInset = UIEdgeInsetsMake(0, 75, 0, 0);
     [self refresh];
     
     //has to be done here to not always prepend intro screens onto our view queue
@@ -1015,10 +1050,16 @@ static NSMutableSet* _pushWarningDisplayed;
 
 -(void) showSettings
 {
-    appendToViewQueue((^(PMKResolver resolve) {
-        [self performSegueWithIdentifier:@"showSettings" sender:self];
-        resolve(nil);
-    }));
+    UIViewController* view = [[SwiftuiInterface new] makeViewWithName:@"ActiveChatsSettings"];
+    view.ml_disposeCallback = ^{
+        [self sheetDismissed];
+    };
+    
+    [self dismissCompleteViewChainWithAnimation:NO andCompletion:^{
+        [self presentViewController:view animated:YES completion:^{
+            NSLog(@"Settings presented successfully");
+        }];
+    }];
 }
 
 -(void) showCallContactNotFoundAlert:(NSString*) jid

@@ -787,8 +787,15 @@ public extension UIViewController {
 class SwiftuiInterface : NSObject {
     @StateObject private var sizeClass: ObservableKVOWrapper<SizeClassWrapper>
     override init() {
-        let activeChats = (UIApplication.shared.delegate as! MonalAppDelegate).activeChats!
-        self._sizeClass = StateObject(wrappedValue: ObservableKVOWrapper<SizeClassWrapper>(activeChats.sizeClass))
+        // Safely access activeChats - it may not be set yet if called during app setup (e.g., tab bar creation)
+        if let activeChats = (UIApplication.shared.delegate as? MonalAppDelegate)?.activeChats {
+            self._sizeClass = StateObject(wrappedValue: ObservableKVOWrapper<SizeClassWrapper>(activeChats.sizeClass))
+        } else {
+            // Provide a default SizeClassWrapper if activeChats isn't available yet
+            let defaultSizeClass = SizeClassWrapper()
+            defaultSizeClass.horizontal = .compact
+            self._sizeClass = StateObject(wrappedValue: ObservableKVOWrapper<SizeClassWrapper>(defaultSizeClass))
+        }
         super.init()
     }
 
@@ -825,6 +832,11 @@ class SwiftuiInterface : NSObject {
         let host = UIHostingController(rootView:AnyView(EmptyView()))
         delegate.host = host
         host.rootView = AnyView(AVCallUI(delegate:delegate, call:call))
+        return host
+    }
+    
+    @objc func makeSettingsTabView() -> UIViewController {
+        let host = UIHostingController(rootView: AnyView(SettingsView()))
         return host
     }
     
@@ -924,7 +936,7 @@ class SwiftuiInterface : NSObject {
     }
 
     @objc(makeContactsViewWithDismisser:onButton:)
-    func makeContactsView(dismisser: @escaping (MLContact) -> (), button: UIBarButtonItem) -> UIViewController {
+    func makeContactsView(dismisser: @escaping (MLContact) -> (), button: UIBarButtonItem?) -> UIViewController {
         let delegate = SheetDismisserProtocol()
         let host = UIHostingController(rootView: AnyView(EmptyView()))
         let contactsView = ContactsView(contacts: Contacts(), delegate: delegate, dismissWithContact: dismisser)
@@ -933,6 +945,16 @@ class SwiftuiInterface : NSObject {
         host.modalPresentationStyle = .popover
         host.popoverPresentationController?.sourceItem = button
         host.preferredContentSize = host.sizeThatFits(in: CGSize(width: 400, height: 600))
+        return host
+    }
+    
+    @objc(makeContactsTabView)
+    func makeContactsTabView() -> UIViewController {
+        let delegate = SheetDismisserProtocol()
+        let host = UIHostingController(rootView: AnyView(EmptyView()))
+        let contactsView = ContactsView(contacts: Contacts(), delegate: delegate, dismissWithContact: { _ in })
+        delegate.host = host
+        host.rootView = AnyView(contactsView)
         return host
     }
 
@@ -970,3 +992,4 @@ class SwiftuiInterface : NSObject {
         return host!
     }
 }
+
