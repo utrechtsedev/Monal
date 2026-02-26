@@ -13,7 +13,6 @@
 #import "MLNotificationManager.h"
 #import <monalxmpp/DataLayer.h>
 #import <monalxmpp/MLImageManager.h>
-#import "ActiveChatsViewController.h"
 #import <monalxmpp/IPC.h>
 #import <monalxmpp/MLProcessLock.h>
 #import <monalxmpp/MLFileTransfer.h>
@@ -1889,10 +1888,11 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
             monal_id_block_t cleanup = ^(NSDictionary* payload) {
                 [[DataLayer sharedInstance] deleteShareSheetPayloadWithId:payload[@"id"]];
                 [[MLNotificationQueue currentQueue] postNotificationName:kMonalRefresh object:nil userInfo:nil];
-                if(self.activeChats.currentChatView != nil)
+                chatViewController* chatView = (chatViewController*)self.activeChats.currentChatView;
+                if(chatView != nil)
                 {
-                    [self.activeChats.currentChatView scrollToBottomAnimated:NO];
-                    [self.activeChats.currentChatView hideUploadHUD];
+                    [chatView scrollToBottomAnimated:NO];
+                    [chatView hideUploadHUD];
                 }
                 //send next item (if there is one left)
                 [self sendAllOutboxes];
@@ -1928,8 +1928,7 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
                 {
                     //the payload type is either "image", "file", "contact" or "audiovisual"
                     DDLogInfo(@"Got %@ upload: %@", payload[@"type"], payload[@"data"]);
-                    [self.activeChats.currentChatView showUploadHUD];
-                    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                    [(chatViewController*)self.activeChats.currentChatView showUploadHUD];                    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
                         $call(payload[@"data"], $ID(account), $BOOL(encrypted), $ID(completion, (^(NSString* url, NSString* mimeType, NSNumber* size, NSError* error) {
                             dispatch_async(dispatch_get_main_queue(), ^{
                                 if(error != nil)

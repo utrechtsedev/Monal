@@ -17,7 +17,6 @@
 #import <monalxmpp/MLVoIPProcessor.h>
 #import <monalxmpp/MLCall.h>
 #import "MonalAppDelegate.h"
-#import "ActiveChatsViewController.h"
 #import <monalxmpp/MLNotificationQueue.h>
 #import "secrets.h"
 

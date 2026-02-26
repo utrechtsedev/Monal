@@ -36,8 +36,10 @@
 
 -(void) splitViewControllerDidCollapse:(UISplitViewController*) splitViewController
 {
-    UIViewController* primaryController = ((UINavigationController*)splitViewController.viewControllers[0]).viewControllers[0];
-
+    UINavigationController* nav = (UINavigationController*)splitViewController.viewControllers.firstObject;
+    if(![nav isKindOfClass:[UINavigationController class]] || nav.viewControllers.count == 0)
+        return;
+    UIViewController* primaryController = nav.viewControllers[0];
     if([primaryController isKindOfClass:NSClassFromString(@"ActiveChatsViewController")])
         [(ActiveChatsViewController*)primaryController updateSizeClass];
 }

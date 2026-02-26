@@ -15,7 +15,6 @@
 #import <monalxmpp/MLOMEMO.h>
 #import <monalxmpp/MLNotificationQueue.h>
 #import "MonalAppDelegate.h"
-#import "ActiveChatsViewController.h"
 #import "MLNotificationManager.h"
 #import "Monal-Swift.h"
 

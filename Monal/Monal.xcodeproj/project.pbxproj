@@ -213,6 +213,9 @@
 		84FC37552897521500634E3E /* snprintf.m in Sources */ = {isa = PBXBuildFile; fileRef = 84FC37542897521400634E3E /* snprintf.m */; };
 		84FC37572897523500634E3E /* metamacros.h in Headers */ = {isa = PBXBuildFile; fileRef = 84FC37562897523500634E3E /* metamacros.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		84FC375928981A5600634E3E /* PasswordMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84FC375828981A5600634E3E /* PasswordMigration.swift */; };
+		9341BC682F4FBA0F00FCD32B /* ActiveChatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9341BC672F4FBA0C00FCD32B /* ActiveChatsView.swift */; };
+		9341BC6C2F4FBF4700FCD32B /* ActiveChatsBridgeHelper.h in Headers */ = {isa = PBXBuildFile; fileRef = 9341BC692F4FBEC100FCD32B /* ActiveChatsBridgeHelper.h */; };
+		9342E6B32F50EE670065EAE2 /* ActiveChatsBridgeHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = 9341BC6A2F4FBEE700FCD32B /* ActiveChatsBridgeHelper.m */; };
 		9371C49B2F4F3EF100668BA9 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9371C49A2F4F3EF100668BA9 /* SettingsView.swift */; };
 		952EBC802BAF72F300183DBF /* DebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 952EBC7F2BAF72F300183DBF /* DebugView.swift */; };
 		BE8B63D2491B1E5582965A8F /* Pods_monalxmpp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5B9C86E0A568734587FE9BA2 /* Pods_monalxmpp.framework */; };
@@ -672,6 +675,9 @@
 		8D1107310486CEB800E47090 /* Monal-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "Monal-Info.plist"; plistStructureDefinitionIdentifier = "com.apple.xcode.plist.structure-definition.iphone.info-plist"; sourceTree = "<group>"; };
 		8F1488206B764014DD7EC92A /* Pods_shareSheet.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_shareSheet.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		9162E3E9FCE2280BF75F5102 /* Pods-Monal.alpha-ios.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Monal.alpha-ios.xcconfig"; path = "Target Support Files/Pods-Monal/Pods-Monal.alpha-ios.xcconfig"; sourceTree = "<group>"; };
+		9341BC672F4FBA0C00FCD32B /* ActiveChatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveChatsView.swift; sourceTree = "<group>"; };
+		9341BC692F4FBEC100FCD32B /* ActiveChatsBridgeHelper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ActiveChatsBridgeHelper.h; sourceTree = "<group>"; };
+		9341BC6A2F4FBEE700FCD32B /* ActiveChatsBridgeHelper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ActiveChatsBridgeHelper.m; sourceTree = "<group>"; };
 		9371C49A2F4F3EF100668BA9 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		952EBC7F2BAF72F300183DBF /* DebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugView.swift; sourceTree = "<group>"; };
 		9705AFFB59AF72A9B79C1D7B /* Pods-MonalXMPPUnitTests.adhoc.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MonalXMPPUnitTests.adhoc.xcconfig"; path = "Target Support Files/Pods-MonalXMPPUnitTests/Pods-MonalXMPPUnitTests.adhoc.xcconfig"; sourceTree = "<group>"; };
@@ -1294,6 +1300,7 @@
 		26DB52121777EA5100B50353 /* Tab views */ = {
 			isa = PBXGroup;
 			children = (
+				9341BC5A2F4FA9E300FCD32B /* ChatList */,
 				8418B5582C7EBD39006FAF60 /* ActiveChatsViewController.h */,
 				2644D4961FF29E1900F46AB5 /* Settings */,
 				2644D48F1FF004B800F46AB5 /* ChatViews */,
@@ -1511,6 +1518,16 @@
 			path = WebRTC;
 			sourceTree = "<group>";
 		};
+		9341BC5A2F4FA9E300FCD32B /* ChatList */ = {
+			isa = PBXGroup;
+			children = (
+				9341BC6A2F4FBEE700FCD32B /* ActiveChatsBridgeHelper.m */,
+				9341BC692F4FBEC100FCD32B /* ActiveChatsBridgeHelper.h */,
+				9341BC672F4FBA0C00FCD32B /* ActiveChatsView.swift */,
+			);
+			path = ChatList;
+			sourceTree = "<group>";
+		};
 		C1049187261301530054AC9E /* MonalXMPPUnitTests */ = {
 			isa = PBXGroup;
 			children = (
@@ -1578,6 +1595,7 @@
 				84CAED6D2ECAC5E500F4FCBF /* XMPPIQ.h in Headers */,
 				8420EA9B2915E4FE0038FF40 /* OmemoState.h in Headers */,
 				C1C839DD24F15DF800BBCF17 /* MLOMEMO.h in Headers */,
+				9341BC6C2F4FBF4700FCD32B /* ActiveChatsBridgeHelper.h in Headers */,
 				84E5AF1B2EE63FCF00FF1E4A /* MLReactionsEntry.h in Headers */,
 				340F0CA52D2425E1006224D0 /* MLLogFileManager.h in Headers */,
 				541E4CBE254AA0B600FD7B28 /* MLHandler.h in Headers */,
@@ -2226,6 +2244,7 @@
 				C15489B925680BBE00BBA2F0 /* MLQRCodeScanner.swift in Sources */,
 				2609B5291FD5B26800F09FA1 /* MLSplitViewDelegate.m in Sources */,
 				3D27D956290B0BB60014748B /* AddContactMenu.swift in Sources */,
+				9342E6B32F50EE670065EAE2 /* ActiveChatsBridgeHelper.m in Sources */,
 				261A628B176C159000059090 /* AccountListController.m in Sources */,
 				26FE3BCB1C61A6C3003CC230 /* MLResizingTextView.m in Sources */,
 				D02192F32C89BB3800202A59 /* BlockedUsers.swift in Sources */,
@@ -2243,6 +2262,7 @@
 				3DC5035C2822F5220064C8A7 /* OmemoKeysView.swift in Sources */,
 				34E58B4B2C68E7BC009A1634 /* ContactsView.swift in Sources */,
 				262797AF178A577300B85D94 /* MLContactCell.m in Sources */,
+				9341BC682F4FBA0F00FCD32B /* ActiveChatsView.swift in Sources */,
 				D0FA79B12C7E5C7400216D2A /* ServerDetails.swift in Sources */,
 				2696EED21791245A00BC54B8 /* chatViewController.m in Sources */,
 				C12436142434AB5D00B8F074 /* MLAttributedLabel.m in Sources */,

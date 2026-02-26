@@ -14,7 +14,6 @@
 #import "MLReloadCell.h"
 #import "MLUploadQueueCell.h"
 
-#import "ActiveChatsViewController.h"
 #import "AESGcm.h"
 #import <monalxmpp/DataLayer.h>
 #import <monalxmpp/HelperTools.h>

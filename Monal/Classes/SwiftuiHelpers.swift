@@ -952,7 +952,13 @@ class SwiftuiInterface : NSObject {
     func makeContactsTabView() -> UIViewController {
         let delegate = SheetDismisserProtocol()
         let host = UIHostingController(rootView: AnyView(EmptyView()))
-        let contactsView = ContactsView(contacts: Contacts(), delegate: delegate, dismissWithContact: { _ in })
+        let contactsView = ContactsView(contacts: Contacts(), delegate: delegate, dismissWithContact: { contact in
+            // Switch to Chats tab and open the selected contact's chat
+            if let tabBar = (UIApplication.shared.delegate as? MonalAppDelegate)?.window?.rootViewController as? UITabBarController {
+                tabBar.selectedIndex = 1
+            }
+            (UIApplication.shared.delegate as? MonalAppDelegate)?.openChat(of: contact)
+        })
         delegate.host = host
         host.rootView = AnyView(contactsView)
         return host

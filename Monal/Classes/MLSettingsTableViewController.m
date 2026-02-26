@@ -14,7 +14,6 @@
 #import <monalxmpp/MLXMPPManager.h>
 #import "XMPPEdit.h"
 #import "MonalAppDelegate.h"
-#import "ActiveChatsViewController.h"
 #import <Monal-Swift.h>
 
 @import SafariServices;
