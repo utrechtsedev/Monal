@@ -560,10 +560,10 @@ enum DummySettingsRows {
 
         [self.db clearMessages:self.accountID];
 
-        // display the splitView placeholder, if the currently displayed chat belongs to this account
+        // Clear current contact if the currently displayed chat belongs to this account
         MLContact* currentContact = [MLNotificationManager sharedInstance].currentContact;
         if (currentContact && currentContact.accountID == self.accountID)
-            [((MonalAppDelegate*)UIApplication.sharedApplication.delegate).activeChats presentSplitPlaceholder];
+            [MLNotificationManager sharedInstance].currentContact = nil;
 
          // clearing the history of an account deletes entries from ActiveChats
         [[MLNotificationQueue currentQueue] postNotificationName:kMonalRefresh object:nil userInfo:nil];

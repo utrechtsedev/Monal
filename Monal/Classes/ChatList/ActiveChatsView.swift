@@ -61,7 +61,6 @@ class ActiveChatsCoordinator: NSObject, ObservableObject {
 
     // Convenience accessors that mirror the ObjC property graph
     var navigationController: UINavigationController? { hostingViewController?.navigationController }
-    var splitViewController: UISplitViewController? { hostingViewController?.splitViewController }
 
     // MARK: View queue internals
 
@@ -619,13 +618,6 @@ class ActiveChatsCoordinator: NSObject, ObservableObject {
     }
 
     func presentSplitPlaceholder() {
-        guard let svc = splitViewController, !svc.isCollapsed else {
-            MLNotificationManager.sharedInstance().currentContact = nil
-            return
-        }
-        DDLogVerbose("Presenting Chat Placeholder...")
-        let detailsVC = SwiftuiInterface().makeView(name: "ChatPlaceholder")
-        hostingViewController?.showDetailViewController(detailsVC, sender: self)
         MLNotificationManager.sharedInstance().currentContact = nil
     }
 
@@ -772,10 +764,8 @@ class ActiveChatsCoordinator: NSObject, ObservableObject {
                     return
                 }
 
-                // Clear old chat before opening a new one (but not for splitView)
-                if self.splitViewController?.isCollapsed == true {
-                    self.navigationController?.popViewController(animated: false)
-                }
+                // Clear old chat before opening a new one
+                self.navigationController?.popViewController(animated: false)
 
                 // Show placeholder if contact is nil, open chat otherwise
                 guard let contact = contact else {
@@ -789,7 +779,7 @@ class ActiveChatsCoordinator: NSObject, ObservableObject {
                     let chatView = SwiftuiInterface().makeChatView(for: contact)
                     chatView.ml_disposeCallback = { [self] in self.sheetDismissed() }
                     self.scrollToContact(contact)
-                    self.hostingViewController?.showDetailViewController(chatView, sender: self)
+                    self.navigationController?.pushViewController(chatView, animated: true)
                 }
 
                 // Open chat — make sure we have an active buddy and add it to our UI if needed
@@ -1000,17 +990,13 @@ class ActiveChatsCoordinator: NSObject, ObservableObject {
     }
 
     var currentChatView: UIViewController? {
-        // TODO: adapt to new chat UI
         guard !HelperTools.defaultsDB().bool(forKey: "showNewChatView") else { return nil }
-        guard let svc = splitViewController,
-              let controllers = (svc.viewControllers.first as? UINavigationController)?.viewControllers,
+        guard let controllers = navigationController?.viewControllers,
               controllers.count > 1,
-              let innerNav = controllers[1] as? UINavigationController,
-              let chatView = innerNav.viewControllers.first,
-              NSStringFromClass(type(of: chatView)) == "chatViewController" else {
+              NSStringFromClass(type(of: controllers[1])) == "chatViewController" else {
             return nil
         }
-        return chatView
+        return controllers[1]
     }
 
     /// Convenience accessor for SwiftUI view.
@@ -1267,8 +1253,6 @@ class ActiveChatsHostingController: UIViewController {
         coordinator.sizeClass = SizeClassWrapper()
         coordinator.updateSizeClass()
 
-        splitViewController?.preferredDisplayMode = .oneBesideSecondary
-
         settingsButton?.image = UIImage(systemName: "gearshape.fill")
         coordinator.configureComposeButton()
 
@@ -1312,7 +1296,6 @@ class ActiveChatsHostingController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         DDLogDebug("active chats view will appear")
         super.viewWillAppear(animated)
-        coordinator.presentSplitPlaceholder()
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -1341,8 +1324,7 @@ class ActiveChatsHostingController: UIViewController {
         DDLogInfo("Got segue identifier '\(segue.identifier ?? "")'")
 
         if segue.identifier == "showConversation" {
-            if let nav = segue.destination as? UINavigationController,
-               let chatVC = nav.topViewController,
+            if let chatVC = segue.destination as? UIViewController,
                let contact = sender as? MLContact {
                 navigationItem.backBarButtonItem = UIBarButtonItem(title: "", style: .plain, target: nil, action: nil)
                 // chatViewController is an ObjC class; call setupWithContact: via selector

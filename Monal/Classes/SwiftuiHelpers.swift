@@ -797,19 +797,8 @@ class SwiftuiInterface : NSObject {
 
     @objc
     func makeChatView(for contact: MLContact) -> UIViewController {
-        let host = UIHostingController(rootView:AnyView(EmptyView()))
-        let isCompact = UIUserInterfaceSizeClass(rawValue: sizeClass.horizontal) == .compact
-        @ViewBuilder
-        var chatView: some View {
-            if isCompact {
-                ChatView(contact:ObservableKVOWrapper<MLContact>(contact))
-            } else {
-                NavigationStack {
-                    ChatView(contact:ObservableKVOWrapper<MLContact>(contact))
-                }
-            }
-        }
-        host.rootView = AnyView(chatView)
+        let host = UIHostingController(rootView:AnyView(ChatView(contact:ObservableKVOWrapper<MLContact>(contact))))
+        host.hidesBottomBarWhenPushed = true
         return host
     }
     

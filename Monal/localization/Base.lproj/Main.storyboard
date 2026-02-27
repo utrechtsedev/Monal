@@ -2374,9 +2374,8 @@
                         <barButtonItem key="rightBarButtonItem" title="Contact List" image="plus" catalog="system" id="FMm-sz-dVf"/>
                     </navigationItem>
                     <connections>
-                        <segue destination="iM6-Fx-aHL" kind="showDetail" identifier="showConversationPlaceholder" id="EBL-HC-9Pj"/>
                         <segue destination="cmS-oG-cv9" kind="presentation" identifier="showPrivacySettings" id="AWg-bh-Xh5"/>
-                        <segue destination="Dhn-Pm-OVk" kind="showDetail" identifier="showConversation" id="cNa-GS-DnM"/>
+                        <segue destination="5nR-Q5-dQD" kind="show" identifier="showConversation" id="cNa-GS-DnM"/>
                     </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="04P-dY-bMz" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
@@ -2385,7 +2384,6 @@
         </scene>
     </scenes>
     <inferredMetricsTieBreakers>
-        <segue reference="EBL-HC-9Pj"/>
     </inferredMetricsTieBreakers>
     <resources>
         <image name="744-locked-received" width="21" height="28"/>

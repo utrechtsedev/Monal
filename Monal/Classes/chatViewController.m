@@ -165,8 +165,6 @@ enum msgSentState {
     self.chatInput.scrollsToTop = NO;
     self.editingCallback = nil;
 
-    self.splitViewController.preferredDisplayMode = UISplitViewControllerDisplayModeOneBesideSecondary;
-
     _isTyping = NO;
     self.hidesBottomBarWhenPushed=YES;
 

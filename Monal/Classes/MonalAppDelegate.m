@@ -1733,54 +1733,39 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
 
 -(void) setupTabBarController
 {
-    // Get the current root view controller (should be UISplitViewController from storyboard)
+    // Get the navigation controller from the storyboard's split view and use it directly
     UISplitViewController* existingSplitViewController = (UISplitViewController*)self.window.rootViewController;
-    
+    UINavigationController* chatsNav = (UINavigationController*)existingSplitViewController.viewControllers.firstObject;
+
     // Create tab bar controller
     UITabBarController* tabBarController = [[UITabBarController alloc] init];
-    
-    // Tab 1: Contacts - Create ContactsViewController and wrap in navigation controller
+
+    // Tab 1: Contacts
     UIViewController* contactsVC = [[[SwiftuiInterface alloc] init] makeContactsTabView];
     UINavigationController* contactsNav = [[UINavigationController alloc] initWithRootViewController:contactsVC];
     contactsNav.tabBarItem = [[UITabBarItem alloc] initWithTitle:NSLocalizedString(@"Contacts", @"")
                                                             image:[UIImage systemImageNamed:@"person.2.fill"]
                                                               tag:0];
-    
-    // Tab 2: Chats (existing split view controller)
-    if(existingSplitViewController) {
-        existingSplitViewController.tabBarItem = [[UITabBarItem alloc] initWithTitle:NSLocalizedString(@"Chats", @"")
-                                                                                 image:[UIImage systemImageNamed:@"message.fill"]
-                                                                                   tag:1];
-    }
-    
-    // Tab 3: Settings - Use SwiftUI SettingsView
+
+    // Tab 2: Chats (navigation controller extracted from split view)
+    chatsNav.tabBarItem = [[UITabBarItem alloc] initWithTitle:NSLocalizedString(@"Chats", @"")
+                                                        image:[UIImage systemImageNamed:@"message.fill"]
+                                                          tag:1];
+
+    // Tab 3: Settings
     UIViewController* settingsViewController = [[SwiftuiInterface new] makeSettingsTabView];
     UINavigationController* settingsNav = [[UINavigationController alloc] initWithRootViewController:settingsViewController];
     settingsNav.tabBarItem = [[UITabBarItem alloc] initWithTitle:NSLocalizedString(@"Settings", @"")
                                                             image:[UIImage systemImageNamed:@"gear"]
                                                               tag:2];
-    
-    // Add all tabs to tab bar controller
-    NSMutableArray* viewControllers = [NSMutableArray array];
-    [viewControllers addObject:contactsNav];
-    if(existingSplitViewController) {
-        [viewControllers addObject:existingSplitViewController];
-    }
-    [viewControllers addObject:settingsNav];
-    
-    tabBarController.viewControllers = viewControllers;
-    
-    // Set the default selected tab to Chats (index 1)
+
+    tabBarController.viewControllers = @[contactsNav, chatsNav, settingsNav];
     tabBarController.selectedIndex = 1;
-    
-    // Set tab bar controller as root view controller
+
     self.window.rootViewController = tabBarController;
-    
-    // Force the chats tab to load so activeChats gets set properly
-    // This ensures the ActiveChatsViewController's viewDidLoad is called
     [self.window makeKeyAndVisible];
-    
-    // Access the view to trigger viewDidLoad on the selected tab
+
+    // Force the chats tab to load so activeChats gets set properly
     dispatch_async(dispatch_get_main_queue(), ^{
         [tabBarController.selectedViewController view];
     });

@@ -20,7 +20,6 @@
 {
     [super viewDidLoad];
     self.webview.contentMode = UIViewContentModeScaleAspectFill;
-    self.splitViewController.preferredDisplayMode = UISplitViewControllerDisplayModeOneBesideSecondary;
     
     UIBarButtonItem* openExternally = [[UIBarButtonItem alloc] init];
     openExternally.image = [UIImage systemImageNamed:@"safari"];
