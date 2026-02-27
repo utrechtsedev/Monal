@@ -219,9 +219,6 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
     ];
     
     UNAuthorizationOptions authOptions = UNAuthorizationOptionBadge | UNAuthorizationOptionSound | UNAuthorizationOptionAlert | UNAuthorizationOptionProvidesAppNotificationSettings;
-#if TARGET_OS_MACCATALYST
-    authOptions |= UNAuthorizationOptionProvisional;
-#endif
     UNNotificationCategory* messageCategory = [UNNotificationCategory
         categoryWithIdentifier:@"message"
         actions:@[replyAction, markAsReadAction]
@@ -297,9 +294,6 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
     
     [[UINavigationBar appearance] setScrollEdgeAppearance:appearance];
     [[UINavigationBar appearance] setStandardAppearance:appearance];
-#if TARGET_OS_MACCATALYST
-    self.window.windowScene.titlebar.titleVisibility = UITitlebarTitleVisibilityHidden;
-#endif
     [[UINavigationBar appearance] setPrefersLargeTitles:YES];
 
     //handle message notifications by initializing the MLNotificationManager
@@ -330,12 +324,6 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
     
     //handle IPC messages (this should be done *after* calling connectIfNecessary to make sure any disconnectAll messages are handled properly
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(incomingIPC:) name:kMonalIncomingIPC object:nil];
-    
-#if TARGET_OS_MACCATALYST
-    //handle catalyst foregrounding/backgrounding of window
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(windowHandling:) name:@"NSWindowDidResignKeyNotification" object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(windowHandling:) name:@"NSWindowDidBecomeKeyNotification" object:nil];
-#endif
     
     //initialize callkit (mus be done after connectIfNecessary to make sure the list of accounts is already populated when a voip push comes in)
     _voipProcessor = [MLVoIPProcessor new];
@@ -418,42 +406,6 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
     DDLogError(@"Got intent: %@", intent);
     return nil;
 }
-
-#if TARGET_OS_MACCATALYST
--(void) windowHandling:(NSNotification*) notification
-{
-    if([notification.name isEqualToString:@"NSWindowDidResignKeyNotification"])
-    {
-        DDLogInfo(@"Window lost focus (key window)...");
-        [self updateUnread];
-        if(NSProcessInfo.processInfo.isLowPowerModeEnabled)
-        {
-            DDLogInfo(@"LowPowerMode is active: nowReallyBackgrounded to reduce power consumption");
-            [self nowReallyBackgrounded];
-        }
-        else
-            [[MLXMPPManager sharedInstance] noLongerInFocus];
-    }
-    else if([notification.name isEqualToString:@"NSWindowDidBecomeKeyNotification"])
-    {
-        //resume logging and other core tasks
-        [HelperTools signalResumption];
-        
-        DDLogInfo(@"Window got focus (key window)...");
-        [MLProcessLock lock];
-        @synchronized(self) {
-            DDLogVerbose(@"Setting _shutdownPending to NO...");
-            _shutdownPending = NO;
-        }
-        
-        //cancel already running background timer, we are now foregrounded again
-        [self stopBackgroundTimer];
-            
-        [self addBackgroundTask];
-        [[MLXMPPManager sharedInstance] nowForegrounded];
-    }
-}
-#endif
 
 -(void) incomingIPC:(NSNotification*) notification
 {
@@ -570,11 +522,7 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
                     return;
                 }
                 
-#ifdef IS_QUICKSY
-                //make sure we hit the else below, even if (isRegister || (isRoster && registerNeeded)) == YES
-                if(NO)
-                    ;
-#else
+
                 if(isRegister || (isRoster && registerNeeded))
                 {
                     NSString* username = nilDefault(jidParts[@"node"], @"");
@@ -612,7 +560,6 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
                             return [self handleXMPPURL:url];
                     }];
                 }
-#endif
                 //I know this if is moot, but I wanted to preserve the different cases:
                 //either we already have one or more accounts and the xmpp: uri is of type subscription (ibr does not matter here,
                 //because we already have an account) or muc join
@@ -1084,17 +1031,7 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
         DDLogInfo(@"Entering BG");
     
     [self updateUnread];
-#if TARGET_OS_MACCATALYST
-    if(NSProcessInfo.processInfo.isLowPowerModeEnabled)
-    {
-        DDLogInfo(@"LowPowerMode is active: nowReallyBackgrounded to reduce power consumption");
-        [self nowReallyBackgrounded];
-    }
-    else
-        [[MLXMPPManager sharedInstance] noLongerInFocus];
-#else
     [self nowReallyBackgrounded];
-#endif
 }
 
 -(void) applicationWillTerminate:(UIApplication*) application
@@ -1141,10 +1078,6 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
             ];
             banner.duration = 10.0;     //show for 10 seconds to make sure users can read it
             BannerPosition position = BannerPositionTop;
-#if TARGET_OS_MACCATALYST
-            //move to bottom, because otherwise the window chrome will cover our text
-            position = BannerPositionBottom;
-#endif
             [banner showWithQueuePosition:QueuePositionBack bannerPosition:position queue:self->_bannerQueue on:nil];
         });
     }

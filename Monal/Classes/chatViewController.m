@@ -155,9 +155,6 @@ enum msgSentState {
     if([[DataLayer sharedInstance] isContactInList:self.contact.contactJid forAccount:self.contact.accountID] == NO)
     {
         DDLogWarn(@"ChatView: Contact %@ is unkown", self.contact.contactJid);
-#ifdef IS_ALPHA
-        @throw [NSException exceptionWithName:@"RuntimeException" reason:@"Contact is unkown - GUI error" userInfo:nil];
-#endif
     }
 
     [self initNavigationBarItems];
@@ -180,16 +177,6 @@ enum msgSentState {
 
     self.messageTable.rowHeight = UITableViewAutomaticDimension;
     self.messageTable.estimatedRowHeight = UITableViewAutomaticDimension;
-
-#if TARGET_OS_MACCATALYST
-    //does not become first responder like in iOS
-    [self.view addSubview:self.inputContainerView];
-
-    [self.inputContainerView.leadingAnchor constraintEqualToAnchor:self.inputContainerView.superview.leadingAnchor].active = YES;
-    [self.inputContainerView.bottomAnchor constraintEqualToAnchor:self.inputContainerView.superview.bottomAnchor].active = YES;
-    [self.inputContainerView.trailingAnchor constraintEqualToAnchor:self.inputContainerView.superview.trailingAnchor].active = YES;
-    self.tableviewBottom.constant += 20;
-#endif
     self.filePicker = [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:@[UTTypeItem]];
     self.filePicker.allowsMultipleSelection = YES;
     self.filePicker.delegate = self;
@@ -210,10 +197,6 @@ enum msgSentState {
     [self.uploadMenuView addConstraint:self.uploadMenuConstraint];
 
     [self setChatInputHeightConstraints:YES];
-
-#if !TARGET_OS_MACCATALYST
-    [self initAudioRecordButton];
-#endif
 
     // setup refreshControl for infinite scrolling
     UIRefreshControl* refreshControl = [UIRefreshControl new];
@@ -1266,7 +1249,7 @@ enum msgSentState {
 {
     dispatch_async(dispatch_get_main_queue(), ^{
         DDLogInfo(@"Record button pressed...");
-        if(@available(iOS 17, macCatalyst 17.0, *)) {
+        if(@available(iOS 17, *)) {
             [AVAudioApplication requestRecordPermissionWithCompletionHandler:^(BOOL granted) {
                 [self handleRecord:granted];
             }];
@@ -1494,14 +1477,6 @@ enum msgSentState {
 
         return;
     } else {
-#if TARGET_OS_MACCATALYST
-        UIAlertAction* fileAction = [UIAlertAction actionWithTitle:NSLocalizedString(@"Files", @"") style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-            [self attachfile:sender];
-        }];
-
-        [fileAction setValue:[[UIImage systemImageNamed:@"doc"] imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal] forKey:@"image"];
-        [actionControll addAction:fileAction];
-#else
         UIImagePickerController* mediaPicker = [UIImagePickerController new];
         mediaPicker.delegate = self;
 
@@ -1564,7 +1539,6 @@ enum msgSentState {
         [actionControll addAction:cameraAction];
         [actionControll addAction:photosAction];
         [actionControll addAction:fileAction];
-#endif
     }
 
     UIAlertAction* gpsAlert = [UIAlertAction actionWithTitle:NSLocalizedString(@"Send Location", @"") style:UIAlertActionStyleDefault handler:^(UIAlertAction* _Nonnull action) {
@@ -2089,11 +2063,6 @@ enum msgSentState {
     if(indexPath.section == reloadBoxSection)
     {
         MLReloadCell* cell = (MLReloadCell*)[tableView dequeueReusableCellWithIdentifier:@"reloadBox" forIndexPath:indexPath];
-#if TARGET_OS_MACCATALYST
-            // "Pull" could be a bit misleading on a mac
-            cell.reloadLabel.text = NSLocalizedString(@"Scroll down to load more messages", @"mac only string");
-#endif
-
         // Remove selection style (if cell is pressed)
         cell.selectionStyle = UITableViewCellSelectionStyleNone;
         return cell;
@@ -2928,11 +2897,6 @@ enum msgSentState {
 
 -(void) setSendButtonIconWithTextLength:(NSUInteger)txtLength
 {
-#if TARGET_OS_MACCATALYST
-    self.isAudioMessage = NO;
-    [self.audioRecordButton setHidden:YES];
-    [self.sendButton setHidden:NO];
-#else
     if ((txtLength == 0) && (self.uploadQueue.count == 0))
     {
         self.isAudioMessage = YES;
@@ -2945,7 +2909,6 @@ enum msgSentState {
         [self.audioRecordButton setHidden:YES];
         [self.sendButton setHidden:NO];
     }
-#endif
 }
 
 #pragma mark - link preview

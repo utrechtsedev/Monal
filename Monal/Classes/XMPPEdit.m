@@ -222,11 +222,6 @@ enum DummySettingsRows {
         //overwrite account section heading in new mode
         self.sectionDictionary[@(kSettingSectionAccount)] = NSLocalizedString(@"Account (new)", @"");
     }
-#if TARGET_OS_MACCATALYST
-    self.imagePicker = [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:@[UTTypeImage]];
-    self.imagePicker.allowsMultipleSelection = NO;
-    self.imagePicker.delegate = self;
-#endif
 }
 
 -(void) viewWillAppear:(BOOL) animated
@@ -1020,9 +1015,6 @@ enum DummySettingsRows {
     UIAlertController* actionControll = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Select Action", @"")
                                                                             message:nil preferredStyle:UIAlertControllerStyleActionSheet];
 
-#if TARGET_OS_MACCATALYST
-    [self pickImgFile:nil];
-#else
     UIImagePickerController* imagePicker = [UIImagePickerController new];
     imagePicker.delegate = self;
 
@@ -1048,7 +1040,6 @@ enum DummySettingsRows {
     [photosAction setValue:[[UIImage systemImageNamed:@"photo"] imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal] forKey:@"image"];
     [actionControll addAction:cameraAction];
     [actionControll addAction:photosAction];
-#endif
     
     // Set image
     [actionControll addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Cancel", @"") style:UIAlertActionStyleCancel handler:^(UIAlertAction* action __unused) {

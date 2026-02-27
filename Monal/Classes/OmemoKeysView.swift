@@ -132,11 +132,7 @@ struct OmemoKeysEntryView: View {
     func getDeviceIconForOwnDevice() -> some View {
         var deviceImage: String = "iphone.homebutton.circle"
         if UIDevice.current.userInterfaceIdiom == .pad {
-#if targetEnvironment(macCatalyst)
-            deviceImage = "laptopcomputer"
-#else
             deviceImage = "ipad"
-#endif
         }
         return Image(systemName: deviceImage)
             .resizable()

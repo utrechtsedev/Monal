@@ -29,22 +29,11 @@ static const DDLogLevel ddLogLevel = LOG_LEVEL_STDOUT;
 #define PMKHangDouble(promise)              (((NSNumber*)PMKHang(promise)).doubleValue)
 
 //configure app group constants
-#ifdef IS_ALPHA
-    #define kAppGroup @"group.monalalpha"
-    #define kMonalOpenURL [NSURL URLWithString:@"monalAlphaOpen://"]
-    #define kBackgroundProcessingTask @"im.monal.alpha.process"
-    #define kBackgroundRefreshingTask @"im.monal.alpha.refresh"
-#elif defined(IS_QUICKSY)
-    #define kAppGroup @"group.quicksy"
-    #define kMonalOpenURL [NSURL URLWithString:@"quicksyOpen://"]
-    #define kBackgroundProcessingTask @"im.monal.process"
-    #define kBackgroundRefreshingTask @"im.monal.refresh"
-#else
-    #define kAppGroup @"group.monal"
-    #define kMonalOpenURL [NSURL URLWithString:@"monalOpen://"]
-    #define kBackgroundProcessingTask @"im.monal.process"
-    #define kBackgroundRefreshingTask @"im.monal.refresh"
-#endif
+
+#define kAppGroup @"group.monal"
+#define kMonalOpenURL [NSURL URLWithString:@"monalOpen://"]
+#define kBackgroundProcessingTask @"im.monal.process"
+#define kBackgroundRefreshingTask @"im.monal.refresh"
 
 #define kMonalKeychainName @"Monal"
 #define kMonalTmpKeychainName @"Monal.tmp"
@@ -53,17 +42,10 @@ static const DDLogLevel ddLogLevel = LOG_LEVEL_STDOUT;
 #define kDeviceUUIDKeychainAccount @"deviceUUIDKeychainAccount"
 
 //this is in seconds
-#if TARGET_OS_MACCATALYST
-	#define SHORT_PING 4.0
-	#define LONG_PING 8.0
-    #define MUC_PING 600
-    #define BGFETCH_DEFAULT_INTERVAL 3600*1
-#else
-	#define SHORT_PING 4.0
-	#define LONG_PING 8.0
-    #define MUC_PING 1800
-    #define BGFETCH_DEFAULT_INTERVAL 3600*3
-#endif
+#define SHORT_PING 4.0
+#define LONG_PING 8.0
+#define MUC_PING 1800
+#define BGFETCH_DEFAULT_INTERVAL 3600*3
 
 // #define defineBlockType(name, returntype, ...) \
 //     typedef returntype (^name)(__VA_ARGS__); \
@@ -215,13 +197,7 @@ static inline NSString* _Nonnull LocalizationNotNeeded(NSString* _Nonnull s)
 
 // max count of char's in a single message (both: sending and receiving)
 #define kMonalChatMaxAllowedTextLen 2048
-
-#if TARGET_OS_MACCATALYST
-#define kMonalBackscrollingMsgCount 75
-#else
 #define kMonalBackscrollingMsgCount 50
-#endif
-
 //contact cells
 #define kusernameKey @"username"
 #define kfullNameKey @"fullName"

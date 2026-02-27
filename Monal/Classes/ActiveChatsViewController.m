@@ -351,9 +351,6 @@
 //    [_chatListTable registerNib:[UINib nibWithNibName:@"MLContactCell" bundle:[NSBundle mainBundle]] forCellReuseIdentifier:@"ContactCell"];
 //    
 //    self.splitViewController.preferredDisplayMode = UISplitViewControllerDisplayModeOneBesideSecondary;
-//#if !TARGET_OS_MACCATALYST
-//    self.splitViewController.primaryBackgroundStyle = UISplitViewControllerBackgroundStyleSidebar;
-//#endif
 //    self.settingsButton.image = [UIImage systemImageNamed:@"gearshape.fill"];
 //    [self configureComposeButton];
 //

@@ -355,11 +355,6 @@
             }
             else
                 self.durationTime++;
-            
-#ifdef IS_ALPHA
-            if([[HelperTools defaultsDB] boolForKey:@"debugDtmfSending"] && self.canSendDtmf && self.durationTime%8 == 0)
-                [self sendDtmf:@"*0123456789#"];
-#endif
         }];
     });
 }
@@ -439,13 +434,6 @@
             });
         }
     }
-    
-#ifdef IS_ALPHA
-#if TARGET_OS_MACCATALYST
-    //set audio session to default one
-    self.audioSession = [AVAudioSession sharedInstance];
-#endif
-#endif
 }
 -(BOOL) isConnected
 {
@@ -463,11 +451,6 @@
             return;
         }
         BOOL assertActivated = YES;
-#ifdef IS_ALPHA
-#if TARGET_OS_MACCATALYST
-        assertActivated = NO;
-#endif
-#endif
         if(assertActivated && audioSession != nil)
             MLAssert(_audioSession == nil, @"Audio session should never be activated without deactivating old audio session first!", (@{
                 @"oldAudioSession": nilWrapper(_audioSession),
@@ -1215,13 +1198,11 @@
             DDLogError(@"Failed to convert raw sdp candidate to jingle, ignoring this candidate: %@", candidate);
             return;
         }
-#ifndef IS_ALPHA
         if([contentNode check:@"{urn:xmpp:jingle:transports:ice-udp:1}transport/candidate<protocol=tcp>"])
         {
             DDLogError(@"Ignoring raw sdp candidate, because it's using tcp instead of udp: %@", candidate);
             return;
         }
-#endif
         //see https://webrtc.googlesource.com/src/+/refs/heads/main/sdk/objc/api/peerconnection/RTCIceCandidate.h
         XMPPIQ* candidateIq = [[XMPPIQ alloc] initWithType:kiqSetType to:self.fullRemoteJid];
         [candidateIq addChildNode:[[MLXMLNode alloc] initWithElement:@"jingle" andNamespace:@"urn:xmpp:jingle:1" withAttributes:@{
@@ -1409,13 +1390,11 @@
 {
     RTCIceCandidate* incomingCandidate = nil;
     NSString* rawSdp = [HelperTools xml2candidate:[iqNode findFirst:@"{urn:xmpp:jingle:1}jingle"] withInitiator:self.direction==MLCallDirectionIncoming];
-#ifndef IS_ALPHA
     if([iqNode check:@"{urn:xmpp:jingle:1}jingle/content/{urn:xmpp:jingle:transports:ice-udp:1}transport/candidate<protocol=tcp>"])
     {
         DDLogWarn(@"Got tcp candidate, ignoring: %@", [iqNode findFirst:@"{urn:xmpp:jingle:1}jingle/content/{urn:xmpp:jingle:transports:ice-udp:1}transport/candidate"]);
         rawSdp = nil;
     }
-#endif
     DDLogVerbose(@"Got raw remote sdp: %@", rawSdp);
     if(rawSdp == nil)
     {

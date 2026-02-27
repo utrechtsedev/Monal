@@ -37,10 +37,6 @@ static int wal_hook(void* arg, sqlite3* database, const char* dbname, int number
         DDLogDebug(@"Checkpointing database: %@", dbFile);
         NSDictionary* checkpointResult = [db executeReader:@"PRAGMA wal_checkpoint(PASSIVE);"][0];
         DDLogDebug(@"Chekpointing returned: %@", checkpointResult);
-#ifdef IS_ALPHA
-        if(((NSNumber*)checkpointResult[@"busy"]).integerValue != 0)
-            DDLogWarn(@"Alpha debug: Checkpointing returned busy: %@", checkpointResult);
-#endif
         [walCheckpointingQueue cancelAllOperations];                //stop all other queued checkpointing operations (we only need one in a row)
     }];
     return SQLITE_OK;

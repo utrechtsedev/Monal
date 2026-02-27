@@ -22,7 +22,7 @@ struct ZoomableContainer<Content: View>: View {
 
     var body: some View {
         //ios 17+ will zoom to the point the double tap was done, older ios versions will zoom to the center of the image instead
-        if #available(iOS 17.0, macCatalyst 17.0, *) {
+        if #available(iOS 17.0, *) {
             ZoomableScrollView(maxScale: maxScale, scale: $currentScale, tapLocation: $tapLocation) {
                 content
             }.onTapGesture(count: 2, perform: {location in

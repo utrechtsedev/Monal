@@ -9,14 +9,7 @@
 struct AccountPicker: View {
     let contacts: [MLContact]
     let callType: MLCallType
-#if IS_ALPHA
-    let appLogoId = "AlphaAppLogo"
-#elseif IS_QUICKSY
-    let appLogoId = "QuicksyAppLogo"
-#else
-    let appLogoId = "AppLogo"
-#endif
-    
+    let appLogoId = "AppLogo"    
     init(contacts:[MLContact], callType: MLCallType) {
         self.contacts = contacts
         self.callType = callType

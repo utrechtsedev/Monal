@@ -33,11 +33,7 @@ AVPlayer *avplayer;
 {
     avplayerVC = [AVPlayerViewController new];
     avplayerVC.showsPlaybackControls = YES;
-#if TARGET_OS_MACCATALYST
-    avplayerVC.allowsPictureInPicturePlayback = NO;
-#else
     avplayerVC.allowsPictureInPicturePlayback = YES;    
-#endif
     avplayerVC.view.frame = CGRectMake(0, 0, self.videoView.frame.size.width, self.videoView.frame.size.height);
     avplayerVC.videoGravity = AVLayerVideoGravityResizeAspect;
 }

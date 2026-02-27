@@ -361,16 +361,6 @@
             else
                 toreturn = [self generateDummyIconForContact:contact];
         }
-        else if(contact.isMuc)        //add group indicator overlay for non-default muc avatar
-        {
-            UIImage* overlay = nil;
-            if([kMucTypeChannel isEqualToString:contact.mucType])
-                overlay = [MLImageManager circularImage:[UIImage imageNamed:@"noicon_channel" inBundle:nil compatibleWithTraitCollection:nil]];
-            else
-                overlay = [MLImageManager circularImage:[UIImage imageNamed:@"noicon_muc" inBundle:nil compatibleWithTraitCollection:nil]];
-            if(overlay)
-                toreturn = [MLImageManager image:toreturn withMucOverlay:overlay];
-        }
         
         //uiimage is cached if avaialable, but only if not in appex due to memory limits therein
         if(toreturn && ![HelperTools isAppExtension])

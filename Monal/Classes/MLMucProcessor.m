@@ -1883,13 +1883,6 @@ $$
 {
     if([[[DataLayer sharedInstance] getMucTypeOfRoom:jid andAccount:_account.accountID] isEqualToString:kMucTypeGroup])
         DDLogInfo(@"Currently recorded members and participants of group %@: %@", jid, [[DataLayer sharedInstance] getMembersAndParticipantsOfMuc:jid forAccountID:_account.accountID]);
-    else
-    {
-//these lists can potentially get really long for public channels --> restrict logging them to alpha builds
-#ifdef IS_ALPHA
-    DDLogInfo(@"Currently recorded members and participants of channel %@: %@", jid, [[DataLayer sharedInstance] getMembersAndParticipantsOfMuc:jid forAccountID:_account.accountID]);
-#endif
-    }
 }
 
 -(NSString*) generateSpeakableGroupNode

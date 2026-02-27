@@ -1374,10 +1374,6 @@ $$
                 return nil;
             }
             [self rebuildSessionWithJid:senderJid forRid:sid];
-#ifdef IS_ALPHA
-            if(isKeyTransportElement)
-                return !returnErrorString ? nil : [NSString stringWithFormat:@"There was an error decrypting this encrypted KEY TRANSPORT message (Signal error). To resolve this, try sending an encrypted message to this person. (%@)", error];
-#endif
             if(!isKeyTransportElement)
                 return !returnErrorString ? nil : [NSString stringWithFormat:NSLocalizedString(@"There was an error decrypting this encrypted message (Signal error). To resolve this, try sending an encrypted message to this person. (%@)", @""), error];
             return nil;
@@ -1389,10 +1385,6 @@ $$
         {
             DDLogError(@"Could not decrypt to obtain key (returned nil)");
             [self rebuildSessionWithJid:senderJid forRid:sid];
-#ifdef IS_ALPHA
-            if(isKeyTransportElement)
-                return !returnErrorString ? nil : @"There was an error decrypting this encrypted KEY TRANSPORT message (Signal error). To resolve this, try sending an encrypted message to this person.";
-#endif
             if(!isKeyTransportElement)
                 return !returnErrorString ? nil : NSLocalizedString(@"There was an error decrypting this encrypted message (Signal error). To resolve this, try sending an encrypted message to this person.", @"");
             return nil;
@@ -1422,11 +1414,7 @@ $$
             if(isKeyTransportElement)
             {
                 DDLogInfo(@"KeyTransportElement received from jid: %@ device: %@", senderJid, sid);
-#ifdef IS_ALPHA
-                return !returnErrorString ? nil : [NSString stringWithFormat:@"ALPHA_DEBUG_MESSAGE: KeyTransportElement received from jid: %@ device: %@", senderJid, sid];
-#else
                 return nil;
-#endif
             }
             
             //make sure the dh ratchet always advances, even on "receive only" devices
@@ -1485,11 +1473,7 @@ $$
         if(mucParticipantJid == nil)
         {
             DDLogError(@"Could not get muc participant jid and corresponding signal address of muc participant '%@': %@", messageNode.from, mucParticipantJid);
-#ifdef IS_ALPHA
-            return [NSString stringWithFormat:@"Could not get muc participant jid and corresponding signal address of muc participant '%@': %@", messageNode.from, mucParticipantJid];
-#else
             return nil;
-#endif
         }
         senderJid = mucParticipantJid;
         mucJid = messageNode.fromUser;

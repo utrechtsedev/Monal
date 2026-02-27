@@ -115,9 +115,6 @@ static NSCharacterSet* _validVs16Emojis;
 static MLStreamRedirect* _stdoutRedirector = nil;
 static MLStreamRedirect* _stderrRedirector = nil;
 static volatile void (*_oldExceptionHandler)(NSException*) = NULL;
-#if TARGET_OS_MACCATALYST
-static objc_exception_preprocessor _oldExceptionPreprocessor = NULL;
-#endif
 
 //shamelessly stolen from utils.ip in conversations source
 static NSRegularExpression* IPV4;
@@ -281,11 +278,7 @@ static void crash_callback(const KSCrashReportWriter* writer)
 
 void logException(NSException* exception)
 {
-#if TARGET_OS_MACCATALYST
-    NSString* prefix = @"POSSIBLE_CRASH";
-#else
     NSString* prefix = @"CRASH";
-#endif
     //log error and flush all logs
     DDLogError(@"*****************\n%@(%@): %@\nUserInfo: %@\nStack Trace: %@", prefix, [exception name], [exception reason], [exception userInfo], [exception callStackSymbols]);
     [HelperTools flushLogsWithTimeout:0.250];
@@ -308,16 +301,6 @@ void uncaughtExceptionHandler(NSException* exception)
 }
 
 //this function will only be in use under macos alpha builds to log every exception (even when catched with @try-@catch constructs)
-#if TARGET_OS_MACCATALYST
-static id preprocess(id exception)
-{
-    id preprocessed = exception;
-    if(_oldExceptionPreprocessor != NULL)
-        preprocessed = _oldExceptionPreprocessor(exception);
-    logException(preprocessed);
-    return preprocessed;
-}
-#endif
 
 void swizzle(Class c, SEL orig, SEL new)
 {
@@ -551,22 +534,6 @@ static void notification_center_logging(CFNotificationCenterRef center, void* ob
         DDLogVerbose(@"Replaced unhandled exception handler, old handler: %p, new handler: %p", NSGetUncaughtExceptionHandler(), &uncaughtExceptionHandler);
         NSSetUncaughtExceptionHandler(uncaughtExceptionHandler);
     }
-    
-#if TARGET_OS_MACCATALYST
-    //this is needed for catalyst because catalyst apps are based on NSApplication which will swallow exceptions on the main thread and just continue
-    //see: https://stackoverflow.com/questions/3336278/why-is-raising-an-nsexception-not-bringing-down-my-application
-    //obj exception handling explanation: https://stackoverflow.com/a/28391007/3528174
-    //objc exception implementation: https://opensource.apple.com/source/objc4/objc4-818.2/runtime/objc-exception.mm.auto.html
-    //objc exception header: https://opensource.apple.com/source/objc4/objc4-818.2/runtime/objc-exception.h.auto.html
-    //example C++ exception ABI: https://github.com/nicolasbrailo/cpp_exception_handling_abi/tree/master/abi_v12
-    
-    //this will log the exception
-    if(_oldExceptionPreprocessor == NULL)
-        _oldExceptionPreprocessor = objc_setExceptionPreprocessor(preprocess);
-    
-    //this will stop the swallowing
-    [[NSUserDefaults standardUserDefaults] registerDefaults:@{@"NSApplicationCrashOnExceptions": @YES}];
-#endif
 }
 
 +(void) __attribute__((noreturn)) MLAssertWithText:(NSString*) text andUserData:(id) userInfo andFile:(const char* const) file andLine:(int) line andFunc:(const char* const) func
@@ -630,24 +597,7 @@ static void notification_center_logging(CFNotificationCenterRef center, void* ob
     NSString* message = description;
     if(node)
         message = [self extractXMPPError:node withDescription:description];
-#ifdef IS_ALPHA
-    DDLogError(@"Notifying alpha user about error on account %@ at %@:%d in %s: %@", account, fileStr, line, func, message);
-    if(account != nil)
-        [[MLNotificationQueue currentQueue] postNotificationName:kXMPPError object:account userInfo:@{@"message": message, @"isSevere":@YES}];
-    else
-    {
-        UNMutableNotificationContent* content = [UNMutableNotificationContent new];
-        content.title = @"Global Error";
-        content.body = message;
-        content.sound = [UNNotificationSound defaultSound];
-        UNNotificationRequest* request = [UNNotificationRequest requestWithIdentifier:[[NSUUID UUID] UUIDString] content:content trigger:nil];
-        NSError* error = [self postUserNotificationRequest:request];
-        if(error)
-            DDLogError(@"Error posting global alpha xmppError notification: %@", error);
-    }
-#else
     DDLogWarn(@"Ignoring alpha-only error at %@:%d in %s: %@", fileStr, line, func, message);
-#endif
 }
 
 +(NSString*) extractXMPPError:(XMPPStanza*) stanza withDescription:(NSString*) description
@@ -748,9 +698,6 @@ static void notification_center_logging(CFNotificationCenterRef center, void* ob
 
 +(NSString*) getSelectedPushServerBasedOnLocale
 {
-#ifdef IS_ALPHA
-    return @"alpha.push.monal-im.org";
-#else
     return @"eu.prod.push.monal-im.org";
     /*
     if([[[NSLocale currentLocale] countryCode] isEqualToString:@"US"])
@@ -762,7 +709,6 @@ static void notification_center_logging(CFNotificationCenterRef center, void* ob
         return @"eu.prod.push.monal-im.org";
     }
     */
-#endif
 }
 
 +(NSDictionary<NSString*, NSString*>*) getAvailablePushServers
@@ -771,22 +717,14 @@ static void notification_center_logging(CFNotificationCenterRef center, void* ob
         //@"us.prod.push.monal-im.org": @"US",
         @"eu.prod.push.monal-im.org": @"Europe",
         @"alpha.push.monal-im.org": @"Alpha/Debug (more Logging)",
-#ifdef IS_ALPHA
-        @"disabled.push.monal-im.org": @"Disabled - Alpha Test",
-#endif
     };
 }
 
 +(NSArray<NSString*>*) getFailoverStunServers
 {
     return @[
-#ifdef IS_ALPHA
-        @"stuns:alpha.turn.monal-im.org:443",
-        @"stuns:alpha.turn.monal-im.org:3478",
-#else
         @"stuns:eu.prod.turn.monal-im.org:443",
         @"stuns:eu.prod.turn.monal-im.org:3478",
-#endif
     ];
 }
 
@@ -910,29 +848,13 @@ static void notification_center_logging(CFNotificationCenterRef center, void* ob
 +(NSURL*) getFailoverTurnApiServer
 {
     NSString* turnApiServer;
-#ifdef IS_ALPHA
-    turnApiServer = @"https://alpha.turn.monal-im.org";
-#else
     turnApiServer = @"https://eu.prod.turn.monal-im.org";
-#endif
     return [NSURL URLWithString:turnApiServer];
 }
 
 +(BOOL) shouldProvideVoip
 {
     BOOL shouldProvideVoip = NO;
-#if TARGET_OS_MACCATALYST
-#ifdef IS_ALPHA
-    shouldProvideVoip = YES;
-#endif
-#else
-#ifdef IS_QUICKSY
-    NSLocale* userLocale = [NSLocale currentLocale];
-    shouldProvideVoip = !([userLocale.countryCode containsString: @"CN"] || [userLocale.countryCode containsString: @"CHN"]);
-#else
-    shouldProvideVoip = YES;
-#endif
-#endif
     return shouldProvideVoip;
 }
     
@@ -944,12 +866,7 @@ static void notification_center_logging(CFNotificationCenterRef center, void* ob
 #else
     // check if were are sandbox or production
     NSString* embeddedProvPath;
-#if TARGET_OS_MACCATALYST
-    NSString* bundleURL = [[NSBundle mainBundle] bundleURL].absoluteString;
-    embeddedProvPath = [[[bundleURL componentsSeparatedByString:@"file://"] objectAtIndex:1] stringByAppendingString:@"Contents/embedded.provisionprofile"];
-#else
     embeddedProvPath = [[NSBundle mainBundle] pathForResource:@"embedded" ofType:@"mobileprovision"];
-#endif
     DDLogVerbose(@"Loading embedded provision plist at: %@", embeddedProvPath);
     NSError* loadingError;
     NSString* embeddedProvStr = [NSString stringWithContentsOfFile:embeddedProvPath encoding:NSISOLatin1StringEncoding error:&loadingError];
@@ -1110,7 +1027,7 @@ static void notification_center_logging(CFNotificationCenterRef center, void* ob
 +(void) createAVURLAssetFromFile:(NSString*) file havingMimeType:(NSString*) mimeType andFileExtension:(NSString* _Nullable) fileExtension withCompletionHandler:(void(^)(AVURLAsset* _Nullable)) completion
 {
     NSURL* fileUrl = [NSURL fileURLWithPath:file];
-    if(@available(iOS 17.0, macCatalyst 17.0, *))
+    if(@available(iOS 17.0, *))
     {
         //generate an AVURLAsset using the modern ios 17 method to attach a mime type to an AVURLAsset
         return completion([AVURLAsset URLAssetWithURL:fileUrl options:@{AVURLAssetOverrideMIMETypeKey: mimeType}]);
@@ -1950,7 +1867,7 @@ static void notification_center_logging(CFNotificationCenterRef center, void* ob
             //new task
             BGAppRefreshTaskRequest* refreshingRequest = [[BGAppRefreshTaskRequest alloc] initWithIdentifier:kBackgroundRefreshingTask];
             //on ios<17 do the same like the corona warn app from germany which leads to this hint: https://developer.apple.com/forums/thread/134031
-//             if(@available(iOS 17.0, macCatalyst 17.0, *))
+//             if(@available(iOS 17.0, *))
 //                 refreshingRequest.earliestBeginDate = [NSDate dateWithTimeIntervalSinceNow:BGFETCH_DEFAULT_INTERVAL];
 //             else
                 refreshingRequest.earliestBeginDate = nil;
@@ -2443,9 +2360,7 @@ static void notification_center_logging(CFNotificationCenterRef center, void* ob
     handler.monitoring = KSCrashMonitorTypeProductionSafe;      //KSCrashMonitorTypeAll
     handler.onCrash = crash_callback;
     //this can trigger crashes on macos < 13 (e.g. mac catalyst < 16) (and possibly ios < 16)
-#if !TARGET_OS_MACCATALYST
     [handler enableSwapOfCxaThrow];
-#endif
     handler.searchQueueNames = NO;      //this is not async safe and can crash :(
     handler.introspectMemory = YES;
     handler.addConsoleLogToReport = YES;
@@ -2823,15 +2738,7 @@ static void notification_center_logging(CFNotificationCenterRef center, void* ob
 +(NSString*) encodeRandomResource
 {
     u_int32_t i=arc4random();
-#if TARGET_OS_MACCATALYST
-    NSString* resource = [NSString stringWithFormat:@"Monal-macOS.%@", [self hexadecimalString:[NSData dataWithBytes: &i length: sizeof(i)]]];
-#else
-#if IS_QUICKSY
-    NSString* resource = [NSString stringWithFormat:@"Quicksy-iOS.%@", [self hexadecimalString:[NSData dataWithBytes: &i length: sizeof(i)]]];
-#else
     NSString* resource = [NSString stringWithFormat:@"Monal-iOS.%@", [self hexadecimalString:[NSData dataWithBytes: &i length: sizeof(i)]]];
-#endif
-#endif
     return resource;
 }
 
@@ -2840,21 +2747,16 @@ static void notification_center_logging(CFNotificationCenterRef center, void* ob
     @synchronized(_versionInfoCache) {
         if(_versionInfoCache[@(type)] != nil)
             return _versionInfoCache[@(type)];
-        
-#ifdef IS_ALPHA
-        NSString* rawVersionString = [NSString stringWithFormat:@"Alpha %s (%s %s UTC)", ALPHA_COMMIT_HASH, __DATE__, __TIME__];
-#else// IS_ALPHA
         NSDictionary* infoDict = [[NSBundle mainBundle] infoDictionary];
         NSString* rawVersionString = [NSString stringWithFormat:@"%@ %@ (%@)",
 #ifdef DEBUG
-            @"Beta",
-#else// DEBUG
-            @"Stable",
-#endif// DEBUG
-            [infoDict objectForKey:@"CFBundleShortVersionString"],
-            [infoDict objectForKey:@"CFBundleVersion"]
+    @"Beta",
+        #else
+    @"Stable",
+#endif
+        [infoDict objectForKey:@"CFBundleShortVersionString"],
+        [infoDict objectForKey:@"CFBundleVersion"]
         ];
-#endif// IS_ALPHA
         
         if(type == MLVersionTypeIQ)
             return _versionInfoCache[@(type)] = rawVersionString;

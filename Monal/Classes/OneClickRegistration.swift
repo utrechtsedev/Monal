@@ -21,13 +21,7 @@ struct OneClickRegistration: View {
         ["XMPPServer": "yax.im", "TermsSite_default": "https://yaxim.org/yax.im/"]
     ]
     
-#if IS_ALPHA
-    let appLogoId = "AlphaAppLogo"
-#elseif IS_QUICKSY
-    let appLogoId = "QuicksyAppLogo"
-#else
     let appLogoId = "AppLogo"
-#endif
 
     @ObservedObject var oneClickState = OneClickState()
     @State private var selectedServerIndex = Int.random(in: 0 ..< XMPPServer.count)

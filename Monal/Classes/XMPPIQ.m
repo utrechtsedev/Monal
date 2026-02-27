@@ -66,19 +66,7 @@ NSString* const kiqErrorType = @"error";
 -(void) setPushEnableWithNode:(NSString*) node onAppserver:(NSString*) jid
 {
     NSMutableString* pushModule = [NSMutableString new];
-#ifdef IS_ALPHA
-    [pushModule appendString:@"monalAlpha"];
-#else //IS_ALPHA
-#if TARGET_OS_MACCATALYST && defined(IS_QUICKSY)
-    [pushModule appendString:@"quicksyProdCatalyst"];
-#elif TARGET_OS_MACCATALYST
-    [pushModule appendString:@"monalProdCatalyst"];
-#elif defined(IS_QUICKSY)
-    [pushModule appendString:@"quicksyProdiOS"];
-#else
     [pushModule appendString:@"monalProdiOS"];
-#endif
-#endif
 
     if([[HelperTools defaultsDB] boolForKey:@"isSandboxAPNS"])
     {
@@ -262,11 +250,6 @@ NSString* const kiqErrorType = @"error";
         ] andData:nil]
     ] andData:nil];
     [self addChildNode:queryNode];
-    
-#ifdef IS_ALPHA
-    if(timestamp == nil)
-        showXMLErrorOnAlpha(nil, self, @"setMAMQueryAfterTimestamp: called with nil timestamp!");
-#endif
 }
 
 -(void) setRemoveFromRoster:(MLContact*) contact
@@ -302,11 +285,7 @@ NSString* const kiqErrorType = @"error";
     NSOperatingSystemVersion osVersion = [[NSProcessInfo processInfo] operatingSystemVersion];
     [self addChildNode:[[MLXMLNode alloc] initWithElement:@"query" andNamespace:@"jabber:iq:version" withAttributes:@{} andChildren:@[
         [[MLXMLNode alloc] initWithElement:@"name" andData:@"Monal"],
-#if TARGET_OS_MACCATALYST
-        [[MLXMLNode alloc] initWithElement:@"os" andData:[NSString stringWithFormat:@"macOS %lu", osVersion.majorVersion]],
-#else
         [[MLXMLNode alloc] initWithElement:@"os" andData:[NSString stringWithFormat:@"iOS %lu", osVersion.majorVersion]],
-#endif
         [[MLXMLNode alloc] initWithElement:@"version" andData:[HelperTools appBuildVersionInfoFor:MLVersionTypeIQ]]
     ] andData:nil]];
 }
@@ -448,19 +427,5 @@ NSString* const kiqErrorType = @"error";
         } andChildren:@[] andData:nil],
     ] andData:nil]];
 }
-
-#ifdef IS_QUICKSY
--(void) setQuicksyPhoneBook:(NSArray*) numbers
-{
-    MLXMLNode* envelope = [[MLXMLNode alloc] initWithElement:@"phone-book" andNamespace:@"im.quicksy.synchronization:0"];
-    for(NSString* number in numbers)
-    {
-        [envelope addChildNode:[[MLXMLNode alloc] initWithElement:@"entry" withAttributes:@{
-            @"number": number,
-        } andChildren:@[] andData:nil]];
-    }
-    [self addChildNode:envelope];
-}
-#endif
 
 @end

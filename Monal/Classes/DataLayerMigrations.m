@@ -720,11 +720,7 @@
         // add push server column to accounts
         [self updateDB:db withDataLayer:dataLayer toVersion:5.201 withBlock:^{
             [db executeNonQuery:@"ALTER TABLE account ADD COLUMN registeredPushServer TEXT DEFAULT NULL;"];
-            #ifdef IS_ALPHA
-                NSString* currentPushserver = @"push.molitor-dietzel.de";
-            #else
-                NSString* currentPushserver = @"ios13push.monal.im";
-            #endif
+            NSString* currentPushserver = @"ios13push.monal.im";
             [db executeNonQuery:@"UPDATE account SET registeredPushServer=?;" andArguments:@[currentPushserver]];
         }];
         

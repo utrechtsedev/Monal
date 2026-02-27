@@ -666,11 +666,7 @@ struct AddTopLevelNavigation<Content: View>: View {
                 .navigationBarTitleDisplayMode(.automatic)
                 .navigationBarBackButtonHidden(true) // will not be shown because swiftui does not know we navigated here from UIKit
                 .toolbar {
-#if targetEnvironment(macCatalyst)
-                    let shouldDisplayBackButton = true
-#else
                     let shouldDisplayBackButton = UIUserInterfaceSizeClass(rawValue: sizeClass.horizontal) == .compact
-#endif
                     if shouldDisplayBackButton {
                         ToolbarItem(placement: .topBarLeading) {
                             Button(action : {
@@ -886,11 +882,7 @@ class SwiftuiInterface : NSObject {
         let delegate = SheetDismisserProtocol()
         let host = UIHostingController(rootView:AnyView(EmptyView()))
         delegate.host = host
-#if IS_QUICKSY
-        host.rootView = AnyView(Quicksy_RegisterAccount(delegate:delegate))
-#else
         host.rootView = AnyView(AddTopLevelNavigation(withDelegate:delegate, to:RegisterAccount(delegate:delegate, registerData:registerData)))
-#endif
         return host
     }
 

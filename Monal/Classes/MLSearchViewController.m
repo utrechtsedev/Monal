@@ -112,13 +112,7 @@
         if ([self.searchResultMessageList count] >0)
         {
             self.toolbar.items = @[self.epmtyItem, self.prevItem, self.nextItem, self.searchResultIndicatorItem];
-            #if TARGET_OS_MACCATALYST
-                CGFloat yAxis = self.view.frame.size.height - self.searchBar.frame.size.height;
-                [self.toolbar setFrame:CGRectMake(0, yAxis, self.searchBar.frame.size.width, self.searchBar.frame.size.height)];
-                [self.view addSubview:self.toolbar];
-            #else
-                self.searchBar.inputAccessoryView = self.toolbar;
-            #endif
+            self.searchBar.inputAccessoryView = self.toolbar;
             self.curIdxHistory = (int)[self.searchResultMessageList count] - 1;
             
             [self setResultIndicatorTitle:@"" onlyHint:NO];

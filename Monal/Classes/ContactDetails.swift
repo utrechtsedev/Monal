@@ -72,24 +72,7 @@ struct ContactDetails: View {
     }
     
     private func showImagePicker() {
-#if targetEnvironment(macCatalyst)
-        let picker = DocumentPickerViewController(
-            supportedTypes: [UTType.image], 
-            onPick: { url in
-                if let imageData = try? Data(contentsOf: url) {
-                    if let loadedImage = UIImage(data: imageData) {
-                            self.inputImage = loadedImage
-                    }
-                }
-            },
-            onDismiss: {
-                //do nothing on dismiss
-            }
-        )
-        UIApplication.shared.windows.first?.rootViewController?.present(picker, animated: true)
-#else
         showingImagePicker = true
-#endif
     }
     
     var body: some View {

@@ -2086,19 +2086,15 @@ static NSDateFormatter* dbFormatter;
 
 -(void) invalidateAllAccountStates
 {
-#ifndef IS_ALPHA
     @try {
-#endif
         DDLogWarn(@"Invalidating state of all accounts...");
         [self.db voidWriteTransaction:^{
             for(NSDictionary* entry in [self.db executeReader:@"SELECT account_id FROM account;"])
                 [self persistState:[xmpp invalidateState:[self readStateForAccount:entry[@"account_id"]]] forAccount:entry[@"account_id"]];
         }];
-#ifndef IS_ALPHA
     } @catch (NSException* exception) {
         DDLogError(@"caught invalidate state exception: %@", exception);
     }
-#endif
 }
 
 -(NSString*) lastUsedPushServerForAccount:(NSNumber*) accountID
@@ -2174,12 +2170,8 @@ static NSDateFormatter* dbFormatter;
         ]] fromData:data error:&error];
         if(error)
         {
-#ifdef IS_ALPHA
-            @throw [NSException exceptionWithName:@"NSError" reason:[NSString stringWithFormat:@"%@", error] userInfo:@{@"error": error}];
-#else
             DDLogError(@"Error: %@", error);
             return nil;
-#endif
         }
         return stanza;
     }

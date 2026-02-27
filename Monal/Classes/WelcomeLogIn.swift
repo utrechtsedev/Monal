@@ -35,13 +35,7 @@ struct WelcomeLogIn: View {
     @State private var alertPrompt = AlertPrompt()
     @StateObject private var overlay = LoadingOverlayState()
 
-#if IS_ALPHA
-    let appLogoId = "AlphaAppLogo"
-#elseif IS_QUICKSY
-    let appLogoId = "QuicksyAppLogo"
-#else
     let appLogoId = "AppLogo"
-#endif
     
     private var credentialsEnteredAlert: Bool {
         alertPrompt.title = Text("Empty Values!")

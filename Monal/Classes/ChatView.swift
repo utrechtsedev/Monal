@@ -134,7 +134,7 @@ struct ChatView: View {
                 case .copy:
                     Image(systemName: "doc.on.doc")
                 case .edit:
-                    if #available(iOS 18.0, macCatalyst 18.0, *) {
+                    if #available(iOS 18.0, *) {
                         Image(systemName: "bubble.and.pencil")
                     } else {
                         Image(systemName: "square.and.pencil")

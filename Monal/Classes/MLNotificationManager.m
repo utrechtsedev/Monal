@@ -214,11 +214,7 @@ typedef NS_ENUM(NSUInteger, MLNotificationState) {
     {
         xmpp* xmppAccount = notification.object;
         DDLogError(@"SEVERE XMPP Error(%@): %@", xmppAccount.connectionProperties.identity.jid, notification.userInfo[@"message"]);
-#ifdef IS_ALPHA
-        NSString* idval = [[NSUUID UUID] UUIDString];
-#else
         NSString* idval = xmppAccount.connectionProperties.identity.jid;        //use this to only show the newest error notification per account
-#endif
         UNMutableNotificationContent* content = [UNMutableNotificationContent new];
         content.title = xmppAccount.connectionProperties.identity.jid;
         content.body = notification.userInfo[@"message"];

@@ -1038,14 +1038,14 @@ struct ActiveChatsView: View {
         List {
             if !coordinator.pinnedContacts.isEmpty {
                 Section {
-                    ForEach(coordinator.pinnedContacts, id: \.self) { contact in
-                        chatRow(contact)
+                    ForEach(Array(coordinator.pinnedContacts.enumerated()), id: \.element) { index, contact in
+                        chatRow(contact, isFirst: index == 0)
                     }
                 }
             }
             Section {
-                ForEach(coordinator.unpinnedContacts, id: \.self) { contact in
-                    chatRow(contact)
+                ForEach(Array(coordinator.unpinnedContacts.enumerated()), id: \.element) { index, contact in
+                    chatRow(contact, isFirst: index == 0 && coordinator.pinnedContacts.isEmpty)
                 }
             }
         }
@@ -1053,7 +1053,7 @@ struct ActiveChatsView: View {
         .environment(\.defaultMinListRowHeight, 60)
     }
 
-    private func chatRow(_ contact: MLContact) -> some View {
+    private func chatRow(_ contact: MLContact, isFirst: Bool = false) -> some View {
         let lastMessage = DataLayer.sharedInstance().lastMessage(forContact: contact.contactJid, forAccount: contact.accountID)
         let isSelected: Bool = {
             guard let currentContact = MLNotificationManager.sharedInstance().currentContact else { return false }
@@ -1063,6 +1063,8 @@ struct ActiveChatsView: View {
         return ContactCellView(contact: contact, lastMessage: lastMessage)
             .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
             .listRowSeparatorTint(Color(UIColor.separator))
+            .alignmentGuide(.listRowSeparatorTrailing) { d in d[.trailing] }
+            .listRowSeparator(isFirst ? .hidden : .automatic, edges: .top)
             .frame(height: 60)
             .background(isSelected ? Color(UIColor.lightGray) : Color.clear)
             .contentShape(Rectangle())
@@ -1266,9 +1268,6 @@ class ActiveChatsHostingController: UIViewController {
         coordinator.updateSizeClass()
 
         splitViewController?.preferredDisplayMode = .oneBesideSecondary
-        #if !targetEnvironment(macCatalyst)
-        splitViewController?.primaryBackgroundStyle = .sidebar
-        #endif
 
         settingsButton?.image = UIImage(systemName: "gearshape.fill")
         coordinator.configureComposeButton()

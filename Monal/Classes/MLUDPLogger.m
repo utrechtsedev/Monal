@@ -119,29 +119,7 @@ static volatile MLUDPLogger* _self;
     return DDLoggerNameUDP;
 }
 
-+(void) logError:(NSString*) format, ... NS_FORMAT_FUNCTION(1, 2)
-{
-#ifdef IS_ALPHA
-    va_list args;
-    va_start(args, format);
-    NSString* message = [[NSString alloc] initWithFormat:format arguments:args];
-    va_end(args);
-    
-    NSLog(@"MLUDPLogger: %@", message);
-    
-    /*
-    //log error in 250ms
-    dispatch_source_t timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0));
-    dispatch_source_set_timer(timer,
-                              dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.250*NSEC_PER_SEC)),
-                              DISPATCH_TIME_FOREVER,
-                              (uint64_t)0);
-    dispatch_source_set_event_handler(timer, ^{
-        DDLogError(@"%@", message);
-    });
-    */
-#endif
-}
++(void) logError:(NSString*) format, ... NS_FORMAT_FUNCTION(1, 2) {}
 
 //code taken from here: https://stackoverflow.com/a/11389847/3528174
 -(NSData*) gzipDeflate:(NSData*) data
