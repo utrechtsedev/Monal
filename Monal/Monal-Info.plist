@@ -2,8 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>UIDesignRequiresCompatibility</key>
-	<false/>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>im.monal.process</string>
@@ -83,13 +81,13 @@
 	<key>NSLocationUsageDescription</key>
 	<string>Monal uses your location when you send a location message in a conversation.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Monal uses your location when you send a location message in a conversation.</string>
+	<string>Atay uses your location when you send a location message in a conversation.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Monal uses the microphone to transmit your voice in audio messages or calls.</string>
+	<string>Atay uses the microphone to transmit your voice in audio messages or calls.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Monal allows users to save photos received in conversations.</string>
+	<string>Atay allows users to save photos received in conversations.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Monal allows users to upload photos to recipients in a conversation</string>
+	<string>Atay allows users to upload photos to recipients in a conversation</string>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>INSendMessageIntent</string>
@@ -107,6 +105,8 @@
 		<string>remote-notification</string>
 		<string>voip</string>
 	</array>
+	<key>UIDesignRequiresCompatibility</key>
+	<false/>
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

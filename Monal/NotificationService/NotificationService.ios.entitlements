@@ -10,13 +10,11 @@
 	<true/>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.monal</string>
+		<string>group.atay</string>
 	</array>
 	<key>com.apple.security.network.client</key>
 	<true/>
 	<key>keychain-access-groups</key>
-	<array>
-		<string>$(AppIdentifierPrefix)G7YU7X7KRJ.SworIM</string>
-	</array>
+	<array/>
 </dict>
 </plist>

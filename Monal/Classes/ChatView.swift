@@ -90,6 +90,7 @@ struct ChatView: View {
     @State private var selectedContactForContactDetails: ObservableKVOWrapper<MLContact>?
     @State private var alertPrompt: AlertPrompt?
     @State private var confirmationPrompt: ConfirmationPrompt?
+    @State private var showCallTypePicker = false
     @StateObject private var overlay = LoadingOverlayState()
     @State private var moderationReason = "Spam"
     @State private var isEditingReason = false
@@ -180,43 +181,6 @@ struct ChatView: View {
         }
     }
 
-    private func showCannotEncryptAlert(_ show: Bool) {
-        if show {
-            DDLogVerbose("Showing cannot encrypt alert...")
-            alertPrompt = AlertPrompt(
-                title: Text("Encryption Not Supported"),
-                message: Text("This contact does not appear to have any devices that support encryption, please try again later if you think this is wrong."),
-                dismissLabel: Text("Close")
-            )
-        } else {
-            alertPrompt = nil
-        }
-    }
-    
-    private func showShouldDisableEncryptionConfirmation(_ show: Bool) {
-        if show {
-            DDLogVerbose("Showing should disable encryption confirmation...")
-            confirmationPrompt = ConfirmationPrompt(
-                title: Text("Disable encryption?"),
-                message: Text("Do you really want to disable encryption for this contact?"),
-                buttons: [
-                    .cancel(
-                        Text("No, keep encryption activated"),
-                        action: { }
-                    ),
-                    .destructive(
-                        Text("Yes, deactivate encryption"),
-                        action: {
-                            contact.obj.toggleEncryption(false)
-                        }
-                    )
-                ]
-            )
-        } else {
-            confirmationPrompt = nil
-        }
-    }
-    
     private func checkOmemoSupport(withAlert showWarning: Bool) {
 #if !DISABLE_OMEMO
         if DataLayer.sharedInstance().isAccountEnabled(contact.accountID) {
@@ -250,13 +214,14 @@ struct ChatView: View {
                         title: Text("Group suddenly changed to public channel!"),
                         message: Text("This chat suddenly changed from an encrypted private group to an unencrypted public channel! Please contact the administrator of that group/channel if you think this is wrong."),
                         buttons: [
-                            .default(
-                                Text("Keep encryption enabled"),
+                            .init(
+                                label: Text("Keep encryption enabled"),
                                 //don't change anything, just close the alert
                                 action: { }
                             ),
-                            .destructive(
-                                Text("Disable encryption. This is dangerous!"),
+                            .init(
+                                label: Text("Disable encryption. This is dangerous!"),
+                                role: .destructive,
                                 action: {
                                     contact.obj.toggleEncryption(false)
                                 }
@@ -474,8 +439,8 @@ struct ChatView: View {
                             title: Text("Retry sending message?"),
                             message: Text("This message failed to send (\(mlMessage.errorType ?? "unknown error")): \(mlMessage.errorReason ?? "unknown reason")"),
                             buttons: [
-                                .default(
-                                    Text("Retry"),
+                                .init(
+                                    label: Text("Retry"),
                                     action: {
                                         Task { @MainActor in
                                             await Task.detached(priority: .userInitiated) {
@@ -499,8 +464,9 @@ struct ChatView: View {
                                         }
                                     }
                                 ),
-                                .cancel(
-                                    Text("Cancel"),
+                                .init(
+                                    label: Text("Cancel"),
+                                    role: .cancel,
                                     action: { }
                                 )
                             ]
@@ -562,10 +528,16 @@ struct ChatView: View {
         .sheet(item: $selectedContactForContactDetails) { selectedContact in
             AnyView(AddTopLevelNavigation(withDelegate:nil, to:ContactDetails(delegate:nil, contact:selectedContact)))
         }
-        //TODO: modernize action sheet usage in all other swiftui files to be in line with this implementation here
-        //TODO: e.g. same usage like alert prompt below
-        .actionSheet(isPresented: $confirmationPrompt.optionalMappedToBool()) {
-            ActionSheet(title: confirmationPrompt!.title, message: confirmationPrompt!.message, buttons: confirmationPrompt!.buttons)
+        .confirmationDialog(confirmationPrompt?.title ?? Text(""), isPresented: $confirmationPrompt.optionalMappedToBool(), titleVisibility: .visible) {
+            if let buttons = confirmationPrompt?.buttons {
+                ForEach(buttons) { button in
+                    Button(role: button.role, action: button.action) {
+                        button.label
+                    }
+                }
+            }
+        } message: {
+            confirmationPrompt?.message
         }
         //TODO: modernize alert prompt usage in all other swiftui files to be in line with this implementation here
         //TODO: e.g. non-hardcoded dismiss button text and usage of optionalMappedToBool and dismissCallback
@@ -674,9 +646,6 @@ struct ChatView: View {
             }
             
             ToolbarItemGroup(placement: .topBarTrailing) {
-                ProgressView()
-                    .opacity(isLoadingMamHistory || isUploadingFile ? 1 : 0)
-
                 if ownRole == kMucRoleVisitor {
                     Button {
                         let _ = showPromisingLoadingOverlay(overlay, headline:"Requesting Voice") {
@@ -697,68 +666,28 @@ struct ChatView: View {
                 
                 if !(contact.isMuc || contact.isSelf) {
                     Button {
-                        let activeChats = (UIApplication.shared.delegate as! MonalAppDelegate).activeChats!
-                        if voipProcessor.obj.getActiveCall(with:contact.obj) == nil && !DataLayer.sharedInstance().checkCap("urn:xmpp:jingle-message:0", forUser:contact.contactJid, onAccountID:contact.accountID) {
-                            confirmationPrompt = ConfirmationPrompt(
-                                title: Text("Missing Call Support"),
-                                message: Text("Your contact may not support calls. Your call might never reach its destination."),
-                                buttons: [
-                                    .default(
-                                        Text("Try nevertheless"),
-                                        action: {
-                                            activeChats.call(contact.obj, withUIKitSender:nil)
-                                        }
-                                    ),
-                                    .cancel(
-                                        Text("Cancel"),
-                                        action: { }
-                                    )
-                                ]
-                            )
-                        } else {
-                            activeChats.call(contact.obj, withUIKitSender:nil)
-                        }
+                        showCallTypePicker = true
                     } label: {
-                        if (voipProcessor.activeCalls as [MLCall]).contains(where:{ $0.isEqual(to:contact.obj) }) {
-                            Image(systemName: "phone.connection.fill")
-                        } else {
-                            Image(systemName: "phone.fill")
+                        Image(systemName: "phone.fill")
+                    }
+                    .confirmationDialog(Text("Call Type"), isPresented: $showCallTypePicker, titleVisibility: .visible) {
+                        Button {
+                            let activeChats = (UIApplication.shared.delegate as! MonalAppDelegate).activeChats!
+                            activeChats.call(contact.obj, with: .audio)
+                        } label: {
+                            Text("Audio")
                         }
+                        Button {
+                            let activeChats = (UIApplication.shared.delegate as! MonalAppDelegate).activeChats!
+                            activeChats.call(contact.obj, with: .video)
+                        } label: {
+                            Text("Video")
+                        }
+                        Button("Cancel", role: .cancel) { }
+                    } message: {
+                        Text("What call do you want to place?")
                     }
                 }
-                
-                Button {
-                    guard !HelperTools.isContactBlacklistedForEncryption(contact.obj) else {
-                        return
-                    }
-                    if contact.isEncrypted {
-                        DDLogVerbose("Showing should disable encryption confirmation...")
-                        showShouldDisableEncryptionConfirmation(true)
-                    } else {
-                        showCannotEncryptAlert(!contact.obj.toggleEncryption(true))
-                    }
-                } label: {
-                    if contact.isEncrypted {
-                        Label {
-                            Text("Messages are encrypted")
-                        } icon: {
-                            Image(systemName: "lock.fill")
-                        }
-                    } else {
-                        Label {
-                            Text("Messages are NOT encrypted")
-                        } icon: {
-                            Image(systemName: "lock.open.fill")
-                                .foregroundColor(.red)
-                        }
-                    }
-                }
-                .disabled(
-                    //disable encryption button on unsupported muc types
-                    (contact.isMuc && contact.mucType != kMucTypeGroup) ||
-                    //disable encryption button for special jids
-                    HelperTools.isContactBlacklistedForEncryption(contact.obj)
-                )
             }
         }
         .toolbarRole(.editor)       //make sure to never show the title of the previous view in the back bar button

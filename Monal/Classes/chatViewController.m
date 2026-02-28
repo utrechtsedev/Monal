@@ -1247,15 +1247,9 @@ enum msgSentState {
 {
     dispatch_async(dispatch_get_main_queue(), ^{
         DDLogInfo(@"Record button pressed...");
-        if(@available(iOS 17, *)) {
             [AVAudioApplication requestRecordPermissionWithCompletionHandler:^(BOOL granted) {
                 [self handleRecord:granted];
             }];
-        } else {
-            [[AVAudioSession sharedInstance] requestRecordPermission:^(BOOL granted) {
-                [self handleRecord:granted];
-            }];
-        }
     });
 }
 

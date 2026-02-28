@@ -726,9 +726,15 @@ struct AlertPrompt {
 
 // properties for use in actionSheet
 struct ConfirmationPrompt {
+    struct PromptButton: Identifiable {
+        let id = UUID()
+        var label: Text
+        var role: ButtonRole?
+        var action: () -> Void
+    }
     var title: Text = Text("")
     var message: Text = Text("")
-    var buttons: [ActionSheet.Button] = []
+    var buttons: [PromptButton] = []
 }
 
 extension View {

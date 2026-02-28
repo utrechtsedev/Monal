@@ -30,7 +30,7 @@ static const DDLogLevel ddLogLevel = LOG_LEVEL_STDOUT;
 
 //configure app group constants
 
-#define kAppGroup @"group.monal"
+#define kAppGroup @"group.atay"
 #define kMonalOpenURL [NSURL URLWithString:@"monalOpen://"]
 #define kBackgroundProcessingTask @"im.monal.process"
 #define kBackgroundRefreshingTask @"im.monal.refresh"
