@@ -361,7 +361,9 @@ static NSMutableDictionary* _singletonCache;
 
 -(void) updateUnreadCount
 {
+    [self willChangeValueForKey:@"unreadCount"];
     _unreadCount = -1;      // mark it as "uncached" --> will be recalculated on next access
+    [self didChangeValueForKey:@"unreadCount"];
 }
 
 -(NSString*) contactDisplayNameWithFallback:(NSString* _Nullable) fallbackName;

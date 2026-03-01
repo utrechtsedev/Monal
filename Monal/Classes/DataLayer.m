@@ -1907,6 +1907,45 @@ static NSDateFormatter* dbFormatter;
     }];
 }
 
+-(NSArray<NSDictionary*>*) markAllUnreadMessagesAsRead
+{
+    return (NSArray<NSDictionary*>*)[self.db idWriteTransaction:^{
+        //get all (buddy_name, account_id) pairs that have unread inbound messages on enabled accounts
+        NSArray* contactRows = [self.db executeReader:@"SELECT DISTINCT M.buddy_name, M.account_id \
+            FROM message_history AS M \
+            JOIN account AS A ON M.account_id = A.account_id \
+            WHERE A.enabled = 1 AND M.inbound = 1 AND M.unread = 1;" ];
+
+        NSMutableArray<NSDictionary*>* result = [NSMutableArray new];
+
+        for(NSDictionary* row in contactRows)
+        {
+            NSString* buddy = row[@"buddy_name"];
+            NSNumber* accountID = row[@"account_id"];
+
+            //get all unread message history IDs for this contact
+            NSArray* messageArray = [self.db executeScalarReader:@"SELECT message_history_id FROM message_history WHERE unread=1 AND account_id=? AND buddy_name=? AND inbound=1 ORDER BY message_history_id ASC;" andArguments:@[accountID, buddy]];
+
+            if(messageArray.count == 0)
+                continue;
+
+            //bulk mark all unread messages as read for this contact
+            [self.db executeNonQuery:@"UPDATE message_history SET unread=0 WHERE unread=1 AND account_id=? AND buddy_name=? AND inbound=1;" andArguments:@[accountID, buddy]];
+
+            //update latest_read_message_history_id to the max history ID for this contact
+            NSNumber* maxHistoryId = [messageArray lastObject];
+            [self.db executeNonQuery:@"UPDATE buddylist SET latest_read_message_history_id=? WHERE account_id=? AND buddy_name=?;" andArguments:@[maxHistoryId, accountID, buddy]];
+
+            //create MLMessage objects from the marked history IDs
+            MLContact* contact = [MLContact createContactFromJid:buddy andAccountID:accountID];
+            NSArray<MLMessage*>* messages = [MLMessage createMessagesFromHistoryIDs:messageArray];
+            [result addObject:@{@"contact": contact, @"messages": messages}];
+        }
+
+        return result;
+    }];
+}
+
 -(NSNumber*) addMessageHistoryTo:(NSString*) to forAccount:(NSNumber*) accountID withMessage:(NSString*) message actuallyFrom:(NSString*) actualfrom withOccupantId:(NSString* _Nullable) occupantId andId:(NSString*) messageId encrypted:(BOOL) encrypted messageType:(NSString*) messageType mimeType:(NSString* _Nullable) mimeType size:(NSNumber* _Nullable) size
 {
     //Message_history going out, from is always the local user. always read and not sent

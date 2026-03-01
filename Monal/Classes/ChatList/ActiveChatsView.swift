@@ -48,6 +48,7 @@ class ActiveChatsCoordinator: NSObject, ObservableObject {
 
     @Published var unpinnedContacts: [MLContact] = []
     @Published var pinnedContacts: [MLContact] = []
+    @Published var searchText: String = ""
 
     // MARK: UIKit references (set by hosting controller)
 
@@ -669,6 +670,41 @@ class ActiveChatsCoordinator: NSObject, ObservableObject {
         }
     }
 
+    func markAllAsRead() {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let entries = DataLayer.sharedInstance().markAllUnreadMessagesAsRead()
+
+            // Send display markers (XEP-0333/MDS) per contact
+            for entry in entries {
+                guard let contact = entry["contact"] as? MLContact,
+                      let messages = entry["messages"] as? [MLMessage] else { continue }
+                contact.account?.sendDisplayMarker(for: messages)
+            }
+
+            // Update UI and clear system notifications on main thread
+            DispatchQueue.main.async {
+                for entry in entries {
+                    guard let contact = entry["contact"] as? MLContact,
+                          let messages = entry["messages"] as? [MLMessage] else { continue }
+                    // Clear system notifications and update app badge
+                    MLNotificationQueue.current().post(
+                        name: Notification.Name(kMonalDisplayedMessagesNotice),
+                        object: contact.account,
+                        userInfo: ["messagesArray": messages]
+                    )
+                    // Invalidate cached unreadCount on the singleton so next read re-queries DB
+                    contact.updateUnreadCount()
+                    // Trigger refreshContact() to replace contact in @Published arrays → SwiftUI re-render
+                    MLNotificationQueue.current().post(
+                        name: Notification.Name(kMonalContactRefresh),
+                        object: contact.account,
+                        userInfo: ["contact": contact]
+                    )
+                }
+            }
+        }
+    }
+
     func showCallContactNotFoundAlert(_ jid: String) {
         let alert = UIAlertController(
             title: NSLocalizedString("Contact not found", comment: ""),
@@ -1010,6 +1046,23 @@ class ActiveChatsCoordinator: NSObject, ObservableObject {
 struct ActiveChatsView: View {
     @ObservedObject var coordinator: ActiveChatsCoordinator
 
+    private var filteredPinnedContacts: [MLContact] {
+        if coordinator.searchText.isEmpty { return coordinator.pinnedContacts }
+        return coordinator.pinnedContacts.filter { searchMatchesContact(contact: $0, search: coordinator.searchText) }
+    }
+
+    private var filteredUnpinnedContacts: [MLContact] {
+        if coordinator.searchText.isEmpty { return coordinator.unpinnedContacts }
+        return coordinator.unpinnedContacts.filter { searchMatchesContact(contact: $0, search: coordinator.searchText) }
+    }
+
+    private func searchMatchesContact(contact: MLContact, search: String) -> Bool {
+        let jid = contact.contactJid.lowercased()
+        let name = contact.contactDisplayName.lowercased()
+        let search = search.lowercased()
+        return jid.contains(search) || name.contains(search)
+    }
+
     var body: some View {
         Group {
             if coordinator.pinnedContacts.isEmpty && coordinator.unpinnedContacts.isEmpty {
@@ -1022,16 +1075,16 @@ struct ActiveChatsView: View {
 
     private var chatList: some View {
         List {
-            if !coordinator.pinnedContacts.isEmpty {
+            if !filteredPinnedContacts.isEmpty {
                 Section {
-                    ForEach(Array(coordinator.pinnedContacts.enumerated()), id: \.element) { index, contact in
+                    ForEach(Array(filteredPinnedContacts.enumerated()), id: \.element) { index, contact in
                         chatRow(contact, isFirst: index == 0)
                     }
                 }
             }
             Section {
-                ForEach(Array(coordinator.unpinnedContacts.enumerated()), id: \.element) { index, contact in
-                    chatRow(contact, isFirst: index == 0 && coordinator.pinnedContacts.isEmpty)
+                ForEach(Array(filteredUnpinnedContacts.enumerated()), id: \.element) { index, contact in
+                    chatRow(contact, isFirst: index == 0 && filteredPinnedContacts.isEmpty)
                 }
             }
         }
@@ -1105,12 +1158,17 @@ struct ActiveChatsView: View {
 // MARK: - Contact Cell View
 
 struct ContactCellView: View {
-    let contact: MLContact
+    @StateObject var contact: ObservableKVOWrapper<MLContact>
     let lastMessage: MLMessage?
+
+    init(contact: MLContact, lastMessage: MLMessage?) {
+        _contact = StateObject(wrappedValue: ObservableKVOWrapper<MLContact>(contact))
+        self.lastMessage = lastMessage
+    }
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(uiImage: MLImageManager.sharedInstance().getIconFor(contact) ?? UIImage())
+            Image(uiImage: MLImageManager.sharedInstance().getIconFor(contact.obj) ?? UIImage())
                 .resizable()
                 .scaledToFill()
                 .frame(width: 50, height: 50)
@@ -1119,7 +1177,7 @@ struct ContactCellView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(contact.contactDisplayName)
+                    Text(contact.contactDisplayName as String? ?? "")
                         .font(.system(size: 16, weight: .semibold))
                         .lineLimit(1)
                     Spacer()
@@ -1135,8 +1193,8 @@ struct ContactCellView: View {
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                     Spacer()
-                    if contact.unreadCount > 0 {
-                        Text("\(contact.unreadCount)")
+                    if (contact.unreadCount as NSNumber?)?.intValue ?? 0 > 0 {
+                        Text("\((contact.unreadCount as NSNumber?)?.intValue ?? 0)")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(.white)
                             .padding(.horizontal, 6)
@@ -1154,7 +1212,7 @@ struct ContactCellView: View {
     @ViewBuilder
     private var messageText: some View {
         if let msg = lastMessage, !msg.messageText.isEmpty {
-            Text(ActiveChatsBridgeHelper.displayString(forMessage: msg.messageText, in: contact))
+            Text(ActiveChatsBridgeHelper.displayString(forMessage: msg.messageText, in: contact.obj))
         } else {
             Text("")
         }
@@ -1183,7 +1241,7 @@ struct ContactCellView: View {
 /// The @objc(ActiveChatsViewController) attribute makes ObjC see this class under the
 /// original name, satisfying the @class forward declaration in MonalAppDelegate.h.
 @objc(ActiveChatsViewController)
-class ActiveChatsHostingController: UIViewController {
+class ActiveChatsHostingController: UIViewController, UISearchResultsUpdating {
 
     let coordinator = ActiveChatsCoordinator()
     private var hostingController: UIHostingController<ActiveChatsView>!
@@ -1253,7 +1311,20 @@ class ActiveChatsHostingController: UIViewController {
         coordinator.sizeClass = SizeClassWrapper()
         coordinator.updateSizeClass()
 
-        settingsButton?.image = UIImage(systemName: "gearshape.fill")
+        // Set up ellipsis menu
+        let markAllReadAction = UIAction(
+            title: NSLocalizedString("Mark all as read", comment: ""),
+            image: UIImage(systemName: "envelope.open")
+        ) { [weak self] _ in
+            self?.coordinator.markAllAsRead()
+        }
+
+        let menu = UIMenu(children: [markAllReadAction])
+        navigationItem.leftBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "ellipsis"),
+            menu: menu
+        )
+
         coordinator.configureComposeButton()
 
         // Create title view with spinner and label (mirrors ObjC viewDidLoad)
@@ -1286,6 +1357,19 @@ class ActiveChatsHostingController: UIViewController {
 
         navigationItem.titleView = containerView
 
+        // Search controller
+        let searchController = UISearchController(searchResultsController: nil)
+        searchController.searchResultsUpdater = self
+        searchController.obscuresBackgroundDuringPresentation = false
+        searchController.searchBar.placeholder = NSLocalizedString("Search chats", comment: "")
+        searchController.searchBar.autocapitalizationType = .none
+        searchController.searchBar.autocorrectionType = .no
+        navigationItem.searchController = searchController
+        navigationItem.hidesSearchBarWhenScrolling = true
+        navigationItem.largeTitleDisplayMode = .never
+        navigationController?.navigationBar.prefersLargeTitles = false
+        definesPresentationContext = true
+
         coordinator.refresh()
 
         // Has to be done here to not always prepend intro screens onto our view queue
@@ -1312,6 +1396,12 @@ class ActiveChatsHostingController: UIViewController {
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
         super.viewWillTransition(to: size, with: coordinator)
         self.coordinator.updateSizeClass()
+    }
+
+    // MARK: - UISearchResultsUpdating
+
+    func updateSearchResults(for searchController: UISearchController) {
+        coordinator.searchText = searchController.searchBar.text ?? ""
     }
 
     // MARK: - Segues
