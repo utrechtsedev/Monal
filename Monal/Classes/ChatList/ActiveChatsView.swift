@@ -49,6 +49,9 @@ class ActiveChatsCoordinator: NSObject, ObservableObject {
     @Published var unpinnedContacts: [MLContact] = []
     @Published var pinnedContacts: [MLContact] = []
     @Published var searchText: String = ""
+    @Published var isSelectingChats = false
+    @Published var selectedChats: Set<MLContact> = []
+    @Published var showDeleteConfirmation = false
 
     // MARK: UIKit references (set by hosting controller)
 
@@ -705,6 +708,13 @@ class ActiveChatsCoordinator: NSObject, ObservableObject {
         }
     }
 
+    func toggleSelectionMode() {
+        isSelectingChats.toggle()
+        if !isSelectingChats {
+            selectedChats.removeAll()
+        }
+    }
+
     func showCallContactNotFoundAlert(_ jid: String) {
         let alert = UIAlertController(
             title: NSLocalizedString("Contact not found", comment: ""),
@@ -1071,6 +1081,17 @@ struct ActiveChatsView: View {
                 chatList
             }
         }
+        .confirmationDialog(
+            String(format: NSLocalizedString("Delete %d chat(s)?", comment: ""), coordinator.selectedChats.count),
+            isPresented: $coordinator.showDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(NSLocalizedString("Delete", comment: ""), role: .destructive) {
+                deleteSelectedChats()
+            }
+        } message: {
+            Text(NSLocalizedString("This will permanently delete all messages in the selected chats.", comment: ""))
+        }
     }
 
     private var chatList: some View {
@@ -1098,25 +1119,50 @@ struct ActiveChatsView: View {
             guard let currentContact = MLNotificationManager.sharedInstance().currentContact else { return false }
             return contact.isEqual(toContact: currentContact)
         }()
+        let isChecked = coordinator.selectedChats.contains(contact)
 
-        return ContactCellView(contact: contact, lastMessage: lastMessage)
-            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-            .listRowSeparatorTint(Color(UIColor.separator))
-            .alignmentGuide(.listRowSeparatorTrailing) { d in d[.trailing] }
-            .listRowSeparator(isFirst ? .hidden : .automatic, edges: .top)
-            .frame(height: 60)
-            .background(isSelected ? Color(UIColor.lightGray) : Color.clear)
-            .contentShape(Rectangle())
-            .onTapGesture {
+        return HStack(spacing: 0) {
+            if coordinator.isSelectingChats {
+                Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(isChecked ? .accentColor : .secondary)
+                    .font(.system(size: 22))
+                    .padding(.leading, 12)
+                    .transition(.move(edge: .leading).combined(with: .opacity))
+            }
+            ContactCellView(contact: contact, lastMessage: lastMessage)
+        }
+        .animation(.easeInOut(duration: 0.2), value: coordinator.isSelectingChats)
+        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+        .listRowSeparatorTint(Color(UIColor.separator))
+        .alignmentGuide(.listRowSeparatorTrailing) { d in d[.trailing] }
+        .listRowSeparator(isFirst ? .hidden : .automatic, edges: .top)
+        .frame(height: 60)
+        .background(
+            coordinator.isSelectingChats
+                ? (isChecked ? Color.accentColor.opacity(0.1) : Color.clear)
+                : (isSelected ? Color(UIColor.lightGray) : Color.clear)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if coordinator.isSelectingChats {
+                if isChecked {
+                    coordinator.selectedChats.remove(contact)
+                } else {
+                    coordinator.selectedChats.insert(contact)
+                }
+            } else {
                 coordinator.presentChat(withContact: contact)
             }
-            .swipeActions(edge: .trailing) {
+        }
+        .swipeActions(edge: .trailing) {
+            if !coordinator.isSelectingChats {
                 Button(role: .destructive) {
                     archiveChat(contact)
                 } label: {
                     Text(NSLocalizedString("Archive chat", comment: ""))
                 }
             }
+        }
     }
 
     private func archiveChat(_ contact: MLContact) {
@@ -1128,6 +1174,14 @@ struct ActiveChatsView: View {
         DataLayer.sharedInstance().removeActiveBuddy(contact.contactJid, forAccount: contact.accountID)
         coordinator.refreshDisplay()
         coordinator.presentChat(withContact: nil)
+    }
+
+    private func deleteSelectedChats() {
+        for contact in coordinator.selectedChats {
+            contact.clearHistory()
+            archiveChat(contact)
+        }
+        coordinator.toggleSelectionMode()
     }
 
     private var emptyView: some View {
@@ -1245,6 +1299,12 @@ class ActiveChatsHostingController: UIViewController, UISearchResultsUpdating {
 
     let coordinator = ActiveChatsCoordinator()
     private var hostingController: UIHostingController<ActiveChatsView>!
+    private var selectionModeSubscriber: AnyCancellable?
+    private var selectionCountSubscriber: AnyCancellable?
+    private var savedLeftBarButtonItem: UIBarButtonItem?
+    private var savedRightBarButtonItem: UIBarButtonItem?
+    private var archiveBarButton: UIBarButtonItem?
+    private var deleteBarButton: UIBarButtonItem?
 
     // MARK: Properties forwarded from the coordinator (match .h declarations)
 
@@ -1319,13 +1379,79 @@ class ActiveChatsHostingController: UIViewController, UISearchResultsUpdating {
             self?.coordinator.markAllAsRead()
         }
 
-        let menu = UIMenu(children: [markAllReadAction])
+        let selectChatsAction = UIAction(
+            title: NSLocalizedString("Select chats", comment: ""),
+            image: UIImage(systemName: "checkmark.circle")
+        ) { [weak self] _ in
+            self?.coordinator.toggleSelectionMode()
+        }
+
+        let menu = UIMenu(children: [markAllReadAction, selectChatsAction])
         navigationItem.leftBarButtonItem = UIBarButtonItem(
             image: UIImage(systemName: "ellipsis"),
             menu: menu
         )
 
         coordinator.configureComposeButton()
+
+        // Observe selection mode to swap nav bar items
+        selectionModeSubscriber = coordinator.$isSelectingChats
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] isSelecting in
+                guard let self else { return }
+                if isSelecting {
+                    self.savedLeftBarButtonItem = self.navigationItem.leftBarButtonItem
+                    self.savedRightBarButtonItem = self.navigationItem.rightBarButtonItem
+                    self.navigationItem.leftBarButtonItem = UIBarButtonItem(
+                        title: NSLocalizedString("Done", comment: ""),
+                        style: .done,
+                        target: self,
+                        action: #selector(self.doneSelectingTapped)
+                    )
+                    self.archiveBarButton = UIBarButtonItem(
+                        image: UIImage(systemName: "archivebox"),
+                        style: .plain,
+                        target: self,
+                        action: #selector(self.archiveSelectedTapped)
+                    )
+                    self.archiveBarButton?.isEnabled = false
+                    self.deleteBarButton = UIBarButtonItem(
+                        image: UIImage(systemName: "trash"),
+                        style: .plain,
+                        target: self,
+                        action: #selector(self.deleteSelectedTapped)
+                    )
+                    self.deleteBarButton?.tintColor = .systemRed
+                    self.deleteBarButton?.isEnabled = false
+                    self.navigationItem.rightBarButtonItems = [self.deleteBarButton!, self.archiveBarButton!]
+                    self.navigationItem.searchController?.searchBar.isUserInteractionEnabled = false
+                    self.coordinator.titleLabel?.text = NSLocalizedString("Select chats", comment: "")
+                } else {
+                    self.navigationItem.leftBarButtonItem = self.savedLeftBarButtonItem
+                    self.navigationItem.rightBarButtonItems = nil
+                    self.navigationItem.rightBarButtonItem = self.savedRightBarButtonItem
+                    self.navigationItem.searchController?.searchBar.isUserInteractionEnabled = true
+                    self.coordinator.titleLabel?.text = NSLocalizedString("Chats", comment: "")
+                    self.archiveBarButton = nil
+                    self.deleteBarButton = nil
+                }
+            }
+
+        // Update button enabled state and title when selection changes
+        selectionCountSubscriber = coordinator.$selectedChats
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] selected in
+                guard let self, self.coordinator.isSelectingChats else { return }
+                let hasSelection = !selected.isEmpty
+                self.archiveBarButton?.isEnabled = hasSelection
+                self.deleteBarButton?.isEnabled = hasSelection
+                if hasSelection {
+                    self.coordinator.titleLabel?.text = String(format: NSLocalizedString("%d selected", comment: ""), selected.count)
+                } else {
+                    self.coordinator.titleLabel?.text = NSLocalizedString("Select chats", comment: "")
+                }
+            }
 
         // Create title view with spinner and label (mirrors ObjC viewDidLoad)
         let containerView = UIView()
@@ -1402,6 +1528,23 @@ class ActiveChatsHostingController: UIViewController, UISearchResultsUpdating {
 
     func updateSearchResults(for searchController: UISearchController) {
         coordinator.searchText = searchController.searchBar.text ?? ""
+    }
+
+    @objc private func doneSelectingTapped() {
+        coordinator.toggleSelectionMode()
+    }
+
+    @objc private func archiveSelectedTapped() {
+        for contact in coordinator.selectedChats {
+            DataLayer.sharedInstance().removeActiveBuddy(contact.contactJid, forAccount: contact.accountID)
+        }
+        coordinator.toggleSelectionMode()
+        coordinator.refreshDisplay()
+        coordinator.presentChat(withContact: nil)
+    }
+
+    @objc private func deleteSelectedTapped() {
+        coordinator.showDeleteConfirmation = true
     }
 
     // MARK: - Segues
