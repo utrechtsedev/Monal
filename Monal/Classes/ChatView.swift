@@ -83,7 +83,8 @@ extension MonalView {
 
 struct ChatView: View {
     @Environment(\.presentationMode) private var presentationMode
-    
+    @Environment(\.colorScheme) var colorScheme
+
     private var account: xmpp
     @StateObject var voipProcessor: ObservableKVOWrapper<MLVoIPProcessor>
     @StateObject var contact: ObservableKVOWrapper<MLContact>
@@ -621,6 +622,7 @@ struct ChatView: View {
                                     .resizable()
                                     .scaledToFill()
                                     .frame(width: 35, height: 35)
+                                    .id(colorScheme)
 
                                 VStack(alignment: .leading, spacing: 0) {
                                     Text(contact.contactDisplayName as String)

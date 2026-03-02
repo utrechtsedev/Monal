@@ -40,24 +40,17 @@ struct ContactViewEntry: View {
     }
 
     var body: some View {
-        // Apple's list dividers only extend as far left as the left-most text in the view.
-        // This means, by default, that the dividers on this screen would not extend all the way to the left of the view.
-        // This combination of HStack with spacing of 0, and empty text at the left of the view, is a workaround to override this behaviour.
-        // See https://stackoverflow.com/a/76698909
-        HStack(spacing: 0) {
-            Text("").frame(maxWidth: 0)
-            Button(action: { dismissWithContact(contact) }) {
-                HStack {
-                    ContactEntry(contact: contact)
-                    Spacer()
-                    Button {
-                        selectedContactForContactDetails = contact
-                    } label: {
-                        Image(systemName: "info.circle")
-                            .imageScale(.large)
-                    }
-                    .accessibilityLabel("Open contact details")
+        Button(action: { dismissWithContact(contact) }) {
+            HStack {
+                ContactEntry(contact: contact)
+                Spacer()
+                Button {
+                    selectedContactForContactDetails = contact
+                } label: {
+                    Image(systemName: "info.circle")
+                        .imageScale(.large)
                 }
+                .accessibilityLabel("Open contact details")
             }
         }
         .swipeActions(allowsFullSwipe: false) {
@@ -140,6 +133,8 @@ struct ContactsView: View {
         List {
             ForEach(searchResults, id: \.self) { contact in
                 ContactViewEntry(contact: contact, selectedContactForContactDetails: $selectedContactForContactDetails, dismissWithContact: dismissWithContact)
+                    .listRowSeparator(.hidden, edges: contact == searchResults.first ? .top : [])
+                    .alignmentGuide(.listRowSeparatorTrailing) { d in d[.trailing] }
             }
         }
         .animation(.default, value: contactList)
@@ -166,20 +161,6 @@ struct ContactsView: View {
                     Color.contactsBackground
                     ContentUnavailableShimView.search(text:searchText)
                 }
-            }
-        }
-        .toolbar {
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                NavigationLink(destination: CreateGroupMenu(delegate: SheetDismisserProtocol())) {
-                    Image(systemName: "person.3.fill")
-                }
-                .accessibilityLabel("Create contact group")
-
-                NavigationLink(destination: AddContactMenu(delegate: SheetDismisserProtocol(), dismissWithNewContact: dismissWithContact)) {
-                    Image(systemName: "person.fill.badge.plus")
-                        .overlay { NumberlessBadge($contacts.requestCount) }
-                }
-                .accessibilityLabel(contacts.requestCount > 0 ? "Add contact (contact requests pending)" : "Add New Contact")
             }
         }
         .sheet(item: $selectedContactForContactDetails) { selectedContact in

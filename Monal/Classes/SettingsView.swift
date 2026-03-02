@@ -186,6 +186,7 @@ struct SettingsView: View {
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Settings")
+        .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             viewModel.refresh()
         }
@@ -196,6 +197,7 @@ struct SettingsView: View {
 
 struct AccountRowView: View {
     let account: AccountInfo
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         HStack(spacing: 12) {
@@ -206,6 +208,7 @@ struct AccountRowView: View {
                     .aspectRatio(contentMode: .fill)
                     .frame(width: 40, height: 40)
                     .clipShape(Circle())
+                    .id(colorScheme)
             } else {
                 Circle()
                     .fill(Color.gray.opacity(0.3))

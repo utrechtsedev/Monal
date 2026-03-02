@@ -16,6 +16,7 @@ class ContactDetailsDefaultsDB: ObservableObject {
 
 struct ContactDetails: View {
     @Environment(\.presentationMode) private var presentationMode
+    @Environment(\.colorScheme) var colorScheme
     @ObservedObject var contactDetailsDefaultsDB = ContactDetailsDefaultsDB()
     @State private var ownRole = kMucRoleParticipant
     @State private var ownAffiliation = kMucAffiliationNone
@@ -83,6 +84,7 @@ struct ContactDetails: View {
                         Image(uiImage: contact.avatar)
                             .resizable()
                             .scaledToFit()
+                            .id(colorScheme)
                             .applyClosure {view in
                                 if contact.isMuc {
                                     if ownAffiliation == kMucAffiliationOwner {

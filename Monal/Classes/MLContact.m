@@ -42,6 +42,7 @@ static NSMutableDictionary* _singletonCache;
     monal_void_block_t _cancelNickChange;
     monal_void_block_t _cancelFullNameChange;
     UIImage* _avatar;
+    UIUserInterfaceStyle _cachedAvatarStyle;
     NSMutableDictionary<NSString*, NSString*>* _contactDisplayNameCache;
 }
 @property (nonatomic, assign) BOOL isSelf;
@@ -512,11 +513,13 @@ static NSMutableDictionary* _singletonCache;
 
 -(UIImage*) avatar
 {
-    // return already cached image
-    if(_avatar != nil)
+    // return already cached image, but invalidate if appearance changed (dummy icons are appearance-dependent)
+    UIUserInterfaceStyle currentStyle = UITraitCollection.currentTraitCollection.userInterfaceStyle;
+    if(_avatar != nil && _cachedAvatarStyle == currentStyle)
         return _avatar;
     // load avatar from MLImageManager (use self.avatar instead of _avatar to make sure KVO works properly)
     self.avatar = [[MLImageManager sharedInstance] getIconForContact:self];
+    _cachedAvatarStyle = currentStyle;
     return _avatar;
 }
 

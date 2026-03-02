@@ -264,22 +264,28 @@ class ActiveChatsCoordinator: NSObject, ObservableObject {
 
     func configureComposeButton() {
         guard let btn = composeButton else { return }
-        let hasContactRequests = DataLayer.sharedInstance().allContactRequests().count > 0
-        if hasContactRequests {
-            btn.image = HelperTools.imageWithNotificationBadge(for: UIImage(systemName: "plus")!)
-            btn.accessibilityLabel = NSLocalizedString("Open contact list (contact requests pending)", comment: "")
-        } else {
-            btn.image = UIImage(systemName: "plus")
-            btn.accessibilityLabel = NSLocalizedString("Open contact list", comment: "")
+
+        let newChat = UIAction(
+            title: NSLocalizedString("New Chat", comment: ""),
+            image: UIImage(systemName: "message")
+        ) { [weak self] _ in
+            self?.showContacts()
         }
-        btn.target = self
-        btn.action = #selector(showContactsAction(_:))
+
+        let createGroup = UIAction(
+            title: NSLocalizedString("Create Group", comment: ""),
+            image: UIImage(systemName: "person.3.fill")
+        ) { [weak self] _ in
+            self?.showCreateGroup()
+        }
+
+        btn.menu = UIMenu(children: [newChat, createGroup])
+        btn.target = nil
+        btn.action = nil
+        btn.image = UIImage(systemName: "plus")
+        btn.accessibilityLabel = NSLocalizedString("Actions menu", comment: "")
         btn.isAccessibilityElement = true
         btn.accessibilityTraits = .button
-    }
-
-    @objc private func showContactsAction(_ sender: Any) {
-        showContacts()
     }
 
     // MARK: - Notification Handlers
@@ -914,6 +920,17 @@ class ActiveChatsCoordinator: NSObject, ObservableObject {
         }
     }
 
+    func showCreateGroup() {
+        appendToViewQueue { [self] resolve in
+            let delegate = SheetDismisserProtocol()
+            let host = UIHostingController(rootView: AnyView(EmptyView()))
+            delegate.host = host
+            host.rootView = AnyView(AddTopLevelNavigation(withDelegate: delegate, to: CreateGroupMenu(delegate: delegate)))
+            host.ml_disposeCallback = { [self] in self.sheetDismissed() }
+            self.presentVC(host, animated: true) { resolve(nil) }
+        }
+    }
+
     func showRegister(withUsername username: String, onHost host: String, withToken token: String?, usingCompletion callback: monal_id_block_t?) {
         replaceIdOnViewQueue(.welcomeLoginView, withBlock: { [self] resolve in
             // Build dict mirroring ObjC's nilWrapper()/nilDefault() macros:
@@ -1213,6 +1230,7 @@ struct ActiveChatsView: View {
 
 struct ContactCellView: View {
     @StateObject var contact: ObservableKVOWrapper<MLContact>
+    @Environment(\.colorScheme) var colorScheme
     let lastMessage: MLMessage?
 
     init(contact: MLContact, lastMessage: MLMessage?) {
@@ -1228,6 +1246,7 @@ struct ContactCellView: View {
                 .frame(width: 50, height: 50)
                 .clipShape(Circle())
                 .padding(.leading, 12)
+                .id(colorScheme)
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
@@ -1392,6 +1411,10 @@ class ActiveChatsHostingController: UIViewController, UISearchResultsUpdating {
             menu: menu
         )
 
+        // Grab the right bar button from storyboard (IBOutlet is not connected)
+        if coordinator.composeButton == nil {
+            coordinator.composeButton = navigationItem.rightBarButtonItem
+        }
         coordinator.configureComposeButton()
 
         // Observe selection mode to swap nav bar items

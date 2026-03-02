@@ -177,45 +177,82 @@
 
 -(UIImage*) generateDummyIconForContact:(MLContact*) contact
 {
-    NSString* contactLetter;
+    return [self generateDummyIconForContact:contact withSymbol:@"person.fill"];
+}
 
-    if(contact.isSelf)
+-(UIImage*) generateDummyIconForContact:(MLContact*) contact withSymbol:(NSString*) symbolName
+{
+    // Deterministically pick one of 4 colors from JID
+    NSUInteger colorIndex = [contact.contactJid hash] % 4;
+    BOOL isDarkMode = (UITraitCollection.currentTraitCollection.userInterfaceStyle == UIUserInterfaceStyleDark);
+
+    UIColor* background;
+    UIColor* foreground;
+
+    if(isDarkMode)
     {
-        xmpp* account = contact.account;
-        contactLetter = [[[MLContact ownDisplayNameForAccount:account] substringToIndex:1] uppercaseString];
+        switch(colorIndex)
+        {
+            case 0: // Blue
+                background = [UIColor colorWithRed:0.18 green:0.27 blue:0.40 alpha:1.0];
+                foreground = [UIColor colorWithRed:0.55 green:0.68 blue:0.85 alpha:1.0];
+                break;
+            case 1: // Teal
+                background = [UIColor colorWithRed:0.13 green:0.32 blue:0.28 alpha:1.0];
+                foreground = [UIColor colorWithRed:0.48 green:0.72 blue:0.68 alpha:1.0];
+                break;
+            case 2: // Orange
+                background = [UIColor colorWithRed:0.42 green:0.28 blue:0.15 alpha:1.0];
+                foreground = [UIColor colorWithRed:0.85 green:0.65 blue:0.45 alpha:1.0];
+                break;
+            default: // Pink
+                background = [UIColor colorWithRed:0.40 green:0.18 blue:0.27 alpha:1.0];
+                foreground = [UIColor colorWithRed:0.85 green:0.55 blue:0.68 alpha:1.0];
+                break;
+        }
     }
     else
-        contactLetter = [[[contact contactDisplayName] substringToIndex:1] uppercaseString];
+    {
+        switch(colorIndex)
+        {
+            case 0: // Blue
+                background = [UIColor colorWithRed:0.80 green:0.87 blue:0.96 alpha:1.0];
+                foreground = [UIColor colorWithRed:0.30 green:0.47 blue:0.68 alpha:1.0];
+                break;
+            case 1: // Teal
+                background = [UIColor colorWithRed:0.76 green:0.91 blue:0.87 alpha:1.0];
+                foreground = [UIColor colorWithRed:0.22 green:0.52 blue:0.46 alpha:1.0];
+                break;
+            case 2: // Orange
+                background = [UIColor colorWithRed:0.96 green:0.86 blue:0.76 alpha:1.0];
+                foreground = [UIColor colorWithRed:0.72 green:0.46 blue:0.22 alpha:1.0];
+                break;
+            default: // Pink
+                background = [UIColor colorWithRed:0.96 green:0.80 blue:0.87 alpha:1.0];
+                foreground = [UIColor colorWithRed:0.68 green:0.30 blue:0.47 alpha:1.0];
+                break;
+        }
+    }
 
-    UIColor* background = [HelperTools generateColorFromJid:contact.contactJid];
-    UIColor* foreground = [UIColor blackColor];
-    if(![background isLightColor])
-        foreground = [UIColor whiteColor];
-    
     CGRect drawRect = CGRectMake(0, 0, 200, 200);
     UIGraphicsImageRenderer* renderer = [[UIGraphicsImageRenderer alloc] initWithSize:drawRect.size];
     return [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull context) {
         //make sure our image is circular
         [[UIBezierPath bezierPathWithOvalInRect:drawRect] addClip];
-        
+
         //fill the background of our image
         [background setFill];
         [context fillRect:renderer.format.bounds];
-        
-        //draw letter in the middleof our image
-        NSMutableParagraphStyle* paragraphStyle = [[NSParagraphStyle defaultParagraphStyle] mutableCopy];
-        paragraphStyle.alignment = NSTextAlignmentCenter;
-        NSDictionary* attributes = @{
-            NSFontAttributeName: [[UIFont preferredFontForTextStyle:UIFontTextStyleLargeTitle] fontWithSize:(unsigned int)(drawRect.size.height / 1.666)],
-            NSForegroundColorAttributeName: foreground,
-            NSParagraphStyleAttributeName: paragraphStyle
-        };
-        CGSize textSize = [contactLetter sizeWithAttributes:attributes];
-        CGRect textRect = CGRectMake(floorf((float)(renderer.format.bounds.size.width - textSize.width) / 2),
-                                    floorf((float)(renderer.format.bounds.size.height - textSize.height) / 2),
-                                    textSize.width,
-                                    textSize.height);
-        [contactLetter drawInRect:textRect withAttributes:attributes];
+
+        //draw SF Symbol centered in our image
+        UIImageSymbolConfiguration* config = [UIImageSymbolConfiguration configurationWithPointSize:(drawRect.size.height / 2.0) weight:UIImageSymbolWeightRegular];
+        UIImage* symbolImage = [[UIImage systemImageNamed:symbolName withConfiguration:config] imageWithTintColor:foreground renderingMode:UIImageRenderingModeAlwaysOriginal];
+        CGSize imageSize = symbolImage.size;
+        CGRect imageRect = CGRectMake(floorf((float)(drawRect.size.width - imageSize.width) / 2),
+                                      floorf((float)(drawRect.size.height - imageSize.height) / 2),
+                                      imageSize.width,
+                                      imageSize.height);
+        [symbolImage drawInRect:imageRect];
     }];
 }
 
@@ -332,7 +369,8 @@
     
     __block UIImage* toreturn = nil;
     //get filname from DB
-    NSString* cacheKey = [NSString stringWithFormat:@"%@_%@", contact.accountID, contact.contactJid];
+    NSString* appearanceSuffix = (UITraitCollection.currentTraitCollection.userInterfaceStyle == UIUserInterfaceStyleDark) ? @"dark" : @"light";
+    NSString* cacheKey = [NSString stringWithFormat:@"%@_%@_%@", contact.accountID, contact.contactJid, appearanceSuffix];
     
     //check cache
     toreturn = [self.iconCache objectForKey:cacheKey];
@@ -352,12 +390,7 @@
         {
             DDLogVerbose(@"Using/generating dummy icon for contact: %@", contact);
             if(contact.isMuc)
-            {
-                if([kMucTypeChannel isEqualToString:contact.mucType])
-                    toreturn = [MLImageManager circularImage:[UIImage imageNamed:@"noicon_channel" inBundle:nil compatibleWithTraitCollection:nil]];
-                else
-                    toreturn = [MLImageManager circularImage:[UIImage imageNamed:@"noicon_muc" inBundle:nil compatibleWithTraitCollection:nil]];
-            }
+                toreturn = [self generateDummyIconForContact:contact withSymbol:@"person.2.fill"];
             else
                 toreturn = [self generateDummyIconForContact:contact];
         }

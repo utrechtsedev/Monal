@@ -17,10 +17,10 @@ struct ContactPickerEntry: View {
         ZStack(alignment: .topLeading) {
             HStack(alignment: .center) {
                 if(isExistingMember) {
-                    Image(systemName: "checkmark.circle")
+                    Image(systemName: "circle.fill")
                         .foregroundColor(.gray)
                 } else if(isPicked) {
-                    Image(systemName: "checkmark.circle")
+                    Image(systemName: "circle.fill")
                         .foregroundColor(.accentColor)
                 } else {
                     Image(systemName: "circle")

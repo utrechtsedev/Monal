@@ -11,7 +11,8 @@ struct ContactEntry<AdditionalContent: View>: View {
     let fallback: String?
     @ViewBuilder let additionalContent: () -> AdditionalContent
     @ScaledMetric(relativeTo:.body) private var size40px: CGFloat = 40
-    
+    @Environment(\.colorScheme) var colorScheme
+
     @StateObject var contact: ObservableKVOWrapper<MLContact>
     
     init(contact:MLContact, selfnotesPrefix: Bool = true, fallback: String? = nil) where AdditionalContent == EmptyView {
@@ -48,6 +49,7 @@ struct ContactEntry<AdditionalContent: View>: View {
                 Image(uiImage: contact.avatar)
                     .resizable()
                     .frame(width: size40px, height: size40px, alignment: .center)
+                    .id(colorScheme)
                 VStack(alignment: .leading) {
                     if selfnotesPrefix {
                         // use the if to make sure this view gets updated if the contact display name changes

@@ -19,7 +19,31 @@ struct CreateGroupMenu: View {
     @State private var alertPrompt = AlertPrompt(dismissLabel: Text("Close"))
     @State private var selectedContacts: OrderedSet<ObservableKVOWrapper<MLContact>> = []
     @State private var isEditingGroupName = false
+    @State private var searchText = ""
     @StateObject private var overlay = LoadingOverlayState()
+
+    private var allContacts: OrderedSet<ObservableKVOWrapper<MLContact>> {
+        guard let account = selectedAccount else { return OrderedSet() }
+        var contacts: OrderedSet<ObservableKVOWrapper<MLContact>> = OrderedSet()
+        for contact in DataLayer.sharedInstance().possibleGroupMembers(forAccount: account.accountID) {
+            contacts.append(ObservableKVOWrapper(contact))
+        }
+        return contacts
+    }
+
+    private var searchResults: OrderedSet<ObservableKVOWrapper<MLContact>> {
+        if searchText.isEmpty {
+            return allContacts
+        }
+        var filtered: OrderedSet<ObservableKVOWrapper<MLContact>> = OrderedSet()
+        for contact in allContacts {
+            if (contact.contactDisplayName as String).lowercased().contains(searchText.lowercased()) ||
+                (contact.contactJid as String).contains(searchText.lowercased()) {
+                filtered.append(contact)
+            }
+        }
+        return filtered
+    }
 
     init(delegate: SheetDismisserProtocol) {
         self.appDelegate = UIApplication.shared.delegate as! MonalAppDelegate
@@ -34,6 +58,45 @@ struct CreateGroupMenu: View {
         alertPrompt.title = title
         alertPrompt.message = message
         showAlert = true
+    }
+
+    private func createGroup() {
+        guard let generatedJid = self.selectedAccount!.mucProcessor.generateMucJid() else {
+            errorAlert(title: Text("Error creating group!"), message: Text("Your server does not provide a MUC component."))
+            return
+        }
+        showLoadingOverlay(overlay, headline: "Creating Group")
+        guard let roomJid = self.selectedAccount!.mucProcessor.createGroup(generatedJid) else {
+            //room already existing in our local bookmarks --> just open it
+            //this should never happen since we randomly generated a jid above
+            hideLoadingOverlay(overlay)
+            let groupContact = MLContact.createContact(fromJid: generatedJid, andAccountID: self.selectedAccount!.accountID)
+            self.delegate.dismissWithoutAnimation()
+            if let activeChats = self.appDelegate.activeChats {
+                activeChats.presentChat(with:groupContact)
+            }
+            return
+        }
+        self.selectedAccount!.mucProcessor.addUIHandler({_data in let data = _data as! NSDictionary
+            let success : Bool = data["success"] as! Bool;
+            if success {
+                DataLayer.sharedInstance().setFullName(self.groupName, forContact:roomJid, andAccount:self.selectedAccount!.accountID)
+                self.selectedAccount!.mucProcessor.changeName(ofMuc: roomJid, to: self.groupName)
+                for user in self.selectedContacts {
+                    self.selectedAccount!.mucProcessor.setAffiliation(kMucAffiliationMember, ofUser: user.contactJid, inMuc: roomJid)
+                    self.selectedAccount!.mucProcessor.inviteUser(user.contactJid, inMuc: roomJid)
+                }
+                let groupContact = MLContact.createContact(fromJid: roomJid, andAccountID: self.selectedAccount!.accountID)
+                hideLoadingOverlay(overlay)
+                self.delegate.dismissWithoutAnimation()
+                if let activeChats = self.appDelegate.activeChats {
+                    activeChats.presentChat(with:groupContact)
+                }
+            } else {
+                hideLoadingOverlay(overlay)
+                errorAlert(title: Text("Error creating group!"), message: Text(data["errorMessage"] as! String))
+            }
+        }, forMuc: roomJid)
     }
 
     // When a Form is placed inside a Popover, and the horizontal size class is regular, the spacing chosen by SwiftUI is incorrect.
@@ -68,59 +131,22 @@ struct CreateGroupMenu: View {
                         .autocapitalization(.none)
                         .addClearButton(isEditing: isEditingGroupName, text:$groupName)
 
-                    Button(action: {
-                        guard let generatedJid = self.selectedAccount!.mucProcessor.generateMucJid() else {
-                            errorAlert(title: Text("Error creating group!"), message: Text("Your server does not provide a MUC component."))
-                            return
-                        }
-                        showLoadingOverlay(overlay, headline: "Creating Group")
-                        guard let roomJid = self.selectedAccount!.mucProcessor.createGroup(generatedJid) else {
-                            //room already existing in our local bookmarks --> just open it
-                            //this should never happen since we randomly generated a jid above
-                            hideLoadingOverlay(overlay)
-                            let groupContact = MLContact.createContact(fromJid: generatedJid, andAccountID: self.selectedAccount!.accountID)
-                            self.delegate.dismissWithoutAnimation()
-                            if let activeChats = self.appDelegate.activeChats {
-                                activeChats.presentChat(with:groupContact)
-                            }
-                            return
-                        }
-                        self.selectedAccount!.mucProcessor.addUIHandler({_data in let data = _data as! NSDictionary
-                            let success : Bool = data["success"] as! Bool;
-                            if success {
-                                DataLayer.sharedInstance().setFullName(self.groupName, forContact:roomJid, andAccount:self.selectedAccount!.accountID)
-                                self.selectedAccount!.mucProcessor.changeName(ofMuc: roomJid, to: self.groupName)
-                                for user in self.selectedContacts {
-                                    self.selectedAccount!.mucProcessor.setAffiliation(kMucAffiliationMember, ofUser: user.contactJid, inMuc: roomJid)
-                                    self.selectedAccount!.mucProcessor.inviteUser(user.contactJid, inMuc: roomJid)
-                                }
-                                let groupContact = MLContact.createContact(fromJid: roomJid, andAccountID: self.selectedAccount!.accountID)
-                                hideLoadingOverlay(overlay)
-                                self.delegate.dismissWithoutAnimation()
-                                if let activeChats = self.appDelegate.activeChats {
-                                    activeChats.presentChat(with:groupContact)
-                                }
-                            } else {
-                                hideLoadingOverlay(overlay)
-                                errorAlert(title: Text("Error creating group!"), message: Text(data["errorMessage"] as! String))
-                            }
-                        }, forMuc: roomJid)
-                    }, label: {
-                        Text("Create new group")
-                    })
                 }
 
-                Section(header: Text("Selected Group Members")) {
-                    NavigationLink(destination: LazyClosureView(ContactPicker(self.selectedAccount!, binding: $selectedContacts))) {
-                        Text("Change Group Members")
+                Section(header: Text("Select Group Members")) {
+                    ForEach(searchResults) { contact in
+                        let isSelected = self.selectedContacts.contains(contact)
+                        ContactPickerEntry(contact: contact, isPicked: isSelected, isExistingMember: false)
+                            .onTapGesture {
+                                if isSelected {
+                                    self.selectedContacts.remove(contact)
+                                } else {
+                                    self.selectedContacts.append(contact)
+                                }
+                            }
                     }
-                    ForEach(self.selectedContacts, id: \.obj.contactJid) { contact in
-                        ContactEntry(contact: contact.obj)
-                    }
-                    .onDelete(perform: { indexSet in
-                        self.selectedContacts.remove(at: indexSet.first!)
-                    })
                 }
+
             }
         }
         .alert(isPresented: $showAlert) {
@@ -128,8 +154,18 @@ struct CreateGroupMenu: View {
                 showAlert = false
             }))
         }
+        .searchable(text: $searchText, placement: .automatic)
         .addLoadingOverlay(overlay)
         .navigationBarTitle(Text("Create new group"), displayMode: .inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Create") {
+                    createGroup()
+                }
+                .font(.body.bold())
+                .disabled(enabledAccounts.isEmpty || groupName.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
     }
 }
 
