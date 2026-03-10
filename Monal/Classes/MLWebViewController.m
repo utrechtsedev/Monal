@@ -7,7 +7,7 @@
 //
 
 #import "MLWebViewController.h"
-#import "HelperTools.h"
+#import <monalxmpp/HelperTools.h>
 
 @interface MLWebViewController ()
 @property (weak, nonatomic) IBOutlet WKWebView* webview;
@@ -20,7 +20,6 @@
 {
     [super viewDidLoad];
     self.webview.contentMode = UIViewContentModeScaleAspectFill;
-    self.splitViewController.preferredDisplayMode = UISplitViewControllerDisplayModeOneBesideSecondary;
     
     UIBarButtonItem* openExternally = [[UIBarButtonItem alloc] init];
     openExternally.image = [UIImage systemImageNamed:@"safari"];
@@ -54,9 +53,8 @@
     else
     {
         NSMutableURLRequest* nsrequest = [NSMutableURLRequest requestWithURL: self.urltoLoad];
-        if(@available(iOS 16.1, macCatalyst 16.1, *))
-            if([[HelperTools defaultsDB] boolForKey: @"useDnssecForAllConnections"])
-                nsrequest.requiresDNSSECValidation = YES;
+        if([[HelperTools defaultsDB] boolForKey: @"useDnssecForAllConnections"])
+            nsrequest.requiresDNSSECValidation = YES;
         [self.webview loadRequest:nsrequest];
     }
     self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeNever;

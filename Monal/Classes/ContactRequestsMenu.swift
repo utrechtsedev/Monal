@@ -23,7 +23,18 @@ struct ContactRequestsMenuEntry: View {
                     appDelegate.openChat(of:contact)
                 } label: {
                     Image(systemName: "text.bubble")
-                        .accentColor(.primary)
+                        .foregroundStyle(Color.primary)
+                }
+                //see https://www.hackingwithswift.com/forums/swiftui/tap-button-in-hstack-activates-all-button-actions-ios-14-swiftui-2/2952
+                .buttonStyle(BorderlessButtonStyle())
+                
+                Button {
+                    // deny request and block contact
+                    MLXMPPManager.sharedInstance().remove(contact)
+                    MLXMPPManager.sharedInstance().block(true, contact:contact)
+                } label: {
+                    Image(systemName: "person.crop.circle.badge.xmark")
+                        .foregroundStyle(Color.red)
                 }
                 //see https://www.hackingwithswift.com/forums/swiftui/tap-button-in-hstack-activates-all-button-actions-ios-14-swiftui-2/2952
                 .buttonStyle(BorderlessButtonStyle())
@@ -43,8 +54,8 @@ struct ContactRequestsMenuEntry: View {
                     // deny request
                     MLXMPPManager.sharedInstance().remove(contact)
                 } label: {
-                    Image(systemName: "trash.circle")
-                        .accentColor(.red)
+                    Image(systemName: "person.crop.circle.badge.minus")
+                        .foregroundStyle(Color.yellow)
                 }
                 //see https://www.hackingwithswift.com/forums/swiftui/tap-button-in-hstack-activates-all-button-actions-ios-14-swiftui-2/2952
                 .buttonStyle(BorderlessButtonStyle())
@@ -55,8 +66,8 @@ struct ContactRequestsMenuEntry: View {
                     let appDelegate = UIApplication.shared.delegate as! MonalAppDelegate
                     appDelegate.openChat(of:contact)
                 } label: {
-                    Image(systemName: "checkmark.circle")
-                        .accentColor(.green)
+                    Image(systemName: "person.crop.circle.badge.checkmark")
+                        .foregroundStyle(Color.green)
                 }
                 //see https://www.hackingwithswift.com/forums/swiftui/tap-button-in-hstack-activates-all-button-actions-ios-14-swiftui-2/2952
                 .buttonStyle(BorderlessButtonStyle())
@@ -68,19 +79,19 @@ struct ContactRequestsMenuEntry: View {
 
 struct ContactRequestsMenu: View {
     @State var pendingRequests: [xmpp:[MLContact]] = [:]
-    @State var connectedAccounts: [Int:xmpp] = [:]
+    @State var enabledAccounts: [Int:xmpp] = [:]
     
     func updateRequests() {
         let requests = DataLayer.sharedInstance().allContactRequests() as! [MLContact]
-        connectedAccounts.removeAll()
+        enabledAccounts.removeAll()
         for account in MLXMPPManager.sharedInstance().connectedXMPP as! [xmpp] {
-            connectedAccounts[account.accountNo.intValue] = account
+            enabledAccounts[account.accountID.intValue] = account
         }
         pendingRequests.removeAll()
         for contact in requests {
             //add only requests having an enabled (dubbed connected) account
             //(should be a noop because allContactRequests() returns only enabled accounts)
-            if let account = connectedAccounts[contact.accountId.intValue] {
+            if let account = enabledAccounts[contact.accountID.intValue] {
                 if pendingRequests[account] == nil {
                     pendingRequests[account] = []
                 }
@@ -92,12 +103,12 @@ struct ContactRequestsMenu: View {
     var body: some View {
         Section(header: Text("Allowing someone to add you as a contact lets them see your profile picture and when you are online.")) {
             if(pendingRequests.isEmpty) {
-                Text("No pending constact requests")
+                Text("No pending contact requests")
                     .foregroundColor(.secondary)
             } else {
                 List {
                     ForEach(pendingRequests.sorted(by:{ $0.0.connectionProperties.identity.jid < $1.0.connectionProperties.identity.jid }), id: \.key) { account, requests in
-                        if connectedAccounts.count == 1 {
+                        if enabledAccounts.count == 1 {
                             ForEach(requests.indices, id: \.self) { idx in
                                 ContactRequestsMenuEntry(contact: requests[idx])
                             }
@@ -112,10 +123,10 @@ struct ContactRequestsMenu: View {
                 }
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("kMonalContactRefresh")).receive(on: RunLoop.main)) { notification in
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name(kMonalContactRefresh)).receive(on: RunLoop.main)) { notification in
             updateRequests()
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("kMonalContactRemoved")).receive(on: RunLoop.main)) { notification in
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name(kMonalContactRemoved)).receive(on: RunLoop.main)) { notification in
             updateRequests()
         }
         .onAppear {

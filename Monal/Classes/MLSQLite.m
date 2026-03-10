@@ -8,23 +8,51 @@
 
 #import <pthread.h>
 #import <sqlite3.h>
-#import "MLSQLite.h"
-#import "HelperTools.h"
+#import <monalxmpp/MLSQLite.h>
+#import <monalxmpp/HelperTools.h>
 
 @interface MLSQLite()
 {
     NSString* _dbFile;
     sqlite3* _database;
 }
+-(void) beginWriteTransaction;
+-(void) endWriteTransaction;
 @end
 
 static NSMutableDictionary* currentTransactions;
+static NSOperationQueue* walCheckpointingQueue;
+static NSMutableArray* dbFilesList;
+
+static int wal_hook(void* arg, sqlite3* database, const char* dbname, int numberOfPages)
+{
+    //checkpoint after 4 MiB worth of data written to the wal file
+    if(numberOfPages < 1024)
+        return SQLITE_OK;
+    
+    NSString* dbFile = (__bridge NSString*)arg;
+    DDLogVerbose(@"Triggering db checkpoint at %d for: %@", numberOfPages, dbFile);
+    [walCheckpointingQueue addOperationWithBlock:^{
+        MLSQLite* db = [MLSQLite sharedInstanceForFile:dbFile];
+        DDLogDebug(@"Checkpointing database: %@", dbFile);
+        NSDictionary* checkpointResult = [db executeReader:@"PRAGMA wal_checkpoint(PASSIVE);"][0];
+        DDLogDebug(@"Chekpointing returned: %@", checkpointResult);
+        [walCheckpointingQueue cancelAllOperations];                //stop all other queued checkpointing operations (we only need one in a row)
+    }];
+    return SQLITE_OK;
+}
 
 @implementation MLSQLite
 
 +(void) initialize
 {
+    walCheckpointingQueue = [NSOperationQueue new];
+    walCheckpointingQueue.name = @"im.monal.walCheckpointingQueue";
+    walCheckpointingQueue.qualityOfService = NSQualityOfServiceBackground;
+    walCheckpointingQueue.maxConcurrentOperationCount = 1;
+
     currentTransactions = [NSMutableDictionary new];
+    dbFilesList = [NSMutableArray new];
     
     if(sqlite3_config(SQLITE_CONFIG_MULTITHREAD) == SQLITE_OK)
         DDLogInfo(@"sqlite initialize: sqlite3 configured ok");
@@ -104,17 +132,33 @@ static NSMutableDictionary* currentTransactions;
     //some settings (e.g. truncate is faster than delete)
     //this uses the private api because we have no thread local instance added to the threadData dictionary yet and we don't use a transaction either (and public apis check both)
     //--> we must use the internal api because it does not call testThreadInstanceForQuery: testTransactionsForQuery:
-    sqlite3_busy_timeout(self->_database, 2000);        //set the busy time as early as possible to make sure the pragma states don't trigger a retry too often
+    sqlite3_busy_timeout(self->_database, 1000);        //set the busy time as early as possible to make sure the pragma statements below don't trigger a retry too often
+    
+    //set wal mode (this setting is permanent): https://www.sqlite.org/pragma.html#pragma_journal_mode
+    //this is a special case because it can not be done while in a transaction!!!
+    [self enableWAL];
+    
+    //some settings for faster sqlite, see https://hg.prosody.im/trunk/file/df32fff0963d/plugins/mod_storage_sql.lua#l943
+    //synchronous NORMAL versus OFF don't have any differences in WAL mode, see: https://sqlite.org/pragma.html#pragma_synchronous
+    while([self executeNonQuery:@"PRAGMA secure_delete=FAST;" andArguments:@[] withException:NO] != YES)
+        DDLogError(@"Database locked, while calling 'PRAGMA secure_delete=FAST;', retrying...");
     while([self executeNonQuery:@"PRAGMA synchronous=NORMAL;" andArguments:@[] withException:NO] != YES)
         DDLogError(@"Database locked, while calling 'PRAGMA synchronous=NORMAL;', retrying...");
     while([self executeNonQuery:@"PRAGMA truncate;" andArguments:@[] withException:NO] != YES)
         DDLogError(@"Database locked, while calling 'PRAGMA truncate;', retrying...");
+    
+    //this is needed because we use foreign keys to cascade deletes
     while([self executeNonQuery:@"PRAGMA foreign_keys=on;" andArguments:@[] withException:NO] != YES)
         DDLogError(@"Database locked, while calling 'PRAGMA foreign_keys=on;', retrying...");
+    
     //this seems to provide *slightly* better security
     //see https://sqlite.org/pragma.html#pragma_trusted_schema
     while([self executeNonQuery:@"PRAGMA trusted_schema = off;" andArguments:@[] withException:NO] != YES)
         DDLogError(@"Database locked, while calling 'PRAGMA trusted_schema = off;', retrying...");
+    
+    //use modern recursive triggers
+    while([self executeNonQuery:@"PRAGMA recursive_triggers=on;" andArguments:@[] withException:NO] != YES)
+        DDLogError(@"Database locked, while calling 'PRAGMA recursive_triggers=on;', retrying...");
 
     return self;
 }
@@ -630,7 +674,7 @@ static NSMutableDictionary* currentTransactions;
 {
     [self testThreadInstanceForQuery:@"lastInsertId" andArguments:nil];
     [self testTransactionsForQuery:@"lastInsertId" andArguments:nil];
-    return [NSNumber numberWithInt:(int)sqlite3_last_insert_rowid(self->_database)];
+    return [NSNumber numberWithLongLong:(long long)sqlite3_last_insert_rowid(self->_database)];
 }
 
 -(void) enableWAL
@@ -639,17 +683,32 @@ static NSMutableDictionary* currentTransactions;
     MLAssert([threadData[@"_sqliteTransactionsRunning"][_dbFile] intValue] == 0, @"Could not enable wal, inside transaction!", (@{
         @"threadDictionary": threadData
     }));
+    
     NSString* mode = [self internalExecuteScalar:@"PRAGMA journal_mode;" andArguments:@[]];
-    if([mode isEqualToString:@"wal"])
-        return;
-    mode = [self internalExecuteScalar:@"PRAGMA journal_mode=WAL;" andArguments:@[]];
-    if([mode isEqualToString:@"wal"])
-        DDLogWarn(@"Transaction mode set to WAL");
-    else
-        @throw [NSException exceptionWithName:@"SQLite3Exception" reason:@"Failed to enable sqlite WAL mode" userInfo:@{
-            @"file": _dbFile,
-            @"mode": mode
-        }];
+    if(![mode isEqualToString:@"wal"])
+    {
+        mode = [self internalExecuteScalar:@"PRAGMA journal_mode=WAL;" andArguments:@[]];
+        if([mode isEqualToString:@"wal"])
+            DDLogWarn(@"Transaction mode set to WAL");
+        else
+            @throw [NSException exceptionWithName:@"SQLite3Exception" reason:@"Failed to enable sqlite WAL mode" userInfo:@{
+                @"file": _dbFile,
+                @"mode": mode
+            }];
+    }
+    
+    @synchronized(dbFilesList) {
+        //we collect all db names ever opened, but store every name only once to prevent memory leaks
+        //this is neccessary to make ARC keep the db name in memory so that we can safely pass a pointer to this object to our sqlite hook below
+        NSUInteger index = [dbFilesList indexOfObject:_dbFile];
+        if(index == NSNotFound)
+        {
+            [dbFilesList addObject:_dbFile];
+            index = dbFilesList.count - 1;
+        }
+        //this makes sure to run the checkpointing in a background thread to not block the main thread or any other important thread
+        sqlite3_wal_hook(self->_database, wal_hook, (__bridge_retained void*)dbFilesList[index]);
+    }
 }
 
 -(void) checkpointWal
@@ -658,7 +717,7 @@ static NSMutableDictionary* currentTransactions;
     //being inside a transaction is non-fatal, the db file will just not be up to date then
     if([threadData[@"_sqliteTransactionsRunning"][_dbFile] intValue] == 0)
     {
-        NSArray* result = [self executeReader:@"PRAGMA wal_checkpoint(TRUNCATE);"];
+        NSDictionary* result = [self executeReader:@"PRAGMA wal_checkpoint(TRUNCATE);"][0];
         DDLogInfo(@"Chekpointing returned: %@", result);
     }
     else
@@ -666,7 +725,7 @@ static NSMutableDictionary* currentTransactions;
 }
 
 // optimize db
--(void) vacuum
+-(BOOL) vacuum
 {
     //trying to vaccum the db inside a transaction is non-fatal, the db file will just not be shrinked then
     DDLogDebug(@"Vacuum DB");
@@ -675,9 +734,25 @@ static NSMutableDictionary* currentTransactions;
     {
         [self executeNonQuery:@"VACUUM;" andArguments:@[] withException:YES];
         DDLogDebug(@"Vacuum DB success");
+        return YES;
     }
-    else
-        DDLogError(@"Could not vaccum db, inside transaction: %@", threadData);
+    DDLogError(@"Could not vaccum db, inside transaction: %@", threadData);
+    return NO;
+}
+
+-(BOOL) vacuumInto:(NSString*) newFile
+{
+    //trying to vaccum the db inside a transaction is non-fatal, the db file will just not be shrinked then
+    DDLogDebug(@"Vacuum DB");
+    NSMutableDictionary* threadData = [[NSThread currentThread] threadDictionary];
+    if([threadData[@"_sqliteTransactionsRunning"][_dbFile] intValue] == 0)
+    {
+        [self executeNonQuery:@"VACUUM INTO ?;" andArguments:@[newFile] withException:YES];
+        DDLogDebug(@"Vacuum DB success");
+        return YES;
+    }
+    DDLogError(@"Could not vaccum db, inside transaction: %@", threadData);
+    return NO;
 }
 
 @end

@@ -6,11 +6,11 @@
 //  Copyright © 2022 Monal.im. All rights reserved.
 //
 
-#import "MLSQLite.h"
-#import "DataLayerMigrations.h"
-#import "DataLayer.h"
-#import "HelperTools.h"
-#import "MLImageManager.h"
+#import <monalxmpp/MLSQLite.h>
+#import <monalxmpp/DataLayerMigrations.h>
+#import <monalxmpp/DataLayer.h>
+#import <monalxmpp/HelperTools.h>
+#import <monalxmpp/MLImageManager.h>
 
 @implementation DataLayerMigrations
 
@@ -53,7 +53,7 @@
         
         //make sure we don't try to operate on a database we can't upgrade from
         NSNumber* dbversion = [self readDBVersion:db];
-        if(dbversion.doubleValue < 4.78)
+        if(dbversion.doubleValue < 5.0)
         {
             DDLogError(@"Got *TOO OLD* db version %@", dbversion);
             NSFileManager* fileManager = [NSFileManager defaultManager];
@@ -65,205 +65,12 @@
     }];
 
     return [db boolWriteTransaction:^{
+        //needed for sqlite >= 3.26.0 (see https://sqlite.org/lang_altertable.html point 2)
+        [db executeNonQuery:@"PRAGMA legacy_alter_table=on;"];
+        [db executeNonQuery:@"PRAGMA foreign_keys=off;"];
+        
         NSNumber* dbversion = [self readDBVersion:db];
         DDLogInfo(@"Got db version %@", dbversion);
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.80 withBlock:^{
-            [db executeNonQuery:@"CREATE TABLE ipc(id integer NOT NULL PRIMARY KEY AUTOINCREMENT, name VARCHAR(255), destination VARCHAR(255), data BLOB, timeout INTEGER NOT NULL DEFAULT 0);"];
-        }];
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.81 withBlock:^{
-            // Remove silly chats
-            NSMutableArray* results = [db executeReader:@"select account_id, username, domain from account"];
-            for(NSDictionary* row in results) {
-                NSString* accountJid = [NSString stringWithFormat:@"%@@%@", [row objectForKey:kUsername], [row objectForKey:kDomain]];
-                NSString* accountNo = [row objectForKey:kAccountID];
-
-                // delete chats with accountJid == buddy_name
-                [db executeNonQuery:@"delete from activechats where account_id=? and buddy_name=?" andArguments:@[accountNo, accountJid]];
-            }
-        }];
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.82 withBlock:^{
-            //use the more appropriate name "sent" for the "delivered" column of message_history
-            [db executeNonQuery:@"ALTER TABLE message_history RENAME TO _message_historyTMP;"];
-            [db executeNonQuery:@"CREATE TABLE 'message_history' (message_history_id integer not null primary key AUTOINCREMENT, account_id integer, message_from text collate nocase, message_to text collate nocase, timestamp datetime, message blob, actual_from text collate nocase, messageid text, messageType text, sent bool, received bool, unread bool, encrypted bool, previewText text, previewImage text, stanzaid text, errorType text, errorReason text);"];
-            [db executeNonQuery:@"INSERT INTO message_history (message_history_id, account_id, message_from, message_to, timestamp, message, actual_from, messageid, messageType, sent, received, unread, encrypted, previewText, previewImage, stanzaid, errorType, errorReason) SELECT message_history_id, account_id, message_from, message_to, timestamp, message, actual_from, messageid, messageType, delivered, received, unread, encrypted, previewText, previewImage, stanzaid, errorType, errorReason from _message_historyTMP;"];
-            [db executeNonQuery:@"DROP TABLE _message_historyTMP;"];
-        }];
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.83 withBlock:^{
-            [db executeNonQuery:@"alter table activechats add column pinned bool DEFAULT FALSE;"];
-        }];
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.84 withBlock:^{
-            [db executeNonQuery:@"DROP TABLE IF EXISTS ipc;"];
-            //remove synchPoint from db
-            [db executeNonQuery:@"ALTER TABLE buddylist RENAME TO _buddylistTMP;"];
-            [db executeNonQuery:@"CREATE TABLE buddylist(buddy_id integer not null primary key AUTOINCREMENT, account_id integer not null, buddy_name varchar(50) collate nocase, full_name varchar(50), nick_name varchar(50), group_name varchar(50), iconhash varchar(200), filename varchar(100), state varchar(20), status varchar(200), online bool, dirty bool, new bool, Muc bool, muc_subject varchar(255), muc_nick varchar(255), backgroundImage text, encrypt bool, subscription varchar(50), ask varchar(50), messageDraft text, lastInteraction INTEGER NOT NULL DEFAULT 0);"];
-            [db executeNonQuery:@"INSERT INTO buddylist (buddy_id, account_id, buddy_name, full_name, nick_name, group_name, iconhash, filename, state, status, online, dirty, new, Muc, muc_subject, muc_nick, backgroundImage, encrypt, subscription, ask, messageDraft, lastInteraction) SELECT buddy_id, account_id, buddy_name, full_name, nick_name, group_name, iconhash, filename, state, status, online, dirty, new, Muc, muc_subject, muc_nick, backgroundImage, encrypt, subscription, ask, messageDraft, lastInteraction FROM _buddylistTMP;"];
-            [db executeNonQuery:@"DROP TABLE _buddylistTMP;"];
-            [db executeNonQuery:@"CREATE UNIQUE INDEX IF NOT EXISTS uniqueContact on buddylist(buddy_name, account_id);"];
-            //make stanzaid, messageid and errorType caseinsensitive and create indixes for stanzaid and messageid
-            [db executeNonQuery:@"ALTER TABLE message_history RENAME TO _message_historyTMP;"];
-            [db executeNonQuery:@"CREATE TABLE message_history (message_history_id integer not null primary key AUTOINCREMENT, account_id integer, message_from text collate nocase, message_to text collate nocase, timestamp datetime, message blob, actual_from text collate nocase, messageid text collate nocase, messageType text, sent bool, received bool, unread bool, encrypted bool, previewText text, previewImage text, stanzaid text collate nocase, errorType text collate nocase, errorReason text);"];
-            [db executeNonQuery:@"INSERT INTO message_history (message_history_id, account_id, message_from, message_to, timestamp, message, actual_from, messageid, messageType, sent, received, unread, encrypted, previewText, previewImage, stanzaid, errorType, errorReason) SELECT message_history_id, account_id, message_from, message_to, timestamp, message, actual_from, messageid, messageType, sent, received, unread, encrypted, previewText, previewImage, stanzaid, errorType, errorReason FROM _message_historyTMP;"];
-            [db executeNonQuery:@"DROP TABLE _message_historyTMP;"];
-            [db executeNonQuery:@"CREATE INDEX stanzaidIndex on message_history(stanzaid collate nocase);"];
-            [db executeNonQuery:@"CREATE INDEX messageidIndex on message_history(messageid collate nocase);"];
-        }];
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.85 withBlock:^{
-            //Performing upgrade on buddy_resources.
-            [db executeNonQuery:@"ALTER TABLE buddy_resources ADD platform_App_Name text;"];
-            [db executeNonQuery:@"ALTER TABLE buddy_resources ADD platform_App_Version text;"];
-            [db executeNonQuery:@"ALTER TABLE buddy_resources ADD platform_OS text;"];
-
-            //drop and recreate in 4.77 was faulty (wrong drop syntax), do it right this time
-            [db executeNonQuery:@"DROP TABLE IF EXISTS ver_info;"];
-            [db executeNonQuery:@"CREATE TABLE ver_info(ver VARCHAR(32), cap VARCHAR(255), PRIMARY KEY (ver,cap));"];
-        }];
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.86 withBlock:^{
-            //add new stanzaid field to account table that always points to the last received stanzaid (even if that does not have a body)
-            [db executeNonQuery:@"ALTER TABLE account ADD lastStanzaId text;"];
-        }];
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.87 withBlock:^{
-            //populate new stanzaid field in account table from message_history table
-            NSString* stanzaId = (NSString*)[db executeScalar:@"SELECT stanzaid FROM message_history WHERE stanzaid!='' ORDER BY message_history_id DESC LIMIT 1;"];
-            DDLogVerbose(@"Populating lastStanzaId with id %@ from history table", stanzaId);
-            if(stanzaId && [stanzaId length])
-                [db executeNonQuery:@"UPDATE account SET lastStanzaId=?;" andArguments:@[stanzaId]];
-            //remove all old and most probably *wrong* stanzaids from history table
-            [db executeNonQuery:@"UPDATE message_history SET stanzaid='';"];
-        }];
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.9 withBlock:^{
-            // add timestamps to omemo prekeys
-            [db executeNonQuery:@"ALTER TABLE signalPreKey RENAME TO _signalPreKeyTMP;"];
-            [db executeNonQuery:@"CREATE TABLE 'signalPreKey' ('account_id' int NOT NULL, 'prekeyid' int NOT NULL, 'preKey' BLOB, 'creationTimestamp' INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP, 'pubSubRemovalTimestamp' INTEGER DEFAULT NULL, 'keyUsed' INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (account_id, prekeyid, preKey));"];
-            [db executeNonQuery:@"INSERT INTO signalPreKey (account_id, prekeyid, preKey) SELECT account_id, prekeyid, preKey FROM _signalPreKeyTMP;"];
-            [db executeNonQuery:@"DROP TABLE _signalPreKeyTMP;"];
-        }];
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.91 withBlock:^{
-            //not needed anymore (better handled by 4.97)
-        }];
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.92 withBlock:^{
-            //add displayed and displayMarkerWanted fields
-            [db executeNonQuery:@"ALTER TABLE message_history ADD COLUMN displayed BOOL DEFAULT FALSE;"];
-            [db executeNonQuery:@"ALTER TABLE message_history ADD COLUMN displayMarkerWanted BOOL DEFAULT FALSE;"];
-        }];
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.93 withBlock:^{
-            //full_name should not be buddy_name anymore, but the user provided XEP-0172 nickname
-            //and nick_name will be the roster name, if given
-            //if none of these two are given, the local part of the jid (called node in prosody and in jidSplit:) will be used, like in other clients
-            //see also https://docs.modernxmpp.org/client/design/#contexts
-            [db executeNonQuery:@"UPDATE buddylist SET full_name='' WHERE full_name=buddy_name;"];
-            [db executeNonQuery:@"UPDATE account SET rosterVersion=?;" andArguments:@[@""]];
-        }];
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.94 withBlock:^{
-            [db executeNonQuery:@"ALTER TABLE account ADD COLUMN rosterName TEXT;"];
-        }];
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.95 withBlock:^{
-            [db executeNonQuery:@"ALTER TABLE account ADD COLUMN iconhash VARCHAR(200);"];
-        }];
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.96 withBlock:^{
-            //not needed anymore (better handled by 4.97)
-        }];
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.97 withBlock:^{
-            [dataLayer invalidateAllAccountStates];
-        }];
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.98 withBlock:^{
-            [db executeNonQuery:@"ALTER TABLE message_history ADD COLUMN filetransferMimeType VARCHAR(32) DEFAULT 'application/octet-stream';"];
-            [db executeNonQuery:@"ALTER TABLE message_history ADD COLUMN filetransferSize INTEGER DEFAULT 0;"];
-        }];
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.990 withBlock:^{
-            // remove dupl entries from activechats && budylist
-            [db executeNonQuery:@"DELETE FROM activechats \
-                WHERE ROWID NOT IN \
-                    (SELECT tmpID FROM \
-                        (SELECT ROWID as tmpID, account_id, buddy_name FROM activechats WHERE \
-                        ROWID IN \
-                            (SELECT ROWID FROM activechats ORDER BY lastMessageTime DESC) \
-                        GROUP BY account_id, buddy_name) \
-                    )"];
-            [db executeNonQuery:@"DELETE FROM buddylist WHERE ROWID NOT IN \
-                    (SELECT tmpID FROM \
-                        (SELECT ROWID as tmpID, account_id, buddy_name FROM buddylist GROUP BY account_id, buddy_name) \
-                    )"];
-        }];
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.991 withBlock:^{
-            //remove dirty, online, new from db
-            [db executeNonQuery:@"ALTER TABLE buddylist RENAME TO _buddylistTMP;"];
-            [db executeNonQuery:@"CREATE TABLE buddylist(buddy_id integer not null primary key AUTOINCREMENT, account_id integer not null, buddy_name varchar(50) collate nocase, full_name varchar(50), nick_name varchar(50), group_name varchar(50), iconhash varchar(200), filename varchar(100), state varchar(20), status varchar(200), Muc bool, muc_subject varchar(255), muc_nick varchar(255), backgroundImage text, encrypt bool, subscription varchar(50), ask varchar(50), messageDraft text, lastInteraction INTEGER NOT NULL DEFAULT 0);"];
-            [db executeNonQuery:@"INSERT INTO buddylist (buddy_id, account_id, buddy_name, full_name, nick_name, group_name, iconhash, filename, state, status, Muc, muc_subject, muc_nick, backgroundImage, encrypt, subscription, ask, messageDraft, lastInteraction) SELECT buddy_id, account_id, buddy_name, full_name, nick_name, group_name, iconhash, filename, state, status, Muc, muc_subject, muc_nick, backgroundImage, encrypt, subscription, ask, messageDraft, lastInteraction FROM _buddylistTMP;"];
-            [db executeNonQuery:@"DROP TABLE _buddylistTMP;"];
-            [db executeNonQuery:@"CREATE UNIQUE INDEX IF NOT EXISTS uniqueContact on buddylist(buddy_name, account_id);"];
-        }];
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.992 withBlock:^{
-            [db executeNonQuery:@"ALTER TABLE account ADD COLUMN statusMessage TEXT;"];
-        }];
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.993 withBlock:^{
-            //make filetransferMimeType and filetransferSize have NULL as default value
-            //(this makes it possible to distinguish unknown values from known ones)
-            [db executeNonQuery:@"ALTER TABLE message_history RENAME TO _message_historyTMP;"];
-            [db executeNonQuery:@"CREATE TABLE message_history (message_history_id integer not null primary key AUTOINCREMENT, account_id integer, message_from text collate nocase, message_to text collate nocase, timestamp datetime, message blob, actual_from text collate nocase, messageid text collate nocase, messageType text, sent bool, received bool, unread bool, encrypted bool, previewText text, previewImage text, stanzaid text collate nocase, errorType text collate nocase, errorReason text, displayed BOOL DEFAULT FALSE, displayMarkerWanted BOOL DEFAULT FALSE, filetransferMimeType VARCHAR(32) DEFAULT NULL, filetransferSize INTEGER DEFAULT NULL);"];
-            [db executeNonQuery:@"INSERT INTO message_history SELECT * FROM _message_historyTMP;"];
-            [db executeNonQuery:@"DROP TABLE _message_historyTMP;"];
-            [db executeNonQuery:@"CREATE INDEX stanzaidIndex on message_history(stanzaid collate nocase);"];
-            [db executeNonQuery:@"CREATE INDEX messageidIndex on message_history(messageid collate nocase);"];
-        }];
-
-        // skipping 4.994 due to invalid command
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.995 withBlock:^{
-            [db executeNonQuery:@"CREATE UNIQUE INDEX IF NOT EXISTS uniqueActiveChat ON activechats(buddy_name, account_id);"];
-        }];
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.996 withBlock:^{
-            //remove all icon hashes to reload all icons on next app/nse start
-            //(the db upgrade mechanism will make sure that no smacks resume will take place and pep pushes come in for all avatars)
-            [db executeNonQuery:@"UPDATE account SET iconhash='';"];
-            [db executeNonQuery:@"UPDATE buddylist SET iconhash='';"];
-        }];
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:4.997 withBlock:^{
-            //create unique constraint for (account_id, buddy_name) on activechats table
-            [db executeNonQuery:@"ALTER TABLE activechats RENAME TO _activechatsTMP;"];
-            [db executeNonQuery:@"CREATE TABLE activechats (account_id integer not null, buddy_name varchar(50) collate nocase, lastMessageTime datetime, lastMesssage blob, pinned bool DEFAULT FALSE, UNIQUE(account_id, buddy_name));"];
-            [db executeNonQuery:@"INSERT INTO activechats SELECT * FROM _activechatsTMP;"];
-            [db executeNonQuery:@"DROP TABLE _activechatsTMP;"];
-            [db executeNonQuery:@"CREATE UNIQUE INDEX IF NOT EXISTS uniqueActiveChat ON activechats(buddy_name, account_id);"];
-
-            //create unique constraint for (buddy_name, account_id) on buddylist table
-            [db executeNonQuery:@"ALTER TABLE buddylist RENAME TO _buddylistTMP;"];
-            [db executeNonQuery:@"CREATE TABLE buddylist(buddy_id integer not null primary key AUTOINCREMENT, account_id integer not null, buddy_name varchar(50) collate nocase, full_name varchar(50), nick_name varchar(50), group_name varchar(50), iconhash varchar(200), filename varchar(100), state varchar(20), status varchar(200), Muc bool, muc_subject varchar(255), muc_nick varchar(255), backgroundImage text, encrypt bool, subscription varchar(50), ask varchar(50), messageDraft text, lastInteraction INTEGER NOT NULL DEFAULT 0, UNIQUE(account_id, buddy_name));"];
-            [db executeNonQuery:@"INSERT INTO buddylist SELECT * FROM _buddylistTMP;"];
-            [db executeNonQuery:@"DROP TABLE _buddylistTMP;"];
-            [db executeNonQuery:@"CREATE UNIQUE INDEX IF NOT EXISTS uniqueContact on buddylist(buddy_name, account_id);"];
-        }];
-
-        [self updateDB:db withDataLayer:dataLayer toVersion:5.000 withBlock:^{
-            // cleanup omemo tables
-            [db executeNonQuery:@"DELETE FROM signalContactIdentity WHERE account_id NOT IN (SELECT account_id FROM account);"];
-            [db executeNonQuery:@"DELETE FROM signalContactKey WHERE account_id NOT IN (SELECT account_id FROM account);"];
-            [db executeNonQuery:@"DELETE FROM signalIdentity WHERE account_id NOT IN (SELECT account_id FROM account);"];
-            [db executeNonQuery:@"DELETE FROM signalPreKey WHERE account_id NOT IN (SELECT account_id FROM account);"];
-            [db executeNonQuery:@"DELETE FROM signalSignedPreKey WHERE account_id NOT IN (SELECT account_id FROM account);"];
-        }];
 
         [self updateDB:db withDataLayer:dataLayer toVersion:5.001 withBlock:^{
             //do this in 5.0 branch as well
@@ -913,11 +720,7 @@
         // add push server column to accounts
         [self updateDB:db withDataLayer:dataLayer toVersion:5.201 withBlock:^{
             [db executeNonQuery:@"ALTER TABLE account ADD COLUMN registeredPushServer TEXT DEFAULT NULL;"];
-            #ifdef IS_ALPHA
-                NSString* currentPushserver = @"push.molitor-dietzel.de";
-            #else
-                NSString* currentPushserver = @"ios13push.monal.im";
-            #endif
+            NSString* currentPushserver = @"ios13push.monal.im";
             [db executeNonQuery:@"UPDATE account SET registeredPushServer=?;" andArguments:@[currentPushserver]];
         }];
         
@@ -1091,11 +894,174 @@
             [db executeNonQuery:@"ALTER TABLE account DROP COLUMN 'supports_sasl2';"];
         }];
         
-        //make sure all omemo devices have a "last used" timestamp
+        //allow for storage of roster groups
         [self updateDB:db withDataLayer:dataLayer toVersion:6.407 withBlock:^{
-            [db executeNonQuery:@"UPDATE signalContactIdentity SET lastReceivedMsg=CURRENT_TIMESTAMP WHERE lastReceivedMsg IS NULL;"];
+            [db executeNonQuery:@"CREATE TABLE 'buddy_groups' ( \
+                'buddy_id' INTEGER NOT NULL, \
+                'group_name' VARCHAR(50) NOT NULL, \
+                FOREIGN KEY('buddy_id') REFERENCES 'buddylist'('buddy_id') ON DELETE CASCADE, \
+                PRIMARY KEY('buddy_id', 'group_name') \
+            );"];
+            [db executeNonQuery:@"CREATE INDEX buddyIdIndex ON 'buddy_groups'('buddy_id');"];
+        }];
+        
+        //add own occupant-id to database
+        [self updateDB:db withDataLayer:dataLayer toVersion:6.408 withBlock:^{
+            [db executeNonQuery:@"ALTER TABLE buddylist ADD COLUMN muc_occupant_id VARCHAR(128) NULL DEFAULT NULL;"];
+        }];
+        
+        //allow NULL values for optional fields and make this explicit
+        //we don't need to migrate data because of our non-smacks reconnect on db upgrade
+        [self updateDB:db withDataLayer:dataLayer toVersion:6.409 withBlock:^{
+            [db executeNonQuery:@"ALTER TABLE muc_participants DROP COLUMN participant_jid;"];
+            [db executeNonQuery:@"ALTER TABLE muc_participants DROP COLUMN affiliation;"];
+            [db executeNonQuery:@"ALTER TABLE muc_participants DROP COLUMN role;"];
+            [db executeNonQuery:@"ALTER TABLE muc_participants ADD COLUMN participant_jid VARCHAR(255) NULL DEFAULT NULL;"];
+            [db executeNonQuery:@"ALTER TABLE muc_participants ADD COLUMN affiliation VARCHAR(255) NULL DEFAULT NULL;"];
+            [db executeNonQuery:@"ALTER TABLE muc_participants ADD COLUMN role VARCHAR(255) NULL DEFAULT NULL;"];
+            
+            [db executeNonQuery:@"DROP TABLE muc_members;"];
+            [db executeNonQuery:@"CREATE TABLE 'muc_members' ( \
+                'account_id' INTEGER NOT NULL, \
+                'room' VARCHAR(255) NOT NULL, \
+                'member_jid' VARCHAR(255) NULL DEFAULT NULL, \
+                'affiliation' VARCHAR(255) NULL DEFAULT NULL, \
+                PRIMARY KEY('account_id','room','member_jid'), \
+                FOREIGN KEY('account_id') REFERENCES 'account'('account_id') ON DELETE CASCADE, \
+                FOREIGN KEY('account_id', 'room') REFERENCES 'buddylist'('account_id', 'buddy_name') ON DELETE CASCADE \
+            );"];
         }];
 
+        //simplify the blocklistCache table
+        [self updateDB:db withDataLayer:dataLayer toVersion:6.410 withBlock:^{
+            //the cache is regenerated on log-in, thus there is no need to migrate the data
+            [db executeNonQuery:@"DROP TABLE blocklistCache;"];
+            [db executeNonQuery:@"CREATE TABLE 'blocklistCache' (\
+                'account_id' INTEGER NOT NULL, \
+                'blocked_jid' TEXT NOT_NULL CHECK(LENGTH(blocked_jid) > 0), \
+                UNIQUE('account_id','blocked_jid'), \
+                FOREIGN KEY('account_id') REFERENCES 'account'('account_id') ON DELETE CASCADE \
+            );"];
+        }];
+
+        //a contact's blocked state is deduced directly from the blocklistCache table.
+        //as such, this column is redundant.
+        [self updateDB:db withDataLayer:dataLayer toVersion:6.411 withBlock:^{
+            [db executeNonQuery:@"ALTER TABLE buddylist DROP COLUMN 'blocked';"];
+        }];
+
+        // Allow persistence of MLPromises.
+        // This is needed so they can be exchanged between the main app and app extension.
+        [self updateDB:db withDataLayer:dataLayer toVersion:6.412 withBlock:^{
+            [db executeNonQuery:@"CREATE TABLE 'promises' (\
+                'uuid' CHAR(36) PRIMARY KEY, \
+                'promise' BLOB NOT NULL \
+            );"];
+        }];
+
+        // Keep track of when the full MAM archive has been fetched, so we don't query it again
+        [self updateDB:db withDataLayer:dataLayer toVersion:7.001 withBlock:^{
+            [db executeNonQuery:@"ALTER TABLE buddylist ADD COLUMN reached_mam_archive_top BOOL DEFAULT FALSE;"];
+        }];
+        
+        // Reactions support (user will be <occupant-id> in channels and jid in groups/1:1 chats)
+        [self updateDB:db withDataLayer:dataLayer toVersion:7.002 withBlock:^{
+            [db executeNonQuery:@"CREATE TABLE 'reactions' (\
+                'message_history_id' INTEGER NOT NULL, \
+                'user' VARCHAR(128) NULL DEFAULT NULL, \
+                'jid' VARCHAR(255) NULL DEFAULT NULL, \
+                'occupant_id' VARCHAR(128) NULL DEFAULT NULL, \
+                'muc_nick' VARCHAR(255) NULL DEFAULT NULL, \
+                'reactions' TEXT DEFAULT '', \
+                'timestamp' DATETIME NOT NULL, \
+                PRIMARY KEY('message_history_id','user'), \
+                FOREIGN KEY('message_history_id') REFERENCES 'message_history'('message_history_id') ON DELETE CASCADE \
+            );"];
+        }];
+        
+        [self updateDB:db withDataLayer:dataLayer toVersion:7.003 withBlock:^{
+            NSNumber* initialValue = [dataLayer getAutodecrementHistoryId];
+            [db executeNonQuery:@"INSERT INTO flags (name, value) VALUES('autodecrement~message_history', ?);" andArguments:@[initialValue]];
+        }];
+
+        [self updateDB:db withDataLayer:dataLayer toVersion:7.004 withBlock:^{
+            [db executeNonQuery:@"CREATE TABLE 'filetransfer_info' (\
+                'message_history_id' INTEGER NOT NULL PRIMARY KEY, \
+                'mime_type' VARCHAR(128) DEFAULT NULL, \
+                'size' INTEGER DEFAULT NULL, \
+                FOREIGN KEY('message_history_id') REFERENCES 'message_history'('message_history_id') ON DELETE CASCADE \
+            );"];
+            [db executeNonQuery:@"INSERT INTO filetransfer_info (message_history_id, mime_type, size) SELECT message_history_id, filetransferMimeType, filetransferSize FROM message_history WHERE messageType=?;" andArguments:@[kMessageTypeFiletransfer]];
+            [db executeNonQuery:@"ALTER TABLE message_history DROP COLUMN filetransferMimeType;"];
+            [db executeNonQuery:@"ALTER TABLE message_history DROP COLUMN filetransferSize;"];
+
+            // Automatically insert into 'filetransfer_info' table when a filetransfer is inserted into 'message_history' table
+            [db executeNonQuery:@"CREATE TRIGGER sync_filetransfer_info_on_message_insertion \
+                AFTER INSERT ON message_history \
+                FOR EACH ROW \
+                WHEN NEW.messageType = 'Filetransfer' \
+                BEGIN \
+                    INSERT INTO filetransfer_info (message_history_id) VALUES (NEW.message_history_id); \
+                END;"
+            ];
+        }];
+        
+        [self updateDB:db withDataLayer:dataLayer toVersion:7.005 withBlock:^{
+            [db executeNonQuery:@"CREATE TABLE 'voice_requests' (\
+                'account_id' INTEGER NOT NULL, \
+                'room' VARCHAR(128) DEFAULT NULL, \
+                'jid' INTEGER DEFAULT NULL, \
+                'nick' TEXT DEFAULT NULL,\
+                PRIMARY KEY('account_id', 'room', 'jid'), \
+                FOREIGN KEY('account_id') REFERENCES 'account'('account_id') ON DELETE CASCADE, \
+                FOREIGN KEY('account_id', 'room') REFERENCES 'buddylist'('account_id', 'buddy_name') ON DELETE CASCADE \
+            );"];
+            
+            [db executeNonQuery:@"CREATE TRIGGER remove_voice_requests_on_own_role_change_insert \
+                AFTER INSERT ON muc_participants \
+                FOR EACH ROW \
+                WHEN EXISTS ( \
+                    SELECT 1 \
+                    FROM account AS A \
+                    WHERE \
+                        A.account_id = NEW.account_id \
+                        AND (A.username || '@' || A.domain) = NEW.participant_jid \
+                        AND NEW.role != 'moderator' \
+                ) \
+                BEGIN \
+                    DELETE FROM voice_requests WHERE account_id = NEW.account_id AND room = NEW.room; \
+                END;"
+            ];
+            [db executeNonQuery:@"CREATE TRIGGER remove_voice_requests_on_own_role_change_update \
+                AFTER UPDATE ON muc_participants \
+                FOR EACH ROW \
+                WHEN EXISTS ( \
+                    SELECT 1 \
+                    FROM account AS A \
+                    WHERE \
+                        A.account_id = NEW.account_id \
+                        AND (A.username || '@' || A.domain) = NEW.participant_jid \
+                        AND NEW.role != 'moderator' \
+                ) \
+                BEGIN \
+                    DELETE FROM voice_requests WHERE account_id = NEW.account_id AND room = NEW.room; \
+                END;"
+            ];
+        }];
+        
+        //make sure all muc messages in our history db have an occupant id
+        [self updateDB:db withDataLayer:dataLayer toVersion:7.006 withBlock:^{
+            NSArray<NSNumber*>* missingOccupantIds = [db executeScalarReader:@"SELECT message_history_id FROM message_history WHERE (occupant_id IS NULL OR occupant_id = '') AND buddy_name IN (SELECT buddy_name FROM buddylist WHERE Muc=1);"];
+            DDLogWarn(@"History IDs of messages with missing occupant IDs during DB migration: %@", missingOccupantIds);
+            for(NSNumber* historyId in missingOccupantIds)
+                [db executeNonQuery:@"UPDATE message_history SET occupant_id=? WHERE message_history_id=?;" andArguments:@[[[NSUUID UUID] UUIDString], historyId]];
+        }];
+        
+        //make sure all omemo devices have a "last used" timestamp
+        [self updateDB:db withDataLayer:dataLayer toVersion:7.007 withBlock:^{
+            [db executeNonQuery:@"UPDATE signalContactIdentity SET lastReceivedMsg=CURRENT_TIMESTAMP WHERE lastReceivedMsg IS NULL;"];
+        }];
+        
         
         //check if device id changed and invalidate state, if so
         //but do so only for non-sandbox (e.g. non-development) installs
@@ -1123,6 +1089,11 @@
                 [db executeNonQuery:@"UPDATE flags SET value=? WHERE name='device_id';" andArguments:@[current_id]];
             }
         }
+
+        //turn foreign keys on again
+        //needed for sqlite >= 3.26.0 (see https://sqlite.org/lang_altertable.html point 2)
+        [db executeNonQuery:@"PRAGMA legacy_alter_table=off;"];
+        [db executeNonQuery:@"PRAGMA foreign_keys=on;"];
         
         //check if db version changed and invalidate state, if so
         NSNumber* newdbversion = [self readDBVersion:db];

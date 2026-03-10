@@ -6,12 +6,12 @@
 //
 //
 
-#import "MLImageManager.h"
-#import "MLXMPPManager.h"
-#import "HelperTools.h"
-#import "DataLayer.h"
+#import <monalxmpp/MLImageManager.h>
+#import <monalxmpp/MLXMPPManager.h>
+#import <monalxmpp/HelperTools.h>
+#import <monalxmpp/DataLayer.h>
 #import "AESGcm.h"
-#import "UIColor+Extension.h"
+#import <monalxmpp/UIColor+Extension.h>
 
 
 @interface MLImageManager()
@@ -107,10 +107,10 @@
     [self.backgroundCache removeAllObjects];
 }
 
--(void) purgeCacheForContact:(NSString*) contact andAccount:(NSNumber*) accountNo
+-(void) purgeCacheForContact:(NSString*) contact andAccount:(NSNumber*) accountID
 {
-    [self.iconCache removeObjectForKey:[NSString stringWithFormat:@"%@_%@", accountNo, contact]];
-    [self resetCachedBackgroundImageForContact:[MLContact createContactFromJid:contact andAccountNo:accountNo]];
+    [self.iconCache removeObjectForKey:[NSString stringWithFormat:@"%@_%@", accountID, contact]];
+    [self resetCachedBackgroundImageForContact:[MLContact createContactFromJid:contact andAccountID:accountID]];
 }
 
 -(void) cleanupHashes
@@ -121,16 +121,16 @@
     for(MLContact* contact in contactList)
     {
         NSString* writablePath = [self.documentsDirectory stringByAppendingPathComponent:@"buddyicons"];
-        writablePath = [writablePath stringByAppendingPathComponent:contact.accountId.stringValue];
+        writablePath = [writablePath stringByAppendingPathComponent:contact.accountID.stringValue];
         writablePath = [writablePath stringByAppendingPathComponent:[self fileNameforContact:contact]];
-        NSString* hash = [[DataLayer sharedInstance] getAvatarHashForContact:contact.contactJid andAccount:contact.accountId];
+        NSString* hash = [[DataLayer sharedInstance] getAvatarHashForContact:contact.contactJid andAccount:contact.accountID];
         BOOL hasHash = ![@"" isEqualToString:hash];
         
         if(hasHash && ![fileManager isReadableFileAtPath:writablePath])
         {
             DDLogDebug(@"Deleting orphan hash '%@' of contact: %@", hash, contact);
             //delete avatar hash from db if the file containing our image data vanished
-            [[DataLayer sharedInstance] setAvatarHash:@"" forContact:contact.contactJid andAccount:contact.accountId];
+            [[DataLayer sharedInstance] setAvatarHash:@"" forContact:contact.contactJid andAccount:contact.accountID];
         }
         
         if(!hasHash && [fileManager isReadableFileAtPath:writablePath])
@@ -177,51 +177,126 @@
 
 -(UIImage*) generateDummyIconForContact:(MLContact*) contact
 {
-    NSString* contactLetter;
+    return [self generateDummyIconForContact:contact withSymbol:@"person.fill"];
+}
 
-    if(contact.isSelfChat)
+-(UIImage*) generateDummyIconForContact:(MLContact*) contact withSymbol:(NSString*) symbolName
+{
+    // Deterministically pick one of 4 colors from JID
+    NSUInteger colorIndex = [contact.contactJid hash] % 4;
+    BOOL isDarkMode = (UITraitCollection.currentTraitCollection.userInterfaceStyle == UIUserInterfaceStyleDark);
+
+    UIColor* background;
+    UIColor* foreground;
+
+    if(isDarkMode)
     {
-        xmpp* account = [[MLXMPPManager sharedInstance] getConnectedAccountForID:contact.accountId];
-        contactLetter = [[[MLContact ownDisplayNameForAccount:account] substringToIndex:1] uppercaseString];
+        switch(colorIndex)
+        {
+            case 0: // Blue
+                background = [UIColor colorWithRed:0.18 green:0.27 blue:0.40 alpha:1.0];
+                foreground = [UIColor colorWithRed:0.55 green:0.68 blue:0.85 alpha:1.0];
+                break;
+            case 1: // Teal
+                background = [UIColor colorWithRed:0.13 green:0.32 blue:0.28 alpha:1.0];
+                foreground = [UIColor colorWithRed:0.48 green:0.72 blue:0.68 alpha:1.0];
+                break;
+            case 2: // Orange
+                background = [UIColor colorWithRed:0.42 green:0.28 blue:0.15 alpha:1.0];
+                foreground = [UIColor colorWithRed:0.85 green:0.65 blue:0.45 alpha:1.0];
+                break;
+            default: // Pink
+                background = [UIColor colorWithRed:0.40 green:0.18 blue:0.27 alpha:1.0];
+                foreground = [UIColor colorWithRed:0.85 green:0.55 blue:0.68 alpha:1.0];
+                break;
+        }
     }
     else
-        contactLetter = [[[contact contactDisplayName] substringToIndex:1] uppercaseString];
+    {
+        switch(colorIndex)
+        {
+            case 0: // Blue
+                background = [UIColor colorWithRed:0.80 green:0.87 blue:0.96 alpha:1.0];
+                foreground = [UIColor colorWithRed:0.30 green:0.47 blue:0.68 alpha:1.0];
+                break;
+            case 1: // Teal
+                background = [UIColor colorWithRed:0.76 green:0.91 blue:0.87 alpha:1.0];
+                foreground = [UIColor colorWithRed:0.22 green:0.52 blue:0.46 alpha:1.0];
+                break;
+            case 2: // Orange
+                background = [UIColor colorWithRed:0.96 green:0.86 blue:0.76 alpha:1.0];
+                foreground = [UIColor colorWithRed:0.72 green:0.46 blue:0.22 alpha:1.0];
+                break;
+            default: // Pink
+                background = [UIColor colorWithRed:0.96 green:0.80 blue:0.87 alpha:1.0];
+                foreground = [UIColor colorWithRed:0.68 green:0.30 blue:0.47 alpha:1.0];
+                break;
+        }
+    }
 
-    UIColor* background = [HelperTools generateColorFromJid:contact.contactJid];
-    UIColor* foreground = [UIColor blackColor];
-    if(![background isLightColor])
-        foreground = [UIColor whiteColor];
-    
     CGRect drawRect = CGRectMake(0, 0, 200, 200);
     UIGraphicsImageRenderer* renderer = [[UIGraphicsImageRenderer alloc] initWithSize:drawRect.size];
     return [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull context) {
         //make sure our image is circular
         [[UIBezierPath bezierPathWithOvalInRect:drawRect] addClip];
-        
+
         //fill the background of our image
         [background setFill];
         [context fillRect:renderer.format.bounds];
-        
-        //draw letter in the middleof our image
-        NSMutableParagraphStyle* paragraphStyle = [[NSParagraphStyle defaultParagraphStyle] mutableCopy];
-        paragraphStyle.alignment = NSTextAlignmentCenter;
-        NSDictionary* attributes = @{
-            NSFontAttributeName: [[UIFont preferredFontForTextStyle:UIFontTextStyleLargeTitle] fontWithSize:(unsigned int)(drawRect.size.height / 1.666)],
-            NSForegroundColorAttributeName: foreground,
-            NSParagraphStyleAttributeName: paragraphStyle
-        };
-        CGSize textSize = [contactLetter sizeWithAttributes:attributes];
-        CGRect textRect = CGRectMake(floorf((float)(renderer.format.bounds.size.width - textSize.width) / 2),
-                                    floorf((float)(renderer.format.bounds.size.height - textSize.height) / 2),
-                                    textSize.width,
-                                    textSize.height);
-        [contactLetter drawInRect:textRect withAttributes:attributes];
+
+        //draw SF Symbol centered in our image
+        UIImageSymbolConfiguration* config = [UIImageSymbolConfiguration configurationWithPointSize:(drawRect.size.height / 2.0) weight:UIImageSymbolWeightRegular];
+        UIImage* symbolImage = [[UIImage systemImageNamed:symbolName withConfiguration:config] imageWithTintColor:foreground renderingMode:UIImageRenderingModeAlwaysOriginal];
+        CGSize imageSize = symbolImage.size;
+        CGRect imageRect = CGRectMake(floorf((float)(drawRect.size.width - imageSize.width) / 2),
+                                      floorf((float)(drawRect.size.height - imageSize.height) / 2),
+                                      imageSize.width,
+                                      imageSize.height);
+        [symbolImage drawInRect:imageRect];
     }];
 }
 
 -(NSString*) fileNameforContact:(MLContact*) contact
 {
-    return [NSString stringWithFormat:@"%@_%@.png", contact.accountId.stringValue, [contact.contactJid lowercaseString]];;
+    return [NSString stringWithFormat:@"%@_%@.png", contact.accountID.stringValue, [contact.contactJid lowercaseString]];;
+}
+
+-(NSString*) fileNameforThumbnailOfMessage:(MLMessage*) message
+{
+    return [NSString stringWithFormat:@"%@.png", message.messageDBId.stringValue];
+}
+
+-(NSURL*) setThumbnailOfMessage:(MLMessage*) message withData:(NSData* _Nullable) data
+{
+    //documents directory/thumbnails/accountID/contact
+
+    NSString* filename = [self fileNameforThumbnailOfMessage:message];
+
+    NSFileManager* fileManager = [NSFileManager defaultManager];
+
+    NSString* writablePath = [self.documentsDirectory stringByAppendingPathComponent:@"thumbnails"];
+    writablePath = [writablePath stringByAppendingPathComponent:message.accountID.stringValue];
+    writablePath = [writablePath stringByAppendingPathComponent:message.buddyName];
+    NSError* error;
+    [fileManager createDirectoryAtPath:writablePath withIntermediateDirectories:YES attributes:nil error:&error];
+    [HelperTools configureFileProtectionFor:writablePath];
+    writablePath = [writablePath stringByAppendingPathComponent:filename];
+
+    if([fileManager fileExistsAtPath:writablePath])
+        [fileManager removeItemAtPath:writablePath error:nil];
+
+    if(data)
+    {
+        if([data writeToFile:writablePath atomically:NO])
+        {
+            [HelperTools configureFileProtectionFor:writablePath];
+            DDLogVerbose(@"wrote image to file: %@", writablePath);
+            return [NSURL fileURLWithPath:writablePath];
+        }
+        else
+            DDLogError(@"failed to write image to file: %@", writablePath);
+    }
+    return (NSURL*)nil;
 }
 
 -(void) setIconForContact:(MLContact*) contact WithData:(NSData* _Nullable) data
@@ -233,7 +308,7 @@
     NSFileManager* fileManager = [NSFileManager defaultManager];
     
     NSString *writablePath = [self.documentsDirectory stringByAppendingPathComponent:@"buddyicons"];
-    writablePath = [writablePath stringByAppendingPathComponent:contact.accountId.stringValue];
+    writablePath = [writablePath stringByAppendingPathComponent:contact.accountID.stringValue];
     NSError* error;
     [fileManager createDirectoryAtPath:writablePath withIntermediateDirectories:YES attributes:nil error:&error];
     [HelperTools configureFileProtectionFor:writablePath];
@@ -254,7 +329,7 @@
     }
     
     //remove from cache if its there
-    [self.iconCache removeObjectForKey:[NSString stringWithFormat:@"%@_%@", contact.accountId, contact]];
+    [self.iconCache removeObjectForKey:[NSString stringWithFormat:@"%@_%@", contact.accountID, contact]];
     
 }
 
@@ -263,11 +338,24 @@
     NSString* filename = [self fileNameforContact:contact];
     
     NSString* writablePath = [self.documentsDirectory stringByAppendingPathComponent:@"buddyicons"];
-    writablePath = [writablePath stringByAppendingPathComponent:contact.accountId.stringValue];
+    writablePath = [writablePath stringByAppendingPathComponent:contact.accountID.stringValue];
     writablePath = [writablePath stringByAppendingPathComponent:filename];
     
     DDLogVerbose(@"Checking avatar image at: %@", writablePath);
     return [UIImage imageWithContentsOfFile:writablePath] != nil;
+}
+
+-(NSURL*) getThumbnailURLOfMessage:(MLMessage*) message
+{
+    NSString* path = [self.documentsDirectory stringByAppendingPathComponent:@"thumbnails"];
+    path = [path stringByAppendingPathComponent:message.accountID.stringValue];
+    path = [path stringByAppendingPathComponent:message.buddyName];
+    NSString* filename = [self fileNameforThumbnailOfMessage:message];
+    path = [path stringByAppendingPathComponent:filename];
+    if([[NSFileManager defaultManager] fileExistsAtPath:path])
+        return [NSURL fileURLWithPath:path];
+    else
+        return nil;
 }
 
 -(UIImage*) getIconForContact:(MLContact*) contact
@@ -281,14 +369,15 @@
     
     __block UIImage* toreturn = nil;
     //get filname from DB
-    NSString* cacheKey = [NSString stringWithFormat:@"%@_%@", contact.accountId, contact.contactJid];
+    NSString* appearanceSuffix = (UITraitCollection.currentTraitCollection.userInterfaceStyle == UIUserInterfaceStyleDark) ? @"dark" : @"light";
+    NSString* cacheKey = [NSString stringWithFormat:@"%@_%@_%@", contact.accountID, contact.contactJid, appearanceSuffix];
     
     //check cache
     toreturn = [self.iconCache objectForKey:cacheKey];
     if(!toreturn)
     {
         NSString* writablePath = [self.documentsDirectory stringByAppendingPathComponent:@"buddyicons"];
-        writablePath = [writablePath stringByAppendingPathComponent:contact.accountId.stringValue];
+        writablePath = [writablePath stringByAppendingPathComponent:contact.accountID.stringValue];
         writablePath = [writablePath stringByAppendingPathComponent:filename];
         
         DDLogVerbose(@"Loading avatar image at: %@", writablePath);
@@ -300,25 +389,10 @@
         if(toreturn == nil)             //return default avatar
         {
             DDLogVerbose(@"Using/generating dummy icon for contact: %@", contact);
-            if(contact.isGroup)
-            {
-                if([@"channel" isEqualToString:contact.mucType])
-                    toreturn = [MLImageManager circularImage:[UIImage imageNamed:@"noicon_channel" inBundle:nil compatibleWithTraitCollection:nil]];
-                else
-                    toreturn = [MLImageManager circularImage:[UIImage imageNamed:@"noicon_muc" inBundle:nil compatibleWithTraitCollection:nil]];
-            }
+            if(contact.isMuc)
+                toreturn = [self generateDummyIconForContact:contact withSymbol:@"person.2.fill"];
             else
                 toreturn = [self generateDummyIconForContact:contact];
-        }
-        else if(contact.isGroup)        //add group indicator overlay for non-default muc avatar
-        {
-            UIImage* overlay = nil;
-            if([@"channel" isEqualToString:contact.mucType])
-                overlay = [MLImageManager circularImage:[UIImage imageNamed:@"noicon_channel" inBundle:nil compatibleWithTraitCollection:nil]];
-            else
-                overlay = [MLImageManager circularImage:[UIImage imageNamed:@"noicon_muc" inBundle:nil compatibleWithTraitCollection:nil]];
-            if(overlay)
-                toreturn = [MLImageManager image:toreturn withMucOverlay:overlay];
         }
         
         //uiimage is cached if avaialable, but only if not in appex due to memory limits therein

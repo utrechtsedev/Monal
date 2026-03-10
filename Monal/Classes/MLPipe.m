@@ -6,8 +6,8 @@
 //  Copyright © 2020 Monal.im. All rights reserved.
 //
 
-#import "MLPipe.h"
-#import "HelperTools.h"
+#import <monalxmpp/MLPipe.h>
+#import <monalxmpp/HelperTools.h>
 
 #define kPipeBufferSize 4096
 
@@ -180,7 +180,7 @@
         }
         if(![_output hasSpaceAvailable])
         {
-            DDLogDebug(@"not starting pipe processing: no space to write");
+            DDLogWarn(@"not starting pipe processing: no space to write");
             return;
         }
         
@@ -198,7 +198,7 @@
                 {
                     _outputBuffer += writtenLen;
                     _outputBufferByteCount -= writtenLen;
-                    DDLogDebug(@"pipe processing sent part of buffered data: %ld", (long)writtenLen);
+                    DDLogWarn(@"pipe processing sent part of buffered data: %ld", (long)writtenLen);
                     return;
                 }
                 else
@@ -226,32 +226,29 @@
         
         NSInteger readLen = 0;
         NSInteger writtenLen = 0;
-        do {
-            readLen = [_input read:_outputBuffer maxLength:kPipeBufferSize];
-            if(readLen > 0)
+        readLen = [_input read:_outputBuffer maxLength:kPipeBufferSize];
+        if(readLen > 0)
+        {
+            _outputBuffer[readLen] = '\0';      //null termination for log output of raw string
+            DDLogVerbose(@"RECV(%ld): %s", (long)readLen, _outputBuffer);
+            writtenLen = [_output write:_outputBuffer maxLength:readLen];
+            if(writtenLen == -1)
             {
-                _outputBuffer[readLen] = '\0';      //null termination for log output of raw string
-                DDLogVerbose(@"RECV(%ld): %s", (long)readLen, _outputBuffer);
-                writtenLen = [_output write:_outputBuffer maxLength:readLen];
-                if(writtenLen == -1)
-                {
-                    NSError* error = [_output streamError];
-                    DDLogError(@"pipe sending failed with error %ld domain %@ message %@", (long)error.code, error.domain, error.userInfo);
-                    break;
-                }
-                else if(writtenLen < readLen)
-                {
-                    DDLogDebug(@"pipe could only write %ld of %ld bytes, buffering", (long)writtenLen, (long)readLen);
-                    //set the buffer pointer to the remaining data and leave our copy loop
-                    _outputBuffer += (size_t)writtenLen;
-                    _outputBufferByteCount = (size_t)(readLen-writtenLen);
-                    break;
-                }
+                NSError* error = [_output streamError];
+                DDLogError(@"pipe sending failed with error %ld domain %@ message %@", (long)error.code, error.domain, error.userInfo);
+                return;
             }
-            else
-                DDLogDebug(@"pipe read %ld <= 0 bytes", (long)readLen);
-        } while(readLen > 0 && [_input hasBytesAvailable] && [_output hasSpaceAvailable]);
-        DDLogVerbose(@"pipe processing done");
+            else if(writtenLen < readLen)
+            {
+                DDLogDebug(@"pipe could only write %ld of %ld bytes, buffering", (long)writtenLen, (long)readLen);
+                //set the buffer pointer to the remaining data and leave our copy loop
+                _outputBuffer += (size_t)writtenLen;
+                _outputBufferByteCount = (size_t)(readLen-writtenLen);
+                return;
+            }
+        }
+        else
+            DDLogDebug(@"pipe read %ld <= 0 bytes", (long)readLen);
     }
 }
 
@@ -274,20 +271,20 @@
         
         case NSStreamEventNone:
         {
-            //DDLogVerbose(@"Pipe stream %@ event none", stream);
+            DDLogVerbose(@"Pipe stream %@ event none", stream);
             break;
         }
         
         //handle read and write events
         case NSStreamEventHasSpaceAvailable:
         {
-            //DDLogVerbose(@"Pipe stream %@ has space available to write", stream);
+            DDLogVerbose(@"Pipe stream %@ has space available to write", stream);
             [self process];
             break;
         }
         case NSStreamEventHasBytesAvailable:
         {
-            //DDLogVerbose(@"Pipe stream %@ has bytes available to read", stream);
+            DDLogVerbose(@"Pipe stream %@ has bytes available to read", stream);
             [self process];
             break;
         }
@@ -295,7 +292,7 @@
         //handle all other events in outer stream delegate
         default:
         {
-            //DDLogVerbose(@"Pipe stream %@ delegates event to outer delegate", stream);
+            DDLogVerbose(@"Pipe stream %@ delegates event to outer delegate", stream);
             [_delegate stream:stream handleEvent:eventCode];
             break;
         }

@@ -6,17 +6,18 @@
 //  Copyright © 2020 Monal.im. All rights reserved.
 //
 
-#import "MLPubSub.h"
-#import "MLHandler.h"
-#import "xmpp.h"
-#import "MLXMLNode.h"
-#import "XMPPDataForm.h"
-#import "XMPPStanza.h"
+#import <monalxmpp/MLPubSub.h>
+#import <monalxmpp/MLHandler.h>
+#import <monalxmpp/xmpp.h>
+#import <monalxmpp/MLXMLNode.h>
+#import <monalxmpp/XMPPDataForm.h>
+#import <monalxmpp/XMPPStanza.h>
 #import "XMPPIQ.h"
 #import "XMPPMessage.h"
-#import "HelperTools.h"
+#import <monalxmpp/HelperTools.h>
 
-#define CURRENT_PUBSUB_DATA_VERSION @6
+//monal version 7.x, state counter: 006
+#define CURRENT_PUBSUB_DATA_VERSION @7006
 
 @interface MLPubSub ()
 {
@@ -74,7 +75,7 @@ static NSDictionary* _defaultOptions;
 
 -(void) handleAccountDiscoReady:(NSNotification*) notification
 {
-    if(_account.accountNo.intValue != ((xmpp*)notification.object).accountNo.intValue)
+    if(_account.accountID.intValue != ((xmpp*)notification.object).accountID.intValue)
         return;
     //we clear the queue so that the invalidation handlers can't get called twice:
     //once as invalidation of the queued operation handler and once as the invalidation of an iq handler of this operation

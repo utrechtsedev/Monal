@@ -15,24 +15,24 @@
 #import "MLUploadQueueCell.h"
 #import "UIColor+Theme.h"
 
-#import "ActiveChatsViewController.h"
 #import "AESGcm.h"
-#import "DataLayer.h"
-#import "HelperTools.h"
+#import <monalxmpp/DataLayer.h>
+#import <monalxmpp/HelperTools.h>
 #import "MBProgressHUD.h"
 #import "MLChatInputContainer.h"
 #import "MLChatViewHelper.h"
-#import "MLConstants.h"
-#import "MLFiletransfer.h"
-#import "MLImageManager.h"
-#import "MLMucProcessor.h"
-#import "MLVoIPProcessor.h"
-#import "MLNotificationQueue.h"
-#import "MLOMEMO.h"
+#import <monalxmpp/MLConstants.h>
+#import <monalxmpp/MLFileTransfer.h>
+#import <monalxmpp/MLFiletransferInfo.h>
+#import <monalxmpp/MLImageManager.h>
+#import <monalxmpp/MLMucProcessor.h>
+#import <monalxmpp/MLVoIPProcessor.h>
+#import <monalxmpp/MLNotificationQueue.h>
+#import <monalxmpp/MLOMEMO.h>
 #import "MLSearchViewController.h"
 #import "MLXEPSlashMeHandler.h"
 #import "MonalAppDelegate.h"
-#import "xmpp.h"
+#import <monalxmpp/xmpp.h>
 #import "XMPPMessage.h"
 
 #import <Monal-Swift.h>
@@ -138,7 +138,7 @@ enum msgSentState {
 {
     self.hidesBottomBarWhenPushed = YES;
 
-    NSDictionary* accountDict = [[DataLayer sharedInstance] detailsForAccount:self.contact.accountId];
+    NSDictionary* accountDict = [[DataLayer sharedInstance] detailsForAccount:self.contact.accountID];
     if(accountDict)
         self.jid = [NSString stringWithFormat:@"%@@%@",[accountDict objectForKey:@"username"], [accountDict objectForKey:@"domain"]];
 
@@ -153,12 +153,9 @@ enum msgSentState {
 {
     [super viewDidLoad];
 
-    if([[DataLayer sharedInstance] isContactInList:self.contact.contactJid forAccount:self.contact.accountId] == NO)
+    if([[DataLayer sharedInstance] isContactInList:self.contact.contactJid forAccount:self.contact.accountID] == NO)
     {
         DDLogWarn(@"ChatView: Contact %@ is unkown", self.contact.contactJid);
-#ifdef IS_ALPHA
-        @throw [NSException exceptionWithName:@"RuntimeException" reason:@"Contact is unkown - GUI error" userInfo:nil];
-#endif
     }
 
     [self initNavigationBarItems];
@@ -168,8 +165,6 @@ enum msgSentState {
     self.messageTable.scrollsToTop = YES;
     self.chatInput.scrollsToTop = NO;
     self.editingCallback = nil;
-
-    self.splitViewController.preferredDisplayMode = UISplitViewControllerDisplayModeOneBesideSecondary;
 
     _isTyping = NO;
     self.hidesBottomBarWhenPushed=YES;
@@ -181,16 +176,6 @@ enum msgSentState {
 
     self.messageTable.rowHeight = UITableViewAutomaticDimension;
     self.messageTable.estimatedRowHeight = UITableViewAutomaticDimension;
-
-#if TARGET_OS_MACCATALYST
-    //does not become first responder like in iOS
-    [self.view addSubview:self.inputContainerView];
-
-    [self.inputContainerView.leadingAnchor constraintEqualToAnchor:self.inputContainerView.superview.leadingAnchor].active = YES;
-    [self.inputContainerView.bottomAnchor constraintEqualToAnchor:self.inputContainerView.superview.bottomAnchor].active = YES;
-    [self.inputContainerView.trailingAnchor constraintEqualToAnchor:self.inputContainerView.superview.trailingAnchor].active = YES;
-    self.tableviewBottom.constant += 20;
-#endif
     self.filePicker = [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:@[UTTypeItem]];
     self.filePicker.allowsMultipleSelection = YES;
     self.filePicker.delegate = self;
@@ -211,10 +196,6 @@ enum msgSentState {
     [self.uploadMenuView addConstraint:self.uploadMenuConstraint];
 
     [self setChatInputHeightConstraints:YES];
-
-#if !TARGET_OS_MACCATALYST
-    [self initAudioRecordButton];
-#endif
 
     // setup refreshControl for infinite scrolling
     UIRefreshControl* refreshControl = [UIRefreshControl new];
@@ -240,14 +221,14 @@ enum msgSentState {
     [self updateVoiceRequestButton];
     
     //ping this muc on open, to make sure we are still joined
-    if([[[DataLayer sharedInstance] listMucsForAccount:self.contact.accountId] containsObject:self.contact.contactJid])
+    if([[[DataLayer sharedInstance] listMucsForAccount:self.contact.accountID] containsObject:self.contact.contactJid])
         [self.xmppAccount.mucProcessor ping:self.contact.contactJid];
 }
 
 -(void) updateVoiceRequestButton
 {
     BOOL shouldBePresent = NO;
-    if(self.contact.isGroup && [kMucRoleVisitor isEqualToString:[[DataLayer sharedInstance] getOwnRoleInGroupOrChannel:self.contact]])
+    if(self.contact.isMuc && [kMucRoleVisitor isEqualToString:[[DataLayer sharedInstance] getOwnRoleInGroupOrChannel:self.contact]])
         shouldBePresent = YES;
     
     BOOL present = NO;
@@ -260,7 +241,7 @@ enum msgSentState {
         {
             UIBarButtonItem* requestVoiceButton = [UIBarButtonItem new];
             [requestVoiceButton setAction:@selector(requestVoice:)];
-            requestVoiceButton.image = [[UIImage systemImageNamed:@"checkmark.bubble"] imageWithTintColor:UIColor.monalGreen];
+            requestVoiceButton.image = [[UIImage systemImageNamed:@"checkmark.bubble"] imageWithTintColor:UIColor.tintColor];
             [requestVoiceButton setIsAccessibilityElement:YES];
             [requestVoiceButton setAccessibilityLabel:NSLocalizedString(@"Request Voice", @"")];
             [requestVoiceButton setAccessibilityTraits:UIAccessibilityTraitButton];
@@ -280,7 +261,7 @@ enum msgSentState {
         
         //update placeholder text, too
         self.placeHolderText.text = [NSString stringWithFormat:NSLocalizedString(@"Message from %@", @""), self.jid];
-        if(self.contact.isGroup && [kMucRoleVisitor isEqualToString:[[DataLayer sharedInstance] getOwnRoleInGroupOrChannel:self.contact]])
+        if(self.contact.isMuc && [kMucRoleVisitor isEqualToString:[[DataLayer sharedInstance] getOwnRoleInGroupOrChannel:self.contact]])
             self.placeHolderText.text = NSLocalizedString(@"You don't have voice in this chat", @"");
     });
 }
@@ -313,7 +294,7 @@ enum msgSentState {
         //this does not matter if we aren't already in the main thread, hence the async dispatch
         [HelperTools dispatchAsync:YES reentrantOnQueue:dispatch_get_main_queue() withBlock:^{
             //these contact types can not be called
-            if(self.contact.isGroup || self.contact.isSelfChat)
+            if(self.contact.isMuc || self.contact.isSelf)
             {
                 self.callButton = nil;
                 
@@ -601,7 +582,7 @@ enum msgSentState {
     
     MonalAppDelegate* appDelegate = (MonalAppDelegate *)[[UIApplication sharedApplication] delegate];
     MLCall* activeCall = [appDelegate.voipProcessor getActiveCallWithContact:self.contact];
-    if(activeCall == nil && ![[DataLayer sharedInstance] checkCap:@"urn:xmpp:jingle-message:0" forUser:self.contact.contactJid onAccountNo:self.contact.accountId])
+    if(activeCall == nil && ![[DataLayer sharedInstance] checkCap:@"urn:xmpp:jingle-message:0" forUser:self.contact.contactJid onAccountID:self.contact.accountID])
     {
         UIAlertController* alert = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Missing Call Support", @"") message:NSLocalizedString(@"Your contact may not support calls. Your call might never reach its destination.", @"") preferredStyle:UIAlertControllerStyleActionSheet];
         [alert addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Try nevertheless", @"") style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
@@ -615,10 +596,7 @@ enum msgSentState {
             [self dismissViewControllerAnimated:YES completion:nil];
         }]];
         UIPopoverPresentationController* popPresenter = [alert popoverPresentationController];
-        if(@available(iOS 16.0, macCatalyst 16.0, *))
-            popPresenter.sourceItem = sender;
-        else
-            popPresenter.barButtonItem = sender;
+        popPresenter.sourceItem = sender;
         [self presentViewController:alert animated:YES completion:nil];
     }
     else
@@ -646,10 +624,7 @@ enum msgSentState {
             [self dismissViewControllerAnimated:YES completion:nil];
         }]];
         UIPopoverPresentationController* popPresenter = [alert popoverPresentationController];
-        if(@available(iOS 16.0, macCatalyst 16.0, *))
-            popPresenter.sourceItem = sender;
-        else
-            popPresenter.barButtonItem = sender;
+        popPresenter.sourceItem = sender;
         [self presentViewController:alert animated:YES completion:nil];
     }
     else
@@ -674,7 +649,7 @@ enum msgSentState {
     else
         [self.navBarEncryptToggleButton setImage:[UIImage imageNamed:@"745-unlocked"]];
     //disable encryption button on unsupported muc types
-    if(self.contact.isGroup && [self.contact.mucType isEqualToString:@"group"] == NO)
+    if(self.contact.isMuc && [self.contact.mucType isEqualToString:kMucTypeGroup] == NO)
         [self.navBarEncryptToggleButton setEnabled:NO];
     //disable encryption button for special jids
     if([HelperTools isContactBlacklistedForEncryption:self.contact])
@@ -705,7 +680,7 @@ enum msgSentState {
 
 -(void) updateUIElements
 {
-    if(self.contact.accountId == nil)
+    if(self.contact.accountID == nil)
         return;
 
     NSString* jidLabelText = nil;
@@ -717,16 +692,16 @@ enum msgSentState {
 
     //send button is always enabled, except if the account is permanently disabled
     sendButtonEnabled = YES;
-    if(![[DataLayer sharedInstance] isAccountEnabled:self.contact.accountId])
+    if(![[DataLayer sharedInstance] isAccountEnabled:self.contact.accountID])
         sendButtonEnabled = NO;
 
     jidLabelText = contactDisplayName;
 
-    if(self.contact.isGroup)
+    if(self.contact.isMuc)
     {
-        NSArray* members = [[DataLayer sharedInstance] getMembersAndParticipantsOfMuc:self.contact.contactJid forAccountId:self.xmppAccount.accountNo];
+        NSArray* members = [[DataLayer sharedInstance] getMembersAndParticipantsOfMuc:self.contact.contactJid forAccountID:self.xmppAccount.accountID];
         NSInteger membercount = members.count;
-        if([self.contact.mucType isEqualToString:@"group"])
+        if([self.contact.mucType isEqualToString:kMucTypeGroup])
         {
             NSMutableSet* memberSet = [NSMutableSet new];
             for(NSDictionary* entry in members)
@@ -760,14 +735,14 @@ enum msgSentState {
     {
         NSDictionary* userInfo = notification.userInfo;
         // Check if all objects of the notification are present
-        NSString* accountNo = [userInfo objectForKey:kAccountID];
+        NSString* accountID = [userInfo objectForKey:kAccountID];
         NSNumber* accountState = [userInfo objectForKey:kAccountState];
 
         // Only parse account changes for our current opened account
-        if(accountNo.intValue != self.xmppAccount.accountNo.intValue)
+        if(accountID.intValue != self.xmppAccount.accountID.intValue)
             return;
 
-        if(accountNo && accountState)
+        if(accountID && accountState)
             [self updateUIElements];
     }
     else
@@ -813,8 +788,8 @@ enum msgSentState {
     if(notification)
     {
         NSDictionary* data = notification.userInfo;
-        NSString* notifcationAccountNo = data[@"accountNo"];
-        if(![jid isEqualToString:data[@"jid"]] || self.contact.accountId.intValue != notifcationAccountNo.intValue)
+        NSString* notifcationAccountID = data[@"accountID"];
+        if(![jid isEqualToString:data[@"jid"]] || self.contact.accountID.intValue != notifcationAccountID.intValue)
             return;     // ignore other accounts or contacts
         if([data[@"isTyping"] boolValue] == YES)
         {
@@ -842,10 +817,11 @@ enum msgSentState {
 
     //throw on empty contacts
     MLAssert(self.contact.contactJid != nil, @"can not open chat for empty contact jid");
-    MLAssert(self.contact.accountId != nil, @"can not open chat for empty account id");
+    MLAssert(self.contact.accountID != nil, @"can not open chat for empty account id");
 
     NSNotificationCenter* nc = [NSNotificationCenter defaultCenter];
     [nc addObserver:self selector:@selector(handleNewMessage:) name:kMonalNewMessageNotice object:nil];
+    [nc addObserver:self selector:@selector(handleNewMessage:) name:kMonalUpdatedMessageNotice object:nil];
     [nc addObserver:self selector:@selector(handleDeletedMessage:) name:kMonalDeletedMessageNotice object:nil];
     [nc addObserver:self selector:@selector(handleSentMessage:) name:kMonalSentMessageNotice object:nil];
     [nc addObserver:self selector:@selector(handleMessageError:) name:kMonalMessageErrorNotice object:nil];
@@ -854,6 +830,7 @@ enum msgSentState {
 
     [nc addObserver:self selector:@selector(dismissKeyboard:) name:UIApplicationDidEnterBackgroundNotification object:nil];
     [nc addObserver:self selector:@selector(handleForeGround) name:kMonalRefresh object:nil];
+    [nc addObserver:self selector:@selector(handleForeGround) name:kMonalContactHistoryCleared object:nil];
 
     [nc addObserver:self selector:@selector(keyboardDidShow:) name:UIKeyboardDidShowNotification object:nil];
     [nc addObserver:self selector:@selector(keyboardDidHide:) name:UIKeyboardDidHideNotification object:nil];
@@ -878,7 +855,7 @@ enum msgSentState {
     self.viewIsScrolling = YES;
     //stop editing (if there is some)
     [self stopEditing];
-    self.xmppAccount = [[MLXMPPManager sharedInstance] getConnectedAccountForID:self.contact.accountId];
+    self.xmppAccount = self.contact.account;
     if(!self.xmppAccount) DDLogDebug(@"Disabled account detected");
 
     [MLNotificationManager sharedInstance].currentContact = self.contact;
@@ -891,7 +868,7 @@ enum msgSentState {
     [self handleBackgroundChanged];
     
     // Load message draft from db
-    NSString* messageDraft = [[DataLayer sharedInstance] loadMessageDraft:self.contact.contactJid forAccount:self.contact.accountId];
+    NSString* messageDraft = [[DataLayer sharedInstance] loadMessageDraft:self.contact.contactJid forAccount:self.contact.accountID];
     if(messageDraft && [messageDraft length] > 0) {
         dispatch_async(dispatch_get_main_queue(), ^{
             self.chatInput.text = messageDraft;
@@ -974,7 +951,7 @@ enum msgSentState {
 -(BOOL) saveMessageDraft
 {
     // Save message draft
-    return [[DataLayer sharedInstance] saveMessageDraft:self.contact.contactJid forAccount:self.contact.accountId withComment:self.chatInput.text];
+    return [[DataLayer sharedInstance] saveMessageDraft:self.contact.contactJid forAccount:self.contact.accountID withComment:self.chatInput.text];
 }
 
 -(void) dealloc
@@ -1035,7 +1012,7 @@ enum msgSentState {
             //don't block the main thread while writing to the db (another thread could hold a write transaction already, slowing down the main thread)
             dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0), ^{
                 //get list of unread messages
-                NSArray* unread = [[DataLayer sharedInstance] markMessagesAsReadForBuddy:self.contact.contactJid andAccount:self.contact.accountId tillStanzaId:nil wasOutgoing:NO];
+                NSArray* unread = [[DataLayer sharedInstance] markMessagesAsReadForBuddy:self.contact.contactJid andAccount:self.contact.accountID tillStanzaId:nil wasOutgoing:NO];
 
                 //publish MDS display marker and optionally send displayed marker for last unread message (XEP-0333)
                 DDLogDebug(@"Sending MDS (and possibly XEP-0333 displayed marker) for messages: %@", unread);
@@ -1065,8 +1042,8 @@ enum msgSentState {
     if(!self.contact.contactJid)
         return;
 
-    NSMutableArray<MLMessage*>* messages = [[DataLayer sharedInstance] messagesForContact:self.contact.contactJid forAccount: self.contact.accountId];
-    NSNumber* unreadMsgCnt = [[DataLayer sharedInstance] countUserUnreadMessages:self.contact.contactJid forAccount: self.contact.accountId];
+    NSMutableArray<MLMessage*>* messages = [[DataLayer sharedInstance] messagesForContact:self.contact.contactJid forAccount: self.contact.accountID];
+    NSNumber* unreadMsgCnt = [[DataLayer sharedInstance] countUserUnreadMessages:self.contact.contactJid forAccount: self.contact.accountID];
 
     if([unreadMsgCnt integerValue] == 0)
         self->_firstmsg = YES;
@@ -1074,13 +1051,8 @@ enum msgSentState {
     if(!self.jid)
         return;
 
-    //TODO: use a factory method for this!!
-    MLMessage* unreadStatus = [MLMessage new];
-    unreadStatus.messageType = kMessageTypeStatus;
-    unreadStatus.messageText = NSLocalizedString(@"Unread Messages Below", @"");
-    unreadStatus.actualFrom = self.jid;
-    unreadStatus.isMuc = self.contact.isGroup;
-
+    MLMessage* unreadStatus = [MLMessage createNewStatusMessageForContact:self.contact withText:NSLocalizedString(@"Unread Messages Below", @"")];
+    
     NSInteger unreadPos = (NSInteger)messages.count - 1;
     while(unreadPos >= 0)
     {
@@ -1113,15 +1085,15 @@ enum msgSentState {
     DDLogVerbose(@"Sending message");
     NSString* newMessageID = messageID ? messageID : [[NSUUID UUID] UUIDString];
     //dont readd it, use the exisitng
-    NSDictionary* accountDict = [[DataLayer sharedInstance] detailsForAccount:self.contact.accountId];
+    NSDictionary* accountDict = [[DataLayer sharedInstance] detailsForAccount:self.contact.accountID];
     if(accountDict == nil)
     {
-        DDLogError(@"AccountNo %@ not found!", self.contact.accountId);
+        DDLogError(@"AccountID %@ not found!", self.contact.accountID);
         return;
     }
-    if(self.contact.contactJid == nil || [[DataLayer sharedInstance] isContactInList:self.contact.contactJid forAccount:self.contact.accountId] == NO)
+    if(self.contact.contactJid == nil || [[DataLayer sharedInstance] isContactInList:self.contact.contactJid forAccount:self.contact.accountID] == NO)
     {
-        DDLogError(@"Can not send message to unkown contact %@ on accountNo %@ - GUI Error", self.contact.contactJid, self.contact.accountId);
+        DDLogError(@"Can not send message to unkown contact %@ on accountID %@ - GUI Error", self.contact.contactJid, self.contact.accountID);
         return;
     }
     if(!messageID && !messageType) {
@@ -1239,41 +1211,46 @@ enum msgSentState {
     [self resignTextView];
 }
 
+-(void) handleRecord:(BOOL) granted
+{
+    if(granted)
+    {
+        if(!self->_isRecording)
+        {
+            DDLogInfo(@"Starting to record audio...");
+            [[MLAudioRecoderManager sharedInstance] setRecoderManagerDelegate:self];
+            [[MLAudioRecoderManager sharedInstance] start];
+            self->_isRecording = YES;
+        }
+        else
+        {
+            DDLogInfo(@"Stopping audio recording...");
+            [[MLAudioRecoderManager sharedInstance] stop:YES];
+            self->_isRecording = NO;
+        }
+    }
+    else
+    {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            UIAlertController *messageAlert =[UIAlertController alertControllerWithTitle:NSLocalizedString(@"Please Allow Audio Access", @"") message:NSLocalizedString(@"If you want to use audio message you will need to allow access in Settings-> Privacy-> Microphone.", @"") preferredStyle:UIAlertControllerStyleAlert];
+
+            UIAlertAction *closeAction =[UIAlertAction actionWithTitle:NSLocalizedString(@"Close", @"") style:UIAlertActionStyleCancel handler:^(UIAlertAction *action) {
+
+            }];
+
+            [messageAlert addAction:closeAction];
+            [self presentViewController:messageAlert animated:YES completion:nil];
+        });
+    }
+}
+
 -(IBAction) record:(id) sender
 {
     dispatch_async(dispatch_get_main_queue(), ^{
         DDLogInfo(@"Record button pressed...");
-        [[AVAudioSession sharedInstance] requestRecordPermission:^(BOOL granted) {
-            if(granted)
-            {
-                if(!self->_isRecording)
-                {
-                    DDLogInfo(@"Starting to record audio...");
-                    [[MLAudioRecoderManager sharedInstance] setRecoderManagerDelegate:self];
-                    [[MLAudioRecoderManager sharedInstance] start];
-                    self->_isRecording = YES;
-                }
-                else
-                {
-                    DDLogInfo(@"Stopping audio recording...");
-                    [[MLAudioRecoderManager sharedInstance] stop:YES];
-                    self->_isRecording = NO;
-                }
-            }
-            else
-            {
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    UIAlertController *messageAlert =[UIAlertController alertControllerWithTitle:NSLocalizedString(@"Please Allow Audio Access", @"") message:NSLocalizedString(@"If you want to use audio message you will need to allow access in Settings-> Privacy-> Microphone.", @"") preferredStyle:UIAlertControllerStyleAlert];
-
-                    UIAlertAction *closeAction =[UIAlertAction actionWithTitle:NSLocalizedString(@"Close", @"") style:UIAlertActionStyleCancel handler:^(UIAlertAction *action) {
-
-                    }];
-
-                    [messageAlert addAction:closeAction];
-                    [self presentViewController:messageAlert animated:YES completion:nil];
-                });
-            }
-        }];
+            [AVAudioApplication requestRecordPermissionWithCompletionHandler:^(BOOL granted) {
+                [self handleRecord:granted];
+            }];
     });
 }
 
@@ -1337,9 +1314,9 @@ enum msgSentState {
             @"type": @"file",
             @"filename": [url lastPathComponent],
             @"data": [MLFiletransfer prepareFileUpload:url],
-        } mutableCopy] withCompletionHandler:^(NSMutableDictionary* payload) {
+        } mutableCopy]].then(^(NSMutableDictionary* payload) {
             [self addToUIQueue:@[payload]];
-        }];
+        });
     }
 }
 
@@ -1493,14 +1470,6 @@ enum msgSentState {
 
         return;
     } else {
-#if TARGET_OS_MACCATALYST
-        UIAlertAction* fileAction = [UIAlertAction actionWithTitle:NSLocalizedString(@"Files", @"") style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-            [self attachfile:sender];
-        }];
-
-        [fileAction setValue:[[UIImage systemImageNamed:@"doc"] imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal] forKey:@"image"];
-        [actionControll addAction:fileAction];
-#else
         UIImagePickerController* mediaPicker = [UIImagePickerController new];
         mediaPicker.delegate = self;
 
@@ -1563,7 +1532,6 @@ enum msgSentState {
         [actionControll addAction:cameraAction];
         [actionControll addAction:photosAction];
         [actionControll addAction:fileAction];
-#endif
     }
 
     UIAlertAction* gpsAlert = [UIAlertAction actionWithTitle:NSLocalizedString(@"Send Location", @"") style:UIAlertActionStyleDefault handler:^(UIAlertAction* _Nonnull action) {
@@ -1611,29 +1579,27 @@ enum msgSentState {
         DDLogDebug(@"Handling asset with identifier: %@", userSelection.assetIdentifier);
         NSItemProvider* provider = userSelection.itemProvider;
         MLAssert(provider != nil, @"Expected a NSItemProvider");
-        [HelperTools handleUploadItemProvider:provider withCompletionHandler:^(NSMutableDictionary* payload) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                if(payload == nil || payload[@"error"] != nil)
-                {
-                    DDLogError(@"Could not save payload for sending: %@", payload[@"error"]);
-                    NSString* message = NSLocalizedString(@"Monal was not able to send your attachment!", @"");
-                    if(payload[@"error"] != nil)
-                        message = [NSString stringWithFormat:NSLocalizedString(@"Monal was not able to send your attachment: %@", @""), [payload[@"error"] localizedDescription]];
-                    UIAlertController* unknownItemWarning = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Could not send", @"")
-                                                                                message:message preferredStyle:UIAlertControllerStyleAlert];
-                    [unknownItemWarning addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Abort", @"") style:UIAlertActionStyleCancel handler:^(UIAlertAction * _Nonnull action) {
-                        [unknownItemWarning dismissViewControllerAnimated:YES completion:nil];
-                        [self.extensionContext completeRequestReturningItems:@[] completionHandler:nil];
-                    }]];
-                    [self presentViewController:unknownItemWarning animated:YES completion:nil];
-                }
-                else
-                {
-                    DDLogDebug(@"Adding payload to UI upload queue: %@", payload);
-                    [self addToUIQueue:@[payload]];
-                }
-            });
-        }];
+        [HelperTools handleUploadItemProvider:provider].then(^(NSMutableDictionary* payload) {
+            if(payload == nil || payload[@"error"] != nil)
+            {
+                DDLogError(@"Could not save payload for sending: %@", payload[@"error"]);
+                NSString* message = NSLocalizedString(@"Monal was not able to send your attachment!", @"");
+                if(payload[@"error"] != nil)
+                    message = [NSString stringWithFormat:NSLocalizedString(@"Monal was not able to send your attachment: %@", @""), [payload[@"error"] localizedDescription]];
+                UIAlertController* unknownItemWarning = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Could not send", @"")
+                                                                            message:message preferredStyle:UIAlertControllerStyleAlert];
+                [unknownItemWarning addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Abort", @"") style:UIAlertActionStyleCancel handler:^(UIAlertAction * _Nonnull action) {
+                    [unknownItemWarning dismissViewControllerAnimated:YES completion:nil];
+                    [self.extensionContext completeRequestReturningItems:@[] completionHandler:nil];
+                }]];
+                [self presentViewController:unknownItemWarning animated:YES completion:nil];
+            }
+            else
+            {
+                DDLogDebug(@"Adding payload to UI upload queue: %@", payload);
+                [self addToUIQueue:@[payload]];
+            }
+        });
     }
 }
 
@@ -1662,9 +1628,9 @@ enum msgSentState {
             @"type": @"audiovisual",
             @"filename": [url lastPathComponent],
             @"data": [MLFiletransfer prepareFileUpload:url],
-        } mutableCopy] withCompletionHandler:^(NSMutableDictionary* payload) {
+        } mutableCopy]].then(^(NSMutableDictionary* payload) {
             [self addToUIQueue:@[payload]];
-        }];
+        });
     }
     else
     {
@@ -1696,17 +1662,16 @@ enum msgSentState {
         return nil;
     }
 
-    NSNumber* messageDBId = [[DataLayer sharedInstance] addMessageHistoryTo:to forAccount:self.contact.accountId withMessage:message actuallyFrom:(self.contact.isGroup ? self.contact.accountNickInGroup : self.jid) withId:messageId encrypted:self.contact.isEncrypted messageType:messageType mimeType:mimeType size:size];
+    NSNumber* messageDBId = [[DataLayer sharedInstance] addMessageHistoryTo:to forAccount:self.contact.accountID withMessage:message actuallyFrom:(self.contact.isMuc ? self.contact.accountNickInGroup : self.jid) withOccupantId:(self.contact.isMuc ? [[DataLayer sharedInstance] getOwnOccupantIdForMuc:self.contact.contactJid onAccountID:self.contact.accountID] : nil) andId:messageId encrypted:self.contact.isEncrypted messageType:messageType mimeType:mimeType size:size];
     if(messageDBId != nil)
     {
         DDLogVerbose(@"added message");
-        NSArray* msgList = [[DataLayer sharedInstance] messagesForHistoryIDs:@[messageDBId]];
-        if(![msgList count])
+        MLMessage* messageObj = [MLMessage createMessageFromHistoryID:messageDBId];
+        if(!messageObj)
         {
             DDLogError(@"Could not find msg for history ID %@!", messageDBId);
             return nil;
         }
-        MLMessage* messageObj = msgList[0];
 
         [self tempfreezeAutoloading];
 
@@ -1733,13 +1698,12 @@ enum msgSentState {
         // make sure its in active chats list
         if(_firstmsg == YES)
         {
-            [[DataLayer sharedInstance] addActiveBuddies:to forAccount:self.contact.accountId];
+            [[DataLayer sharedInstance] addActiveBuddies:to forAccount:self.contact.accountID];
             _firstmsg = NO;
         }
         
-        //create and donate interaction to allow for ios 15 suggestions
-        if(@available(iOS 15.0, macCatalyst 15.0, *))
-            [[MLNotificationManager sharedInstance] donateInteractionForOutgoingDBId:messageDBId];
+        //create and donate interaction to allow for share suggestions
+        [[MLNotificationManager sharedInstance] donateInteractionForOutgoingDBId:messageDBId];
         
         return messageObj;
     }
@@ -1771,9 +1735,6 @@ enum msgSentState {
                 MLMessage* msgInList = [self.messageList objectAtIndex:(msgIdx - 1)];
                 if([msgInList.messageDBId intValue] == [message.messageDBId intValue])
                 {
-                    //update message in our list
-                    [msgInList updateWithMessage:message];
-
                     //update table entry
                     NSIndexPath* indexPath = [NSIndexPath indexPathForRow:(msgIdx - 1) inSection:messagesSection];
                     dispatch_async(dispatch_get_main_queue(), ^{
@@ -1818,19 +1779,15 @@ enum msgSentState {
 -(void) handleDeletedMessage:(NSNotification*) notification
 {
     NSDictionary* dic = notification.userInfo;
-    MLMessage* msg = dic[@"message"];
 
-    DDLogDebug(@"Got deleted message notice for history id %ld and message id %@", (long)[msg.messageDBId intValue], msg.messageId);
+    DDLogDebug(@"Got deleted message notice for history id %ld and message id %@", (long)[dic[@"historyId"] intValue], dic[@"historyId"]);
 
     for(size_t msgIdx = [self.messageList count]; msgIdx > 0; msgIdx--)
     {
         // find msg that should be deleted
         MLMessage* msgInList = [self.messageList objectAtIndex:(msgIdx - 1)];
-        if([msgInList.messageDBId intValue] == [msg.messageDBId intValue])
+        if([msgInList.messageDBId intValue] == [dic[@"historyId"] intValue])
         {
-            //update message in our list
-            [msgInList updateWithMessage:msg];
-            
             //update table entry
             NSIndexPath* indexPath = [NSIndexPath indexPathForRow:(msgIdx - 1) inSection:messagesSection];
             dispatch_async(dispatch_get_main_queue(), ^{
@@ -1852,33 +1809,6 @@ enum msgSentState {
         MLMessage* msg = [self.messageList objectAtIndex:(msgIdx - 1)];
         if([msg.messageId isEqualToString:messageId])
         {
-            // Set correct flags
-            if(event == msgSent) {
-                DDLogVerbose(@"got msgSent event for messageid: %@", messageId);
-                msg.hasBeenSent = YES;
-            } else if(event == msgRecevied) {
-                DDLogVerbose(@"got msgRecevied event for messageid: %@", messageId);
-                msg.hasBeenSent = YES;
-                msg.hasBeenReceived = YES;
-            } else if(event == msgDisplayed) {
-                DDLogVerbose(@"got msgDisplayed event for messageid: %@", messageId);
-                msg.hasBeenSent = YES;
-                msg.hasBeenReceived = YES;
-                msg.hasBeenDisplayed = YES;
-            } else if(event == msgErrorAfterSent) {
-                DDLogVerbose(@"got msgErrorAfterSent event for messageid: %@", messageId);
-                //we don't want to show errors if the message has been received at least once
-                if(!msg.hasBeenReceived)
-                {
-                    msg.errorType = [dic objectForKey:@"errorType"];
-                    msg.errorReason = [dic objectForKey:@"errorReason"];
-
-                    //ping muc to self-heal cases where we aren't joined anymore without noticing it
-                    if(self.contact.isGroup)
-                        [self.xmppAccount.mucProcessor ping:self.contact.contactJid];
-                }
-            }
-
             indexPath = [NSIndexPath indexPathForRow:(msgIdx - 1) inSection:messagesSection];
 
             //update table entry
@@ -1895,25 +1825,30 @@ enum msgSentState {
 
 -(void) handleSentMessage:(NSNotification*) notification
 {
-    [self updateMsgState:((XMPPMessage*)notification.userInfo[@"message"]).id withEvent:msgSent withOptDic:nil];
+    XMPPMessage* msg = notification.userInfo[@"message"];
+    if([msg.toUser isEqualToString:self.contact.contactJid])
+        [self updateMsgState:msg.id withEvent:msgSent withOptDic:nil];
 }
 
 -(void) handleMessageError:(NSNotification*) notification
 {
     NSDictionary* dic = notification.userInfo;
-    [self updateMsgState:[dic objectForKey:kMessageId] withEvent:msgErrorAfterSent withOptDic:dic];
+    if([dic[@"jid"] isEqualToString:self.contact.contactJid])
+        [self updateMsgState:[dic objectForKey:kMessageId] withEvent:msgErrorAfterSent withOptDic:dic];
 }
 
 -(void) handleReceivedMessage:(NSNotification*) notification
 {
     NSDictionary *dic = notification.userInfo;
-    [self updateMsgState:[dic objectForKey:kMessageId] withEvent:msgRecevied withOptDic:nil];
+    if([dic[@"jid"] isEqualToString:self.contact.contactJid])
+        [self updateMsgState:[dic objectForKey:kMessageId] withEvent:msgRecevied withOptDic:nil];
 }
 
 -(void) handleDisplayedMessage:(NSNotification*) notification
 {
     NSDictionary *dic = notification.userInfo;
-    [self updateMsgState:[dic objectForKey:kMessageId] withEvent:msgDisplayed withOptDic:nil];
+    if([dic[@"message"] isEqualToContact:self.contact])
+        [self updateMsgState:[dic objectForKey:kMessageId] withEvent:msgDisplayed withOptDic:nil];
 }
 
 -(void) handleFiletransferMessageUpdate:(NSNotification*) notification
@@ -1921,7 +1856,7 @@ enum msgSentState {
     NSDictionary* dic = notification.userInfo;
     MLMessage* msg = dic[@"message"];
 
-    DDLogDebug(@"Got filetransfer message update for history id %ld: %@ (%@)", (long)[msg.messageDBId intValue], msg.filetransferMimeType, msg.filetransferSize);
+    DDLogDebug(@"Got filetransfer message update for history id %ld: %@ (%@)", (long)[msg.messageDBId intValue], msg.fileInfo.mimeType, msg.fileInfo.size);
 
     NSIndexPath* indexPath;
     for(size_t msgIdx = [self.messageList count]; msgIdx > 0; msgIdx--)
@@ -1930,9 +1865,6 @@ enum msgSentState {
         MLMessage* msgInList = [self.messageList objectAtIndex:(msgIdx - 1)];
         if([msgInList.messageDBId intValue] == [msg.messageDBId intValue])
         {
-            //update message in our list (this will copy filetransferMimeType and filetransferSize fields)
-            [msgInList updateWithMessage:msg];
-
             //update table entry
             indexPath = [NSIndexPath indexPathForRow:(msgIdx - 1) inSection:messagesSection];
             dispatch_async(dispatch_get_main_queue(), ^{
@@ -2049,13 +1981,12 @@ enum msgSentState {
 -(void) retry:(id) sender
 {
     NSInteger msgHistoryID = ((UIButton*) sender).tag;
-    NSArray* msgArray = [[DataLayer sharedInstance] messagesForHistoryIDs:@[[NSNumber numberWithInteger:msgHistoryID]]];
-    if(![msgArray count])
+    MLMessage* msg = [MLMessage createMessageFromHistoryID:@(msgHistoryID)];
+    if(!msg)
     {
         DDLogError(@"Called retry for non existing message with history id %ld", (long)msgHistoryID);
         return;
     }
-    MLMessage* msg = msgArray[0];
     DDLogDebug(@"Called retry for message with history id %ld: %@", (long)msgHistoryID, msg);
 
     UIAlertController* alert = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Retry sending message?", @"") message:[NSString stringWithFormat:NSLocalizedString(@"This message failed to send (%@): %@", @""), msg.errorType, msg.errorReason] preferredStyle:UIAlertControllerStyleActionSheet];
@@ -2125,11 +2056,6 @@ enum msgSentState {
     if(indexPath.section == reloadBoxSection)
     {
         MLReloadCell* cell = (MLReloadCell*)[tableView dequeueReusableCellWithIdentifier:@"reloadBox" forIndexPath:indexPath];
-#if TARGET_OS_MACCATALYST
-            // "Pull" could be a bit misleading on a mac
-            cell.reloadLabel.text = NSLocalizedString(@"Scroll down to load more messages", @"mac only string");
-#endif
-
         // Remove selection style (if cell is pressed)
         cell.selectionStyle = UITableViewCellSelectionStyleNone;
         return cell;
@@ -2162,20 +2088,19 @@ enum msgSentState {
     }
     if(cell == nil && [row.messageType isEqualToString:kMessageTypeFiletransfer])
     {
-        DDLogVerbose(@"got filetransfer chat cell: %@ (%@)", row.filetransferMimeType, row.filetransferSize);
-        NSDictionary* info = [MLFiletransfer getFileInfoForMessage:row];
+        DDLogVerbose(@"got filetransfer chat cell: %@ (%@)", row.fileInfo.mimeType, row.fileInfo.size);
+        MLFiletransferInfo* info = row.fileInfo;
 
-        if(![info[@"needsDownloading"] boolValue])
+        if(info.downloadState == DownloadStateComplete)
         {
             DDLogVerbose(@"Filetransfer already downloaded: %@", info);
-            cell = [self fileTransferCellCheckerWithInfo:info direction:inboundDir tableView:tableView andMsg:row];
+            cell = [self fileTransferCellCheckerWithMessage:row direction:inboundDir tableView:tableView];
         }
-        else if([info[@"needsDownloading"] boolValue])
+        else
         {
             DDLogVerbose(@"Filetransfer needs downloading: %@", info);
             MLFileTransferDataCell* fileTransferCell = (MLFileTransferDataCell*)[self messageTableCellWithIdentifier:@"fileTransferCheckingData" andInbound:inboundDir fromTable:tableView];
-            NSString* fileSize = info[@"size"] ? info[@"size"] : @"0";
-            [fileTransferCell initCellForMessageId:row.messageDBId andFilename:info[@"filename"] andMimeType:info[@"mimeType"] andFileSize:fileSize.longLongValue];
+            [fileTransferCell initCellForMessageId:row.messageDBId andFilename:info.filename andMimeType:info.mimeType andFileSize:info.size.longLongValue];
             cell = fileTransferCell;
         }
     }
@@ -2350,9 +2275,9 @@ enum msgSentState {
         priorRow = [self.messageList objectAtIndex:indexPath.row-1];
     // Only display names for groups
     BOOL hideName = YES;
-    if(self.contact.isGroup)
+    if(self.contact.isMuc)
     {
-        if([@"group" isEqualToString:self.contact.mucType] && row.participantJid)
+        if([kMucTypeGroup isEqualToString:self.contact.mucType] && row.participantJid)
             hideName = (priorRow != nil && [priorRow.participantJid isEqualToString:row.participantJid]);
         else
             hideName = (priorRow != nil && [priorRow.actualFrom isEqualToString:row.actualFrom]);
@@ -2419,13 +2344,13 @@ enum msgSentState {
     return cell;
 }
 
--(MLContact*) getMLContactForJid:(NSString*) jid andAccount:(NSNumber*) accountNo
+-(MLContact*) getMLContactForJid:(NSString*) jid andAccount:(NSNumber*) accountID
 {
-    NSString* cacheKey = [NSString stringWithFormat:@"%@|%@", jid, accountNo];
+    NSString* cacheKey = [NSString stringWithFormat:@"%@|%@", jid, accountID];
     @synchronized(_localMLContactCache) {
         if(_localMLContactCache[cacheKey])
             return _localMLContactCache[cacheKey];
-        return _localMLContactCache[cacheKey] = [MLContact createContactFromJid:jid andAccountNo:accountNo];
+        return _localMLContactCache[cacheKey] = [MLContact createContactFromJid:jid andAccountID:accountID];
     }
 }
 
@@ -2445,8 +2370,12 @@ enum msgSentState {
                 [(MLChatCell *)cell openlink:self];
             } else  {
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    NSDictionary* info = [MLFiletransfer getFileInfoForMessage:[self.messageList objectAtIndex:indexPath.row]];
-                    UIViewController* imageViewer = [[SwiftuiInterface new] makeImageViewerForInfo:info];
+                    MLFiletransferInfo* selectedItem = [self.messageList objectAtIndex:indexPath.row].fileInfo;
+                    NSMutableArray* allItems = [NSMutableArray new];
+                    for(MLFiletransferInfo* fileInfo in [[DataLayer sharedInstance] allAttachmentsFromContact:self.contact.contactJid forAccount:self.contact.accountID])
+                        if(fileInfo.downloadState == DownloadStateComplete && (fileInfo.isImage || fileInfo.isVideo))
+                            [allItems addObject:fileInfo];
+                    UIViewController* imageViewer = [[SwiftuiInterface new] makeImageViewerForCurrentItem:selectedItem allItems:allItems];
                     imageViewer.modalPresentationStyle = UIModalPresentationOverFullScreen;
                     [self presentViewController:imageViewer animated:YES completion:^{}];
                 });
@@ -2455,7 +2384,8 @@ enum msgSentState {
     }
 }
 
--(void) closePhotos {
+-(void) closePhotos
+{
     [self.navigationController dismissViewControllerAnimated:YES completion:nil];
 }
 
@@ -2572,24 +2502,10 @@ enum msgSentState {
     UIContextualAction* retractAction = [UIContextualAction contextualActionWithStyle:UIContextualActionStyleDestructive title:NSLocalizedString(@"Retract", @"Chat msg action") handler:^(UIContextualAction* action, UIView* sourceView, void (^completionHandler)(BOOL actionPerformed)) {
         //only delete directly if we sent that message, try to moderate otherwise
         if(!message.inbound)
-        {
             [self.xmppAccount retractMessage:message];
-            [[DataLayer sharedInstance] retractMessageHistory:message.messageDBId];
-            [message updateWithMessage:[[[DataLayer sharedInstance] messagesForHistoryIDs:@[message.messageDBId]] firstObject]];
-
-            //update table entry
-            [self->_messageTable beginUpdates];
-            [self->_messageTable reloadRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationNone];
-            [self->_messageTable endUpdates];
-            
-            //update active chats if necessary
-            [[MLNotificationQueue currentQueue] postNotificationName:kMonalContactRefresh object:self.xmppAccount userInfo:@{@"contact": self.contact}];
-        }
         else
-        {
             //hardcode reason for now (change this when rewriting chatui using swiftui)
             [self.xmppAccount moderateMessage:message withReason:@"This message contains inappropriate content for this forum."];
-        }
 
         return completionHandler(YES);
     }];
@@ -2643,7 +2559,7 @@ enum msgSentState {
         ]];
     //only allow retraction for outgoing messages or if we are the moderator of that muc
     //but only allow retraction in mucs if we already got the reflected stanzaid (or if this is an 1:1 chat)
-    else if((!message.inbound || (self.contact.isGroup && [[[DataLayer sharedInstance] getOwnRoleInGroupOrChannel:self.contact] isEqualToString:@"moderator"] && [[self.xmppAccount.mucProcessor getRoomFeaturesForMuc:self.contact.contactJid] containsObject:@"urn:xmpp:message-moderate:1"])) && (!message.isMuc || (message.isMuc && message.stanzaId != nil)) && !message.retracted)
+    else if((!message.inbound || (self.contact.isMuc && [[[DataLayer sharedInstance] getOwnRoleInGroupOrChannel:self.contact] isEqualToString:kMucRoleModerator] && [[self.xmppAccount.mucProcessor getRoomFeaturesForMuc:self.contact.contactJid] containsObject:@"urn:xmpp:message-moderate:1"])) && (!message.isMuc || (message.isMuc && message.stanzaId != nil)) && !message.retracted)
         return [UISwipeActionsConfiguration configurationWithActions:@[
             quoteAction,
             copyAction,
@@ -2657,32 +2573,32 @@ enum msgSentState {
         ]];
 }
 
--(MLBaseCell*) fileTransferCellCheckerWithInfo:(NSDictionary*)info direction:(BOOL)inDirection tableView:(UITableView*)tableView andMsg:(MLMessage*)row{
+-(MLBaseCell*) fileTransferCellCheckerWithMessage:(MLMessage*)message direction:(BOOL)inDirection tableView:(UITableView*)tableView
+{
+    MLFiletransferInfo* info = message.fileInfo;
     MLBaseCell* cell = nil;
-    //svg to UIImage conversion is only supported on ios >= 16
-    //--> this shows just a "picture.fill" placeholder for SVGs on ios < 16
-    if(cell == nil && [info[@"mimeType"] hasPrefix:@"image/"])
+    if(cell == nil && info.isImage)
     {
         MLChatImageCell* imageCell = (MLChatImageCell*)[self messageTableCellWithIdentifier:@"image" andInbound:inDirection fromTable:tableView];
-        [imageCell initCellWithMLMessage:row];
+        [imageCell initCellWithMLMessage:message];
         cell = imageCell;
     }
-    if(cell == nil && [info[@"mimeType"] hasPrefix:@"video/"])
+    if(cell == nil && info.isVideo)
     {
         MLFileTransferVideoCell* videoCell = (MLFileTransferVideoCell*)[self messageTableCellWithIdentifier:@"fileTransferVideo" andInbound:inDirection fromTable:tableView];
-        NSString* videoStr = info[@"cacheFile"];
-        NSString* videoFileName = info[@"filename"];
-        [videoCell avplayerConfigWithUrlStr:videoStr andMimeType:info[@"mimeType"] fileName:videoFileName andVC:self];
+        NSString* videoStr = info.cacheFilePath;
+        NSString* videoFileName = info.filename;
+        [videoCell avplayerConfigWithUrlStr:videoStr andMimeType:info.mimeType fileName:videoFileName andVC:self];
 
         cell = videoCell;
     }
-    if(cell == nil && [info[@"mimeType"] hasPrefix:@"audio/"])
+    if(cell == nil && info.isAudio)
     {
         //we may wan to make a new kind later but for now this is perfectly functional
         MLFileTransferVideoCell* audioCell = (MLFileTransferVideoCell*)[self messageTableCellWithIdentifier:@"fileTransferAudio" andInbound:inDirection fromTable:tableView];
-        NSString *audioStr = info[@"cacheFile"];
-        NSString *audioFileName = info[@"filename"];
-        [audioCell avplayerConfigWithUrlStr:audioStr andMimeType:info[@"mimeType"] fileName:audioFileName andVC:self];
+        NSString *audioStr = info.cacheFilePath;
+        NSString *audioFileName = info.filename;
+        [audioCell avplayerConfigWithUrlStr:audioStr andMimeType:info.mimeType fileName:audioFileName andVC:self];
 
         cell = audioCell;
     }
@@ -2690,26 +2606,25 @@ enum msgSentState {
     {
         MLFileTransferTextCell* textCell = (MLFileTransferTextCell*)[self messageTableCellWithIdentifier:@"fileTransferText" andInbound:inDirection fromTable:tableView];
 
-        NSString *fileSizeStr = info[@"size"];
-        long long fileSizeLongLongValue = fileSizeStr.longLongValue;
+        long long fileSizeLongLongValue = info.size.longLongValue;
         NSString *readableFileSize = [NSByteCountFormatter stringFromByteCount:fileSizeLongLongValue
                                                                     countStyle:NSByteCountFormatterCountStyleFile];
-        NSString *hintStr = [NSString stringWithFormat:@"%@ %@", NSLocalizedString(@"Open", @""), info[@"filename"]];
-        NSString *fileCacheUrlStr = info[@"cacheFile"];
+        NSString *hintStr = [NSString stringWithFormat:@"%@ %@", NSLocalizedString(@"Open", @""), info.filename];
+        NSString *fileCacheUrlStr = info.cacheFilePath;
         textCell.fileCacheUrlStr = fileCacheUrlStr;
 
-        NSUInteger countOfMimtTypeComponent = [info[@"mimeType"] componentsSeparatedByString:@";"].count;
+        NSUInteger countOfMimtTypeComponent = [info.mimeType componentsSeparatedByString:@";"].count;
         NSString* fileMimeType = @"";
         NSString* fileCharSet = @"";
         NSString* fileEncodeName = @"utf-8";
         if (countOfMimtTypeComponent > 1)
         {
-            fileMimeType = [info[@"mimeType"] componentsSeparatedByString:@";"].firstObject;
-            fileCharSet = [info[@"mimeType"] componentsSeparatedByString:@";"].lastObject;
+            fileMimeType = [info.mimeType componentsSeparatedByString:@";"].firstObject;
+            fileCharSet = [info.mimeType componentsSeparatedByString:@";"].lastObject;
         }
         else
         {
-            fileMimeType = info[@"mimeType"];
+            fileMimeType = info.mimeType;
         }
 
         if (fileCharSet != nil && fileCharSet.length > 0)
@@ -2718,7 +2633,7 @@ enum msgSentState {
         }
 
         textCell.fileMimeType = fileMimeType;
-        textCell.fileName = info[@"filename"];
+        textCell.fileName = info.filename;
         textCell.fileEncodeName = fileEncodeName;
         [textCell.fileTransferHint setText:hintStr];
         [textCell.sizeLabel setText:readableFileSize];
@@ -2766,7 +2681,7 @@ enum msgSentState {
     NSNumber* beforeId = nil;
     if(self.messageList.count > 0)
         beforeId = ((MLMessage*)[self.messageList objectAtIndex:0]).messageDBId;
-    oldMessages = [[DataLayer sharedInstance] messagesForContact:self.contact.contactJid forAccount:self.contact.accountId beforeMsgHistoryID:beforeId];
+    oldMessages = [[DataLayer sharedInstance] messagesForContact:self.contact.contactJid forAccount:self.contact.accountID beforeMsgHistoryID:beforeId];
 
     if(!self.isLoadingMam && [oldMessages count] < kMonalBackscrollingMsgCount)
     {
@@ -2798,62 +2713,41 @@ enum msgSentState {
         //history database for this contact is completely empty, use global last stanza id for this mam archive
         if(oldestStanzaId == nil)
         {
-            if(self.contact.isGroup)
-                oldestStanzaId = [[DataLayer sharedInstance] lastStanzaIdForMuc:self.contact.contactJid andAccount:self.contact.accountId];
+            if(self.contact.isMuc)
+                oldestStanzaId = [[DataLayer sharedInstance] lastStanzaIdForMuc:self.contact.contactJid andAccount:self.contact.accountID];
             else
-                oldestStanzaId = [[DataLayer sharedInstance] lastStanzaIdForAccount:self.contact.accountId];
+                oldestStanzaId = [[DataLayer sharedInstance] lastStanzaIdForAccount:self.contact.accountID];
         }
 
         //now load more (older) messages from mam
         DDLogVerbose(@"Loading more messages from mam before stanzaId %@", oldestStanzaId);
-        weakify(self);
-        [self.xmppAccount setMAMQueryMostRecentForContact:self.contact before:oldestStanzaId withCompletion:^(NSArray* _Nullable messages, NSString* _Nullable error) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                strongify(self);
-                if(!messages && !error)
-                {
-                    //xmpp account got reconnected
-                    DDLogError(@"Got backscrolling mam error: nil (possible reconnect while querying)");
-                    UIAlertController* alert = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Could not fetch messages", @"") message:NSLocalizedString(@"The connection to the server was interrupted and no old messages could be fetched for this chat. Please try again later.", @"") preferredStyle:UIAlertControllerStyleAlert];
-                    [alert addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Close", @"") style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-                        [alert dismissViewControllerAnimated:YES completion:nil];
-                    }]];
-                    [self presentViewController:alert animated:YES completion:nil];
-                }
-                else if(!messages)
-                {
-                    NSString* errorText = error;
-                    if(!error)
-                        errorText = NSLocalizedString(@"Unknown error!", @"");
-                    DDLogError(@"Got backscrolling mam error: %@", errorText);
-                    UIAlertController* alert = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Could not fetch messages", @"") message:[NSString stringWithFormat:NSLocalizedString(@"Could not fetch (all) old messages for this chat from your server archive. Please try again later. %@", @""), errorText] preferredStyle:UIAlertControllerStyleAlert];
-                    [alert addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Close", @"") style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-                        [alert dismissViewControllerAnimated:YES completion:nil];
-                    }]];
-                    [self presentViewController:alert animated:YES completion:nil];
-                }
-                else
-                {
-                    DDLogVerbose(@"Got backscrolling mam response: %lu", (unsigned long)[messages count]);
-                    if([messages count] == 0)
-                    {
-                        self.moreMessagesAvailable = NO;
-                        
-                        UIAlertController* alert = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Finished fetching messages", @"") message:NSLocalizedString(@"All messages fetched successfully, there are no more left on the server!", @"") preferredStyle:UIAlertControllerStyleAlert];
-                        [alert addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Close", @"") style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-                            [alert dismissViewControllerAnimated:YES completion:nil];
-                        }]];
-                        [self presentViewController:alert animated:YES completion:nil];
-                    }
-                    else
-                        [self insertOldMessages:[[messages reverseObjectEnumerator] allObjects]];
-                }
-                //allow next mam fetch
-                self.isLoadingMam = NO;
-                if(sender)
-                    [(UIRefreshControl*)sender endRefreshing];
-            });
-        }];
+        [self.xmppAccount setMAMQueryMostRecentForContact:self.contact before:oldestStanzaId]
+        .then(^(NSArray<MLMessage*>* messages) {
+            DDLogVerbose(@"Got backscrolling mam response: %lu", (unsigned long)[messages count]);
+            if([messages count] == 0)
+            {
+                self.moreMessagesAvailable = NO;
+                UIAlertController* alert = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Finished fetching messages", @"") message:NSLocalizedString(@"All messages fetched successfully, there are no more left on the server!", @"") preferredStyle:UIAlertControllerStyleAlert];
+                [alert addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Close", @"") style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+                    [alert dismissViewControllerAnimated:YES completion:nil];
+                }]];
+                [self presentViewController:alert animated:YES completion:nil];
+            }
+            else
+                [self insertOldMessages:[[messages reverseObjectEnumerator] allObjects]];
+        }).catch(^(NSError *error) {
+            DDLogError(@"Got backscrolling mam error: %@", error.localizedDescription);
+            UIAlertController* alert = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Could not fetch messages", @"") message:error.localizedDescription preferredStyle:UIAlertControllerStyleAlert];
+            [alert addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Close", @"") style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+                [alert dismissViewControllerAnimated:YES completion:nil];
+            }]];
+            [self presentViewController:alert animated:YES completion:nil];
+        }).ensure(^{
+            //allow next mam fetch
+            self.isLoadingMam = NO;
+            if(sender)
+                [(UIRefreshControl*)sender endRefreshing];
+        });
     }
     else if(!self.isLoadingMam && [oldMessages count] >= kMonalBackscrollingMsgCount)
     {
@@ -2952,10 +2846,8 @@ enum msgSentState {
     UIKeyCommand* escapeKey = [UIKeyCommand
                                keyCommandWithInput:UIKeyInputEscape modifierFlags:0 action:@selector(closePhotos)];
     // prefer our key commands over the system defaults
-    if (@available(iOS 15.0, macCatalyst 15.0, *)) {
-        shiftEnterKey.wantsPriorityOverSystemBehavior = true;
-        enterKey.wantsPriorityOverSystemBehavior = true;
-    }
+    shiftEnterKey.wantsPriorityOverSystemBehavior = true;
+    enterKey.wantsPriorityOverSystemBehavior = true;
     return @[
             shiftEnterKey,
             enterKey,
@@ -2974,21 +2866,15 @@ enum msgSentState {
     [self scrollToBottomIfNeeded];
 }
 
-- (BOOL)textView:(UITextView *)textView shouldChangeTextInRange:(NSRange)range replacementText:(NSString *)text
+-(BOOL) textView:(UITextView*) textView shouldChangeTextInRange:(NSRange) range replacementText:(NSString*) text
 {
-    BOOL shouldInsert = YES;
-
     // Notify that we are typing
     [self sendChatState:YES];
-
+    
     // Limit text length to kMonalChatMaxAllowedTextLen
-    if([text isEqualToString:@""]) {
-        shouldInsert &= YES;
-    } else {
-        shouldInsert &= (range.location + range.length < kMonalChatMaxAllowedTextLen);
-    }
-    shouldInsert &= ([textView.text length] + [text length] - range.length <= kMonalChatMaxAllowedTextLen);
-
+    BOOL shouldInsert = ([textView.text length] + [text length] - range.length <= kMonalChatMaxAllowedTextLen);
+    if([text isEqualToString:@""])
+        shouldInsert = YES;
     return shouldInsert;
 }
 
@@ -3004,11 +2890,6 @@ enum msgSentState {
 
 -(void) setSendButtonIconWithTextLength:(NSUInteger)txtLength
 {
-#if TARGET_OS_MACCATALYST
-    self.isAudioMessage = NO;
-    [self.audioRecordButton setHidden:YES];
-    [self.sendButton setHidden:NO];
-#else
     if ((txtLength == 0) && (self.uploadQueue.count == 0))
     {
         self.isAudioMessage = YES;
@@ -3021,7 +2902,6 @@ enum msgSentState {
         [self.audioRecordButton setHidden:YES];
         [self.sendButton setHidden:NO];
     }
-#endif
 }
 
 #pragma mark - link preview
@@ -3051,9 +2931,8 @@ enum msgSentState {
     {
         DDLogVerbose(@"Fetching HTTP HEAD for %@...", row.url);
         NSMutableURLRequest* headRequest = [[NSMutableURLRequest alloc] initWithURL:row.url];
-        if(@available(iOS 16.1, macCatalyst 16.1, *))
-            if([[HelperTools defaultsDB] boolForKey: @"useDnssecForAllConnections"])
-                headRequest.requiresDNSSECValidation = YES;
+        if([[HelperTools defaultsDB] boolForKey: @"useDnssecForAllConnections"])
+            headRequest.requiresDNSSECValidation = YES;
         headRequest.HTTPMethod = @"HEAD";
         headRequest.cachePolicy = NSURLRequestReturnCacheDataElseLoad;
         NSURLSession* session = [HelperTools createEphemeralURLSession];
@@ -3127,9 +3006,8 @@ enum msgSentState {
      */
     DDLogVerbose(@"Fetching HTTP GET for %@...", row.url);
     NSMutableURLRequest* request = [[NSMutableURLRequest alloc] initWithURL:row.url];
-    if(@available(iOS 16.1, macCatalyst 16.1, *))
-        if([[HelperTools defaultsDB] boolForKey: @"useDnssecForAllConnections"])
-            request.requiresDNSSECValidation = YES;
+    if([[HelperTools defaultsDB] boolForKey: @"useDnssecForAllConnections"])
+        request.requiresDNSSECValidation = YES;
     [request setValue:@"facebookexternalhit/1.1" forHTTPHeaderField:@"User-Agent"]; //required on some sites for og tags e.g. youtube
     if(useByterange)
         [request setValue:@"bytes=0-524288" forHTTPHeaderField:@"Range"];
@@ -3234,15 +3112,15 @@ enum msgSentState {
 -(void) checkOmemoSupportWithAlert:(BOOL) showWarning
 {
 #ifndef DISABLE_OMEMO
-    if(self.xmppAccount && [[DataLayer sharedInstance] isAccountEnabled:self.xmppAccount.accountNo])
+    if(self.xmppAccount && [[DataLayer sharedInstance] isAccountEnabled:self.xmppAccount.accountID])
     {
         BOOL omemoDeviceForContactFound = NO;
-        if(!self.contact.isGroup)
+        if(!self.contact.isMuc)
             omemoDeviceForContactFound = [self.xmppAccount.omemo knownDevicesForAddressName:self.contact.contactJid].count > 0;
         else
         {
             omemoDeviceForContactFound = NO;
-            for(NSDictionary* participant in [[DataLayer sharedInstance] getMembersAndParticipantsOfMuc:self.contact.contactJid forAccountId:self.xmppAccount.accountNo])
+            for(NSDictionary* participant in [[DataLayer sharedInstance] getMembersAndParticipantsOfMuc:self.contact.contactJid forAccountID:self.xmppAccount.accountID])
             {
                 if(participant[@"participant_jid"])
                     omemoDeviceForContactFound |= [self.xmppAccount.omemo knownDevicesForAddressName:participant[@"participant_jid"]].count > 0;
@@ -3255,13 +3133,13 @@ enum msgSentState {
         [self hideOmemoHUD];
         if(!omemoDeviceForContactFound && self.contact.isEncrypted)
         {
-            if(!self.contact.isGroup && [[HelperTools splitJid:self.contact.contactJid][@"host"] isEqualToString:@"cheogram.com"])
+            if(!self.contact.isMuc && [[HelperTools splitJid:self.contact.contactJid][@"host"] isEqualToString:@"cheogram.com"])
             {
                 // cheogram.com does not support OMEMO encryption as it is a PSTN gateway
                 // --> disable it
                 [self.contact toggleEncryption:NO];
             }
-            else if(self.contact.isGroup && ![self.contact.mucType isEqualToString:@"group"])
+            else if(self.contact.isMuc && ![self.contact.mucType isEqualToString:kMucTypeGroup])
             {
                 // a channel type muc has OMEMO encryption enabled, but channels don't support encryption
                 // --> warn user about this
@@ -3278,7 +3156,7 @@ enum msgSentState {
                 }]];
                 [self presentViewController:alert animated:YES completion:nil];
             }
-            else if(!self.contact.isGroup || (self.contact.isGroup && [self.contact.mucType isEqualToString:@"group"]))
+            else if(!self.contact.isMuc || (self.contact.isMuc && [self.contact.mucType isEqualToString:kMucTypeGroup]))
             {
                 if(showWarning)
                 {
@@ -3330,7 +3208,7 @@ enum msgSentState {
 -(void) handleOmemoFetchStateUpdate:(NSNotification*) notification
 {
     xmpp* account = notification.object;
-    MLContact* contact = [MLContact createContactFromJid:notification.userInfo[@"jid"] andAccountNo:account.accountNo];
+    MLContact* contact = [MLContact createContactFromJid:notification.userInfo[@"jid"] andAccountID:account.accountID];
     if(self.contact && [self.contact isEqualToContact:contact])
     {
         DDLogDebug(@"Got omemo fetching update: %@ --> %@", contact, notification.userInfo);
@@ -3409,6 +3287,14 @@ enum msgSentState {
 
 -(void) notifyStop:(NSURL* _Nullable) fileURL
 {
+    //switch back to default audio settings destroyed by recorder
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [HelperTools configureDefaultAudioSession];
+        MonalAppDelegate* appDelegate = (MonalAppDelegate*)[[UIApplication sharedApplication] delegate];
+        DDLogVerbose(@"Setting audio state to MLAudioStateNormal...");
+        appDelegate.audioState = MLAudioStateNormal;
+    });
+    
     dispatch_async(dispatch_get_main_queue(), ^{
         self->_isRecording = NO;
         [self.audioRecoderInfoView removeFromSuperview];
@@ -3460,13 +3346,21 @@ enum msgSentState {
 
 -(void) notifyResult:(BOOL)isSuccess error:(NSString*) errorMsg
 {
+    //switch back to default audio settings destroyed by recorder
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [HelperTools configureDefaultAudioSession];
+        MonalAppDelegate* appDelegate = (MonalAppDelegate*)[[UIApplication sharedApplication] delegate];
+        DDLogVerbose(@"Setting audio state to MLAudioStateNormal...");
+        appDelegate.audioState = MLAudioStateNormal;
+    });
+    
     dispatch_async(dispatch_get_main_queue(), ^{
         self->_isRecording = NO;
         NSString* alertTitle = @"";
         if(isSuccess) {
-            alertTitle = NSLocalizedString(@"Recode Success", @"");
+            alertTitle = NSLocalizedString(@"Recording succeeded", @"");
         } else {
-            alertTitle = [NSString stringWithFormat:@"%@%@", NSLocalizedString(@"Recode Fail:", @""), errorMsg];
+            alertTitle = [NSString stringWithFormat:@"%@%@", NSLocalizedString(@"Recording failed: ", @""), errorMsg];
         }
 
         UIAlertController* audioRecoderAlert = [UIAlertController alertControllerWithTitle:alertTitle
@@ -3678,26 +3572,24 @@ enum msgSentState {
         NSItemProvider* provider = item.itemProvider;
         MLAssert(provider != nil, @"provider must not be nil");
         MLAssert([provider hasItemConformingToTypeIdentifier:UTTypeItem.identifier], @"provider must supply item conforming to kUTTypeItem");
-        [HelperTools handleUploadItemProvider:provider withCompletionHandler:^(NSMutableDictionary* _Nullable payload) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                if(payload == nil || payload[@"error"] != nil)
-                {
-                    DDLogError(@"Could not save payload for sending: %@", payload[@"error"]);
-                    NSString* message = NSLocalizedString(@"Monal was not able to send your attachment!", @"");
-                    if(payload[@"error"] != nil)
-                        message = [NSString stringWithFormat:NSLocalizedString(@"Monal was not able to send your attachment: %@", @""), [payload[@"error"] localizedDescription]];
-                    UIAlertController* unknownItemWarning = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Could not send", @"")
-                                                                                message:message preferredStyle:UIAlertControllerStyleAlert];
-                    [unknownItemWarning addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Abort", @"") style:UIAlertActionStyleCancel handler:^(UIAlertAction * _Nonnull action) {
-                        [unknownItemWarning dismissViewControllerAnimated:YES completion:nil];
-                        [self.extensionContext completeRequestReturningItems:@[] completionHandler:nil];
-                    }]];
-                    [self presentViewController:unknownItemWarning animated:YES completion:nil];
-                }
-                else
-                    [self addToUIQueue:@[payload]];
-            });
-        }];
+        [HelperTools handleUploadItemProvider:provider].then(^(NSMutableDictionary* _Nullable payload) {
+            if(payload == nil || payload[@"error"] != nil)
+            {
+                DDLogError(@"Could not save payload for sending: %@", payload[@"error"]);
+                NSString* message = NSLocalizedString(@"Monal was not able to send your attachment!", @"");
+                if(payload[@"error"] != nil)
+                    message = [NSString stringWithFormat:NSLocalizedString(@"Monal was not able to send your attachment: %@", @""), [payload[@"error"] localizedDescription]];
+                UIAlertController* unknownItemWarning = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Could not send", @"")
+                                                                            message:message preferredStyle:UIAlertControllerStyleAlert];
+                [unknownItemWarning addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Abort", @"") style:UIAlertActionStyleCancel handler:^(UIAlertAction * _Nonnull action) {
+                    [unknownItemWarning dismissViewControllerAnimated:YES completion:nil];
+                    [self.extensionContext completeRequestReturningItems:@[] completionHandler:nil];
+                }]];
+                [self presentViewController:unknownItemWarning animated:YES completion:nil];
+            }
+            else
+                [self addToUIQueue:@[payload]];
+        });
     }
 }
 

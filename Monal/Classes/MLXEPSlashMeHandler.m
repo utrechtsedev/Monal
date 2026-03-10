@@ -7,8 +7,8 @@
 //
 
 #import "MLXEPSlashMeHandler.h"
-#import "MLMessage.h"
-#import "MLXMPPManager.h"
+#import <monalxmpp/MLMessage.h>
+#import <monalxmpp/MLXMPPManager.h>
 
 @import UIKit.NSAttributedString;
 
@@ -31,7 +31,7 @@
     
     NSString* displayName;
     if(msg.inbound == NO)
-        displayName = [MLContact ownDisplayNameForAccount:[[MLXMPPManager sharedInstance] getConnectedAccountForID:msg.accountId]];
+        displayName = [MLContact ownDisplayNameForAccount:[[MLXMPPManager sharedInstance] getEnabledAccountForID:msg.accountID]];
     else
         displayName = msg.contactDisplayName;
     

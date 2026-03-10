@@ -7,17 +7,17 @@
 //
 
 #import <Foundation/Foundation.h>
-#import "MLConstants.h"
+#import <monalxmpp/MLConstants.h>
 #import "Monal-Swift.h"
-#import "HelperTools.h"
+#import <monalxmpp/HelperTools.h>
 #import "XMPPIQ.h"
 #import "XMPPMessage.h"
-#import "xmpp.h"
-#import "MLXMPPManager.h"
-#import "MLVoIPProcessor.h"
-#import "MLCall.h"
+#import <monalxmpp/xmpp.h>
+#import <monalxmpp/MLXMPPManager.h>
+#import <monalxmpp/MLVoIPProcessor.h>
+#import <monalxmpp/MLCall.h>
 #import "MonalAppDelegate.h"
-#import "MLOMEMO.h"
+#import <monalxmpp/MLOMEMO.h>
 
 @import CallKit;
 @import WebRTC;
@@ -77,6 +77,7 @@
 -(void) removeCall:(MLCall*) call;
 -(void) initWebRTCForPendingCall:(MLCall*) call;
 -(void) handleIncomingJMIStanza:(MLXMLNode*) messageNode onAccount:(xmpp*) account;
+-(CXCallUpdate*) constructUpdateForCall:(MLCall*) call;
 @end
 
 @implementation MLCall
@@ -137,33 +138,63 @@
 
 #pragma mark - public interface
 
+-(BOOL) canSendDtmf
+{
+    return self.webRTCClient != nil && self.webRTCClient.canSendDtmf;
+}
++(NSSet*) keyPathsForValuesAffectingCanSendDtmf
+{
+    return [NSSet setWithObjects:@"webRTCClient", @"webRTCClient.canSendDtmf", nil];
+}
+
+-(void) sendDtmf:(NSString*) tones
+{
+    if(!self.canSendDtmf)
+    {
+        DDLogError(@"Called sendDtmf: while canSendDtmf property was NO!");
+        return;
+    }
+    //self.canSendDtmf will be false, if self.webRTCClient is nil
+    [self.webRTCClient sendDTMF:tones duration:0.150 interToneGap:0.070];
+}
+
 -(void) startCaptureLocalVideoWithRenderer:(id<RTCVideoRenderer>) renderer andCameraPosition:(AVCaptureDevicePosition) position
 {
     MLAssert(self.callType == MLCallTypeVideo, @"startCaptureLocalVideoWithRenderer:andCameraPosition: can only be called for video calls!");
+    if(self.webRTCClient==nil)
+        DDLogWarn(@"startCaptureLocalVideoWithRenderer:andCameraPosition: can only be called if self.webRTCClient is not nil!");
     [self.webRTCClient startCaptureLocalVideoWithRenderer:renderer andCameraPosition:position];
 }
 
 -(void) stopCaptureLocalVideo
 {
     MLAssert(self.callType == MLCallTypeVideo, @"stopCaptureLocalVideo: can only be called for video calls!");
+    if(self.webRTCClient==nil)
+        DDLogWarn(@"stopCaptureLocalVideo: can only be called if self.webRTCClient is not nil!");
     [self.webRTCClient stopCaptureLocalVideo];
 }
 
 -(void) renderRemoteVideoWithRenderer:(id<RTCVideoRenderer>) renderer
 {
     MLAssert(self.callType == MLCallTypeVideo, @"renderRemoteVideoWithRenderer: can only be called for video calls!");
+    if(self.webRTCClient==nil)
+        DDLogWarn(@"renderRemoteVideoWithRenderer: can only be called if self.webRTCClient is not nil!");
     [self.webRTCClient renderRemoteVideoTo:renderer];
 }
 
 -(void) hideVideo
 {
     MLAssert(self.callType == MLCallTypeVideo, @"hideVideo: can only be called for video calls!");
+    if(self.webRTCClient==nil)
+        DDLogWarn(@"hideVideo: can only be called if self.webRTCClient is not nil!");
     [self.webRTCClient hideVideo];
 }
 
 -(void) showVideo
 {
     MLAssert(self.callType == MLCallTypeVideo, @"showVideo: can only be called for video calls!");
+    if(self.webRTCClient==nil)
+        DDLogWarn(@"showVideo: can only be called if self.webRTCClient is not nil!");
     [self.webRTCClient showVideo];
 }
 
@@ -287,14 +318,12 @@
 
 -(xmpp*) account
 {
-    @synchronized(self) {
-        xmpp* account = [[MLXMPPManager sharedInstance] getConnectedAccountForID:self.contact.accountId];
-        MLAssert(account != nil, @"Account of call must be listed in MLXMPPManager connected accounts!", (@{
-            @"contact": nilWrapper(self.contact),
-            @"call": nilWrapper(self),
-        }));
-        return account;
-    }
+    xmpp* account = self.contact.account;
+    MLAssert(account != nil, @"Account of call must be listed in MLXMPPManager connected accounts!", (@{
+        @"contact": nilWrapper(self.contact),
+        @"call": nilWrapper(self),
+    }));
+    return account;
 }
 -(void) startCallDuartionTimer
 {
@@ -397,15 +426,14 @@
         
         //start timer once we are fully connected
         if(self.isConnected && self.audioSession != nil)
+        {
             [self startCallDuartionTimer];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                //update call info to include the right info about dtmf support
+                [self.voipProcessor.cxProvider reportCallWithUUID:self.uuid updated:[self.voipProcessor constructUpdateForCall:self]];
+            });
+        }
     }
-    
-#ifdef IS_ALPHA
-#if TARGET_OS_MACCATALYST
-    //set audio session to default one
-    self.audioSession = [AVAudioSession sharedInstance];
-#endif
-#endif
 }
 -(BOOL) isConnected
 {
@@ -423,11 +451,6 @@
             return;
         }
         BOOL assertActivated = YES;
-#ifdef IS_ALPHA
-#if TARGET_OS_MACCATALYST
-        assertActivated = NO;
-#endif
-#endif
         if(assertActivated && audioSession != nil)
             MLAssert(_audioSession == nil, @"Audio session should never be activated without deactivating old audio session first!", (@{
                 @"oldAudioSession": nilWrapper(_audioSession),
@@ -446,7 +469,13 @@
         
         //start timer once we are fully connected
         if(self.isConnected && self.audioSession != nil)
+        {
             [self startCallDuartionTimer];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                //update call info to include the right info about dtmf support
+                [self.voipProcessor.cxProvider reportCallWithUUID:self.uuid updated:[self.voipProcessor constructUpdateForCall:self]];
+            });
+        }
     }
 }
 -(AVAudioSession*) audioSession
@@ -462,7 +491,18 @@
     DDLogInfo(@"Activating audio session now: %@", audioSession);
     [[RTCAudioSession sharedInstance] lockForConfiguration];
     NSUInteger options = 0;
+
+    // AVAudioSessionCategoryOptionAllowBluetooth is available in SDK 26, but not SDK 16.
+    // AVAudioSessionCategoryOptionAllowBluetoothHFP is the same in reverse.
+    // __IPHONE_26_0 is only defined in SDKs >= 26.
+    // See https://forums.swift.org/t/xcode-26-avaudiosession-categoryoptions-allowbluetooth-deprecated/80956
+    // TODO: Once all developers and the build run XCode 26, remove the guards in favour of AVAudioSessionCategoryOptionAllowBluetoothHFP.
+#ifdef __IPHONE_26_0
+    options |= AVAudioSessionCategoryOptionAllowBluetoothHFP;
+#else
     options |= AVAudioSessionCategoryOptionAllowBluetooth;
+#endif
+
     options |= AVAudioSessionCategoryOptionAllowBluetoothA2DP;
     options |= AVAudioSessionCategoryOptionInterruptSpokenAudioAndMixWithOthers;
     options |= AVAudioSessionCategoryOptionAllowAirPlay;
@@ -763,7 +803,7 @@
     if(self.cancelConnectingTimeout != nil)
         self.cancelConnectingTimeout();
     self.cancelConnectingTimeout = nil;
-    self.cancelConnectingTimeout = createTimer(15.0, (^{
+    self.cancelConnectingTimeout = createTimer(20.0, (^{
         DDLogError(@"Failed to connect call, aborting!");
         [self end];
     }));
@@ -794,7 +834,7 @@
     if(self.cancelRingingTimeout != nil)
         self.cancelRingingTimeout();
     self.cancelRingingTimeout = nil;
-    self.cancelRingingTimeout = createTimer(45.0, (^{
+    self.cancelRingingTimeout = createTimer(60.0, (^{
         DDLogError(@"Call not answered in time, aborting!");
         [self end];
     }));
@@ -1158,25 +1198,11 @@
             DDLogError(@"Failed to convert raw sdp candidate to jingle, ignoring this candidate: %@", candidate);
             return;
         }
-#ifdef IS_ALPHA
-        if([contentNode check:@"{urn:xmpp:jingle:transports:ice-udp:1}transport/candidate<protocol=tcp>"])
-        {
-            //add tcptype because that attribute is apparently not supported by our mozilla sdp lib
-            MLXMLNode* candidateNode = [contentNode findFirst:@"{urn:xmpp:jingle:transports:ice-udp:1}transport/candidate"];
-            if([candidate.sdp containsString:@"typ host tcptype active"])
-                candidateNode.attributes[@"tcptype"] = @"active";
-            else if([candidate.sdp containsString:@"typ host tcptype passive"])
-                candidateNode.attributes[@"tcptype"] = @"passive";
-            else
-                DDLogWarn(@"Unknown type-tcptype combination!");
-        }
-#else
         if([contentNode check:@"{urn:xmpp:jingle:transports:ice-udp:1}transport/candidate<protocol=tcp>"])
         {
             DDLogError(@"Ignoring raw sdp candidate, because it's using tcp instead of udp: %@", candidate);
             return;
         }
-#endif
         //see https://webrtc.googlesource.com/src/+/refs/heads/main/sdk/objc/api/peerconnection/RTCIceCandidate.h
         XMPPIQ* candidateIq = [[XMPPIQ alloc] initWithType:kiqSetType to:self.fullRemoteJid];
         [candidateIq addChildNode:[[MLXMLNode alloc] initWithElement:@"jingle" andNamespace:@"urn:xmpp:jingle:1" withAttributes:@{
@@ -1306,51 +1332,69 @@
     xmpp* account = notification.object;
     NSDictionary* userInfo = notification.userInfo;
     //ignore sdp for disabled accounts
-    if(account != [[MLXMPPManager sharedInstance] getConnectedAccountForID:account.accountNo])
+    if(account != [[MLXMPPManager sharedInstance] getEnabledAccountForID:account.accountID])
         return;
     //don't use self.account because that asserts on nil
-    if([[MLXMPPManager sharedInstance] getConnectedAccountForID:self.contact.accountId] == nil)
+    if(self.contact.account == nil)
         return;
     
     XMPPIQ* iqNode = userInfo[@"iqNode"];
     NSString* jmiid = [iqNode findFirst:@"{urn:xmpp:jingle:1}jingle@sid"];
-    if(![account.accountNo isEqualToNumber:self.account.accountNo] || ![self.jmiid isEqual:jmiid])
+    if(![account.accountID isEqualToNumber:self.account.accountID] || ![self.jmiid isEqual:jmiid])
     {
         DDLogInfo(@"Incoming ICE candidate not matching %@, ignoring...", [self short]);
         return;
+    }
+    
+    //always fake candidate iqs to only contain one single candidate, even if multiple ones are listed (seems to be allowed as per XEP-0176)
+    NSMutableArray<XMPPIQ*>* candidates = [NSMutableArray new];
+    for(MLXMLNode* content in [iqNode find:@"{urn:xmpp:jingle:1}jingle/content"])
+    {
+        MLXMLNode* transport = [content findFirst:@"{urn:xmpp:jingle:transports:ice-udp:1}transport"];
+        for(MLXMLNode* candidate in [transport find:@"{urn:xmpp:jingle:transports:ice-udp:1}candidate"])
+        {
+            XMPPIQ* fakeCandidateIQ = [[XMPPIQ alloc] initWithType:kiqSetType];
+            fakeCandidateIQ.from = self.fullRemoteJid;
+            fakeCandidateIQ.to = self.account.connectionProperties.identity.fullJid;
+            MLXMLNode* shallowTransport = [transport shallowCopyWithData:YES];
+            [shallowTransport addChildNode:[transport removeChildNode:candidate]];
+            MLXMLNode* shallowContent = [content shallowCopyWithData:YES];
+            [shallowContent addChildNode:shallowTransport];
+            [fakeCandidateIQ addChildNode:[[MLXMLNode alloc] initWithElement:@"jingle" andNamespace:@"urn:xmpp:jingle:1" withAttributes:@{
+                @"action": @"transport-info",
+                @"sid": self.jmiid,
+            } andChildren:@[shallowContent] andData:nil]];
+            DDLogDebug(@"Adding faked incoming ICE candidate iq to candidates list: %@", fakeCandidateIQ);
+            [candidates addObject:fakeCandidateIQ];
+        }
     }
     
     @synchronized(self.candidateQueueLock) {
         //queue candidate if sdp offer or answer have not been processed yet
         if(self.remoteSDP == nil || self.localSDP == nil)
         {
-            DDLogDebug(@"Adding incoming ICE candidate iq to candidate queue: %@", iqNode);
-            [self.incomingCandidateQueue addObject:iqNode];
+            for(XMPPIQ* candidateIq in candidates)
+            {
+                DDLogDebug(@"Adding incoming ICE candidate iq to candidate queue: %@", candidateIq);
+                [self.incomingCandidateQueue addObject:candidateIq];
+            }
             return;
         }
     }
-    [self processRemoteICECandidate:iqNode];
+    
+    for(XMPPIQ* candidateIq in candidates)
+        [self processRemoteICECandidate:candidateIq];
 }
 
 -(void) processRemoteICECandidate:(XMPPIQ*) iqNode
 {
     RTCIceCandidate* incomingCandidate = nil;
     NSString* rawSdp = [HelperTools xml2candidate:[iqNode findFirst:@"{urn:xmpp:jingle:1}jingle"] withInitiator:self.direction==MLCallDirectionIncoming];
-#ifdef IS_ALPHA
-    if([iqNode check:@"{urn:xmpp:jingle:1}jingle/content/{urn:xmpp:jingle:transports:ice-udp:1}transport/candidate<protocol=tcp>"])
-    {
-        NSString* type = [iqNode findFirst:@"{urn:xmpp:jingle:1}jingle/content/{urn:xmpp:jingle:transports:ice-udp:1}transport/candidate@type"];
-        NSString* tcptype = [iqNode findFirst:@"{urn:xmpp:jingle:1}jingle/content/{urn:xmpp:jingle:transports:ice-udp:1}transport/candidate@tcptype"];
-        DDLogDebug(@"Patching raw sdp type=%@ to contain tcptype: %@", type, tcptype);
-        rawSdp = [rawSdp stringByReplacingOccurrencesOfString:[NSString stringWithFormat:@"typ %@", type] withString:[NSString stringWithFormat:@"typ %@ tcptype %@", type, tcptype]];
-    }
-#else
     if([iqNode check:@"{urn:xmpp:jingle:1}jingle/content/{urn:xmpp:jingle:transports:ice-udp:1}transport/candidate<protocol=tcp>"])
     {
         DDLogWarn(@"Got tcp candidate, ignoring: %@", [iqNode findFirst:@"{urn:xmpp:jingle:1}jingle/content/{urn:xmpp:jingle:transports:ice-udp:1}transport/candidate"]);
         rawSdp = nil;
     }
-#endif
     DDLogVerbose(@"Got raw remote sdp: %@", rawSdp);
     if(rawSdp == nil)
     {
@@ -1445,22 +1489,22 @@
     xmpp* account = notification.object;
     NSDictionary* userInfo = notification.userInfo;
     //ignore sdp for disabled accounts
-    if(account != [[MLXMPPManager sharedInstance] getConnectedAccountForID:account.accountNo])
+    if(account != [[MLXMPPManager sharedInstance] getEnabledAccountForID:account.accountID])
         return;
     //don't use self.account because that asserts on nil
-    if([[MLXMPPManager sharedInstance] getConnectedAccountForID:self.contact.accountId] == nil)
+    if(self.contact.account == nil)
         return;
     XMPPIQ* iqNode = userInfo[@"iqNode"];
     
     NSString* jmiid = [iqNode findFirst:@"{urn:xmpp:jingle:1}jingle@sid"];
-    if(![account.accountNo isEqualToNumber:self.account.accountNo] || ![self.jmiid isEqual:jmiid])
+    if(![account.accountID isEqualToNumber:self.account.accountID] || ![self.jmiid isEqual:jmiid])
     {
         DDLogInfo(@"Ignoring incoming SDP not matching: %@", self);
         return;
     }
     
     //make sure we don't handle incoming sdp twice
-    if(self.remoteSDP != nil && [iqNode findFirst:@"{urn:xmpp:jingle:1}jingle<action~^session-(initiate|accept)$>"])
+    if(self.remoteSDP != nil && [iqNode check:@"{urn:xmpp:jingle:1}jingle<action~^session-(initiate|accept)$>"])
     {
         DDLogWarn(@"Got new remote sdp but we already got one, ignoring! MITM/DDOS??");
         XMPPIQ* errorIq = [[XMPPIQ alloc] initAsErrorTo:iqNode];
@@ -1603,7 +1647,7 @@
     //handle session-terminate: fake jmi finish message and handle it
     else if([iqNode check:@"{urn:xmpp:jingle:1}jingle<action=session-terminate>"])
     {
-        if(self.jmiProceed == nil)
+        if(self.jmiProceed != nil)
         {
             DDLogDebug(@"Got jingle session-terminate after jmi proceed, faking incoming jmi:finish for Conversations compatibility...");
             XMPPMessage* jmiNode = [[XMPPMessage alloc] initWithType:kMessageChatType to:self.account.connectionProperties.identity.jid];
@@ -1719,33 +1763,32 @@
                     
                     @synchronized(self.candidateQueueLock) {
                         self.localSDP = sdpIQ;
-                        
-                        DDLogDebug(@"Now handling queued incoming candidate iqs: %lu", (unsigned long)self.incomingCandidateQueue.count);
-                        for(XMPPIQ* candidateIq in self.incomingCandidateQueue)
-                            [self processRemoteICECandidate:candidateIq];
                     }
                 }];
             }
             else
-            {
                 [self.account send:[[XMPPIQ alloc] initAsResponseTo:iqNode]];
-                @synchronized(self.candidateQueueLock) {
-                    DDLogDebug(@"Now handling queued incoming candidate iqs: %lu", (unsigned long)self.incomingCandidateQueue.count);
-                    for(XMPPIQ* candidateIq in self.incomingCandidateQueue)
-                        [self processRemoteICECandidate:candidateIq];
-                }
-            }
-            @synchronized(self.candidateQueueLock) {
-                DDLogDebug(@"Now sending queued outgoing candidate iqs: %lu", (unsigned long)self.outgoingCandidateQueue.count);
-                for(XMPPIQ* candidateIq in self.outgoingCandidateQueue)
-                    [self.account sendIq:candidateIq withResponseHandler:^(XMPPIQ* result) {
-                        DDLogDebug(@"%@: Received outgoing ICE candidate result: %@", [self short], result);
-                    } andErrorHandler:^(XMPPIQ* error) {
-                        DDLogError(@"%@: Got error for outgoing ICE candidate: %@", [self short], error);
-                    }];
-            }
         }
     }];
+    
+    //do this inside the receive queue rather than in the signalling thread the above webrtc callback is running in
+    @synchronized(self.candidateQueueLock) {
+        //make sure we really are in the correct state (even if the above webrtc call should be blocking etc.)
+        if(self.remoteSDP != nil && self.localSDP != nil)
+        {
+            DDLogDebug(@"Now handling queued incoming candidate iqs: %lu", (unsigned long)self.incomingCandidateQueue.count);
+            for(XMPPIQ* candidateIq in self.incomingCandidateQueue)
+                [self processRemoteICECandidate:candidateIq];
+            
+            DDLogDebug(@"Now sending queued outgoing candidate iqs: %lu", (unsigned long)self.outgoingCandidateQueue.count);
+            for(XMPPIQ* candidateIq in self.outgoingCandidateQueue)
+                [self.account sendIq:candidateIq withResponseHandler:^(XMPPIQ* result) {
+                    DDLogDebug(@"%@: Received outgoing ICE candidate result: %@", [self short], result);
+                } andErrorHandler:^(XMPPIQ* error) {
+                    DDLogError(@"%@: Got error for outgoing ICE candidate: %@", [self short], error);
+                }];
+        }
+    }
     DDLogDebug(@"Leaving method...");
 }
 

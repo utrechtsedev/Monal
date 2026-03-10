@@ -9,12 +9,11 @@
 #import "MLSettingsTableViewController.h"
 #import "MLWebViewController.h"
 #import "MLSwitchCell.h"
-#import "HelperTools.h"
-#import "DataLayer.h"
-#import "MLXMPPManager.h"
+#import <monalxmpp/HelperTools.h>
+#import <monalxmpp/DataLayer.h>
+#import <monalxmpp/MLXMPPManager.h>
 #import "XMPPEdit.h"
 #import "MonalAppDelegate.h"
-#import "ActiveChatsViewController.h"
 #import <Monal-Swift.h>
 
 @import SafariServices;
@@ -28,10 +27,8 @@ enum kSettingSection {
 };
 
 enum SettingsAccountRows {
-#ifndef IS_QUICKSY
     QuickSettingsRow,
     AdvancedSettingsRow,
-#endif
     SettingsAccountRowsCnt
 };
 
@@ -63,10 +60,6 @@ enum SettingsAboutRows {
 
 //this will hold all disabled rows of all enums (this is needed because the code below still references these rows)
 enum DummySettingsRows {
-#ifdef IS_QUICKSY
-    QuickSettingsRow,
-    AdvancedSettingsRow,
-#endif
     DummySettingsRowsBegin = 100,
 };
 
@@ -101,9 +94,6 @@ enum DummySettingsRows {
     [self.tableView registerNib:[UINib nibWithNibName:@"MLSwitchCell" bundle:[NSBundle mainBundle]] forCellReuseIdentifier:@"AccountCell"];
 
     self.splitViewController.preferredDisplayMode = UISplitViewControllerDisplayModeOneBesideSecondary;
-#if !TARGET_OS_MACCATALYST
-    self.splitViewController.primaryBackgroundStyle = UISplitViewControllerBackgroundStyleSidebar;
-#endif
 }
 
 -(void) viewWillAppear:(BOOL)animated
@@ -157,11 +147,7 @@ enum DummySettingsRows {
 {
     switch(section)
     {
-#ifdef IS_QUICKSY
         case kSettingSectionAccounts: return [self getAccountNum] + SettingsAccountRowsCnt;
-#else
-        case kSettingSectionAccounts: return [self getAccountNum] + SettingsAccountRowsCnt;
-#endif
         case kSettingSectionApp: return SettingsAppRowsCnt;
         case kSettingSectionSupport: return SettingsSupportRowCnt;
 #ifndef DEBUG
@@ -221,13 +207,13 @@ enum DummySettingsRows {
 
         if(self.selected && self.selected.row >= (int) [self getAccountNum])
         {
-            editor.accountNo = [NSNumber numberWithInt:-1];
+            editor.accountID = [NSNumber numberWithInt:-1];
         }
         else
         {
             MLAssert(self.selected != nil, @"self.selected must not be nil");
             editor.originIndex = self.selected;
-            editor.accountNo = [self getAccountNoByIndex:self.selected.row];
+            editor.accountID = [self getAccountIDByIndex:self.selected.row];
         }
     }
 }
@@ -245,7 +231,6 @@ enum DummySettingsRows {
             }
             else
             {
-#ifndef IS_QUICKSY
                 MLAssert(indexPath.row - [self getAccountNum] < SettingsAccountRowsCnt, @"Tried to tap onto a row meant to be for a concrete account, not for quick or advanced settings");
                 
                 // User selected one of the 'add account' promts
@@ -259,7 +244,6 @@ enum DummySettingsRows {
                     default:
                         unreachable();
                 }
-#endif
             }
             break;
         }
@@ -362,15 +346,16 @@ enum DummySettingsRows {
             else
             {
                 switch(indexPath.row - [self getAccountNum]) {
-                    case QuickSettingsRow:
-                    {
+                    case QuickSettingsRow: {
                         UIViewController* loginView = [[SwiftuiInterface new] makeViewWithName:@"LogIn"];
                         [self showDetailViewController:loginView sender:self];
                         break;
                     }
-                    case AdvancedSettingsRow:
-                        [self performSegueWithIdentifier:@"editXMPP" sender:self];
+                    case AdvancedSettingsRow: {
+                        UIViewController* advancedLoginView = [[SwiftuiInterface new] makeViewWithName:@"AdvancedLogIn"];
+                        [self showDetailViewController:advancedLoginView sender:self];
                         break;
+                    }
                     default:
                         unreachable();
                 }

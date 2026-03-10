@@ -7,14 +7,14 @@
 //
 
 #import "NotificationService.h"
-#import "MLConstants.h"
-#import "HelperTools.h"
-#import "IPC.h"
-#import "MLProcessLock.h"
-#import "MLXMPPManager.h"
+#import <monalxmpp/MLConstants.h>
+#import <monalxmpp/HelperTools.h>
+#import <monalxmpp/IPC.h>
+#import <monalxmpp/MLProcessLock.h>
+#import <monalxmpp/MLXMPPManager.h>
 #import "MLNotificationManager.h"
-#import "MLFiletransfer.h"
-#import "xmpp.h"
+#import <monalxmpp/MLFileTransfer.h>
+#import <monalxmpp/xmpp.h>
 
 @import CallKit;
 
@@ -161,32 +161,27 @@
     DDLogInfo(@"Got incoming VOIP call");
     if([HelperTools shouldProvideVoip])
     {
-        if(@available(iOS 14.5, macCatalyst 14.5, *))
-        {
-            //disconnect while still being in the receive queue to make sure we don't process any other stanza after this jmi one
-            //(we don't want to handle a second jmi stanza for example: that could confuse tie-breaking and other parts of our call handling)
-            xmpp* account = [[MLXMPPManager sharedInstance] getConnectedAccountForID:notification.userInfo[@"accountNo"]];
-            [account disconnect];
-            
-            //now disconnect all other accounts, post the voip push and kill the appex
-            //do this in an extra thread to avoid deadlocks via: receive_queue -> disconnect_thread -> receive_queue
-            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-                //directly disconnect without handling any possibly queued stanzas (they will be handled in mainapp once we wake it up)
-                [self disconnectAndFeedAllWaitingHandlers];
-            
-                DDLogInfo(@"Dispatching voip call to mainapp...");
-                NSString* payload = [HelperTools encodeBase64WithData:[HelperTools serializeObject:notification.userInfo]];
-                [CXProvider reportNewIncomingVoIPPushPayload:@{@"base64Payload": payload} completion:^(NSError* _Nullable error) {
-                    if(error != nil)
-                        DDLogError(@"Got error for reportNewIncomingVoIPPushPayload: %@", error);
-                    else
-                        DDLogInfo(@"Successfully called reportNewIncomingVoIPPushPayload");
-                    [self killAppex];
-                }];
-            });
-        }
-        else
-            DDLogError(@"iOS < 14.5 detected, ignoring incoming call!");
+        //disconnect while still being in the receive queue to make sure we don't process any other stanza after this jmi one
+        //(we don't want to handle a second jmi stanza for example: that could confuse tie-breaking and other parts of our call handling)
+        xmpp* account = [[MLXMPPManager sharedInstance] getEnabledAccountForID:notification.userInfo[@"accountID"]];
+        [account disconnect];
+        
+        //now disconnect all other accounts, post the voip push and kill the appex
+        //do this in an extra thread to avoid deadlocks via: receive_queue -> disconnect_thread -> receive_queue
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            //directly disconnect without handling any possibly queued stanzas (they will be handled in mainapp once we wake it up)
+            [self disconnectAndFeedAllWaitingHandlers];
+        
+            DDLogInfo(@"Dispatching voip call to mainapp...");
+            NSString* payload = [HelperTools encodeBase64WithData:[HelperTools serializeObject:notification.userInfo]];
+            [CXProvider reportNewIncomingVoIPPushPayload:@{@"base64Payload": payload} completion:^(NSError* _Nullable error) {
+                if(error != nil)
+                    DDLogError(@"Got error for reportNewIncomingVoIPPushPayload: %@", error);
+                else
+                    DDLogInfo(@"Successfully called reportNewIncomingVoIPPushPayload");
+                [self killAppex];
+            }];
+        });
     }
     else
         DDLogError(@"shouldProvideVoip returned NO, ignoring incoming call!");
@@ -428,6 +423,9 @@ static BOOL warnUnclean = NO;
     
     handlers = [NSMutableArray new];
     
+    //resume logging and other core tasks
+    [HelperTools signalResumption];
+    
     //init IPC
     [IPC initializeForProcess:@"NotificationServiceExtension"];
     [MLProcessLock initializeForProcess:@"NotificationServiceExtension"];
@@ -439,6 +437,8 @@ static BOOL warnUnclean = NO;
     warnUnclean = ![NotificationService getAppexCleanShutdownStatus];
     if(warnUnclean)
         DDLogError(@"detected unclean appex shutdown!");
+    
+    [[HelperTools defaultsDB] setObject:[NSDate now] forKey:@"lastAppexStart"];
     
     //mark this appex as unclean (will be cleared directly before calling exit(0))
     [NotificationService setAppexCleanShutdownStatus:NO];
@@ -482,12 +482,8 @@ static BOOL warnUnclean = NO;
         [handlers addObject:contentHandler];
         
         //only show this notification once a day at maximum (and if a build number was given in our push)
-#ifdef IS_ALPHA
-        if(request.content.userInfo[@"firstGoodBuildNumber"] != nil)
-#else
         NSDate* lastAppVersionAlert = [[HelperTools defaultsDB] objectForKey:@"lastAppVersionAlert"];
         if((lastAppVersionAlert == nil || [[NSDate date] timeIntervalSinceDate:lastAppVersionAlert] > 86400) && request.content.userInfo[@"firstGoodBuildNumber"] != nil)
-#endif
         {
             NSDictionary* infoDict = [[NSBundle mainBundle] infoDictionary];
             long buildNumber = ((NSString*)[infoDict objectForKey:@"CFBundleVersion"]).integerValue;

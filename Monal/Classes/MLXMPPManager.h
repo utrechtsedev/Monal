@@ -12,6 +12,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @class xmpp;
 @class MLContact;
+@class MLMessage;
 
 /**
  A singleton to control all of the active XMPP connections
@@ -41,12 +42,17 @@ NS_ASSUME_NONNULL_BEGIN
 /**
  disconnects the specified account
  */
--(void) disconnectAccount:(NSNumber*) accountNo withExplicitLogout:(BOOL) explicitLogout;
+-(void) disconnectAccount:(NSNumber*) accountID withExplicitLogout:(BOOL) explicitLogout;
 
 /**
  connects the specified account
  */
--(void) connectAccount:(NSNumber*) accountNo;
+-(void) connectAccount:(NSNumber*) accountID;
+
+/**
+ does a full reset for every account, as if they were freshly created
+*/
+-(void) resetAllAccountStates;
 
 /**
  does a full reset for every account, as if they were freshly created
@@ -69,7 +75,7 @@ NS_ASSUME_NONNULL_BEGIN
  Block  a jid
  */
 -(void) block:(BOOL) isBlocked contact:(MLContact*) contact;
--(void) block:(BOOL) isBlocked fullJid:(NSString*) contact onAccount:(NSNumber*) accountNo;
+-(void) block:(BOOL) isBlocked fullJid:(NSString*) contact onAccount:(NSNumber*) accountID;
 
 /**
  Returns the user set name of the conencted account
@@ -79,32 +85,35 @@ NS_ASSUME_NONNULL_BEGIN
 /*
  gets the connected account apecified by id. return nil otherwise
  */
--(xmpp* _Nullable) getConnectedAccountForID:(NSNumber*) accountNo;
+-(xmpp* _Nullable) getEnabledAccountForID:(NSNumber*) accountID;
 
 /**
  Returns YES if account is connected
  */
--(BOOL) isAccountForIdConnected:(NSNumber*) accountNo;
+-(BOOL) isAccountForIdConnected:(NSNumber*) accountID;
 
 /**
  When the account estblihsed its current connection. 
  */
--(NSDate *) connectedTimeFor:(NSNumber*) accountNo;
+-(NSDate *) connectedTimeFor:(NSNumber*) accountID;
 
 -(NSNumber* _Nullable) login:(NSString*) jid password:(NSString*) password;
--(void) removeAccountForAccountNo:(NSNumber*) accountNo;
--(void) addNewAccountToKeychainAndConnectWithPassword:(NSString*) password andAccountNo:(NSNumber*) accountNo;
+-(NSNumber* _Nullable) login:(NSString*) jid password:(NSString*) password hardcodedServer:(NSString* _Nullable) hardcodedServer hardcodedPort:(NSString* _Nullable) hardcodedPort forceDirectTLS:(BOOL) directTLS allowPlainAuth:(BOOL) plainActivated;
+-(void) removeAccountForAccountID:(NSNumber*) accountID;
+-(void) addNewAccountToKeychainAndConnectWithPassword:(NSString*) password andAccountID:(NSNumber*) accountID;
 
 /**
  update the password in the keychan and update memory cache
  */
--(BOOL) isValidPassword:(NSString*) password forAccount:(NSNumber*) accountNo;
--(void) updatePassword:(NSString*) password forAccount:(NSNumber*) accountNo;
+-(BOOL) isValidPassword:(NSString*) password forAccount:(NSNumber*) accountID;
+-(NSString*) getPasswordForAccount:(NSNumber*) accountID;
+-(void) updatePassword:(NSString*) password forAccount:(NSNumber*) accountID;
 
 /**
-Sends a message to a specified contact in account. Calls completion handler on success or failure.
+ Sends a message to a specified contact in account.
+ It returns an MLMessage object (corresponding to the sent message) on success, and nil on failure.
  */
--(void) sendMessageAndAddToHistory:(NSString*) message havingType:(NSString*) messageType toContact:(MLContact*) contact isEncrypted:(BOOL) encrypted uploadInfo:(NSDictionary* _Nullable) uploadInfo withCompletionHandler:(void (^ _Nullable)(BOOL success, NSString* messageId)) completion;
+-(MLMessage* _Nullable) sendMessageAndAddToHistory:(NSString*) message havingType:(NSString*) messageType toContact:(MLContact*) contact isEncrypted:(BOOL) encrypted uploadInfo:(NSDictionary* _Nullable) uploadInfo NS_SWIFT_NAME(sendMessageAndAddToHistory(message:havingType:toContact:isEncrypted:uploadInfo:));
 -(void)sendMessage:(NSString*) message toContact:(MLContact*) contact isEncrypted:(BOOL) encrypted isUpload:(BOOL) isUpload messageId:(NSString*) messageId withCompletionHandler:(void (^ _Nullable)(BOOL success, NSString* messageId)) completion;
 -(void) sendChatState:(BOOL) isTyping toContact:(MLContact*) contact;
 

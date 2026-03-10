@@ -89,11 +89,7 @@ final class WebRTCClient: NSObject {
     
     @objc
     required init(iceServers: [RTCIceServer], audioOnly: Bool, forceRelay: Bool) {
-#if IS_ALPHA
-        RTCSetMinDebugLogLevel(.verbose)
-#else
         RTCSetMinDebugLogLevel(.info)
-#endif
         
         var peerConnection = WebRTCClient.createPeerConnection(iceServers: iceServers, forceRelay: forceRelay)
         if peerConnection == nil {
@@ -112,6 +108,7 @@ final class WebRTCClient: NSObject {
         self.peerConnection.delegate = self
         self.createMediaSenders(audioOnly: audioOnly)
         
+        // see https://stackoverflow.com/a/43765394
         if audioOnly {
             self.mediaConstrains = [
                 kRTCMediaConstraintsOfferToReceiveAudio: kRTCMediaConstraintsValueTrue,
@@ -230,7 +227,7 @@ final class WebRTCClient: NSObject {
             try self.rtcAudioSession.setCategory(AVAudioSession.Category.playAndRecord)
             try self.rtcAudioSession.setMode(AVAudioSession.Mode.voiceChat)
         } catch let error {
-            DDLogDebug("Error changeing AVAudioSession category: \(error)")
+            DDLogError("Error changing AVAudioSession category: \(String(describing:error))")
         }
         self.rtcAudioSession.useManualAudio = true
         self.rtcAudioSession.isAudioEnabled = false
@@ -404,7 +401,7 @@ extension WebRTCClient {
                 try self.rtcAudioSession.setCategory(AVAudioSession.Category.playAndRecord)
                 try self.rtcAudioSession.overrideOutputAudioPort(.none)
             } catch let error {
-                DDLogDebug("Error setting AVAudioSession category: \(error)")
+                DDLogError("Error setting AVAudioSession category: \(String(describing:error))")
             }
             self.rtcAudioSession.unlockForConfiguration()
         }
@@ -424,7 +421,7 @@ extension WebRTCClient {
                 try self.rtcAudioSession.overrideOutputAudioPort(.speaker)
                 try self.rtcAudioSession.setActive(true)
             } catch let error {
-                DDLogDebug("Couldn't force audio to speaker: \(error)")
+                DDLogError("Couldn't force audio to speaker: \(String(describing:error))")
             }
             self.rtcAudioSession.unlockForConfiguration()
         }
@@ -442,5 +439,43 @@ extension WebRTCClient: RTCDataChannelDelegate {
     
     func dataChannel(_ dataChannel: RTCDataChannel, didReceiveMessageWith buffer: RTCDataBuffer) {
         self.delegate?.webRTCClient(self, didReceiveData: buffer.data)
+    }
+}
+
+extension WebRTCClient {
+    private var dtmfSender: RTCDtmfSender? {
+        guard let audioSender = peerConnection.senders.first(where: { $0.track is RTCAudioTrack }) else {
+            DDLogDebug("No audio sender available for DTMF")
+            return nil
+        }
+        return audioSender.dtmfSender
+    }
+    
+    @objc
+    public var canSendDtmf: Bool {
+        guard let dtmfSender = self.dtmfSender else {
+            DDLogWarn("DTMF sender not available")
+            return false
+        }
+        return dtmfSender.canInsertDtmf
+    }
+
+    @objc
+    func sendDTMF(_ tones: String, duration: TimeInterval = 0.1, interToneGap: TimeInterval = 0.07) {
+        guard let dtmfSender = self.dtmfSender else {
+            DDLogError("DTMF sender not available")
+            return
+        }
+
+        if dtmfSender.canInsertDtmf {
+            let success = dtmfSender.insertDtmf(tones, duration: duration, interToneGap: interToneGap)
+            if success {
+                DDLogInfo("DTMF tones sent: \(tones)")
+            } else {
+                DDLogError("Failed to send DTMF tones: \(tones)")
+            }
+        } else {
+            DDLogError("Cannot insert DTMF at this time")
+        }
     }
 }

@@ -7,8 +7,8 @@
 //
 
 #import <Foundation/Foundation.h>
-#import "XMPPDataForm.h"
-#import "HelperTools.h"
+#import <monalxmpp/XMPPDataForm.h>
+#import <monalxmpp/HelperTools.h>
 
 @interface MLXMLNode()
 @property (atomic, strong, readwrite) NSString* element;
@@ -21,7 +21,7 @@ static NSRegularExpression* dataFormQueryRegex;
 
 +(void) initialize
 {
-    dataFormQueryRegex = [NSRegularExpression regularExpressionWithPattern:@"^(\\{(\\*|[^}]+)\\})?([!a-zA-Z0-9_:-]+|\\*)?(\\[([0-9]+)\\])?(@[a-zA-Z0-9_:#-]+|%[a-zA-Z0-9_:#-]+)?" options:0 error:nil];
+    dataFormQueryRegex = [NSRegularExpression regularExpressionWithPattern:@"^(\\{(\\*|[^}]+)\\})?([!a-zA-Z0-9_:-]+|\\*)?(\\[([0-9]+)\\])?(@[a-zA-Z0-9_:#-]+|&[a-zA-Z0-9_:#-]+)?$" options:0 error:nil];
 }
 
 //this simple init is not public api because type and form type are mandatory in xep-0004
@@ -225,13 +225,14 @@ static NSRegularExpression* dataFormQueryRegex;
 -(id _Nullable) processDataFormQuery:(NSString*) query
 {
     //parse query
-    NSMutableDictionary* parsedQuery = [NSMutableDictionary new];
     NSArray* matches = [dataFormQueryRegex matchesInString:query options:0 range:NSMakeRange(0, [query length])];
     if([matches count] == 0)
         @throw [XMLQueryBrokenException exceptionWithName:@"DataFormSyntaxErrorException" reason:@"Could not parse data form query!" userInfo:@{
             @"node": self,
             @"query": query
         }];
+    
+    NSMutableDictionary* parsedQuery = [NSMutableDictionary new];
     NSTextCheckingResult* match = matches.firstObject;
     NSRange formTypeRange = [match rangeAtIndex:2];
     NSRange typeRange = [match rangeAtIndex:3];
@@ -275,7 +276,7 @@ static NSRegularExpression* dataFormQueryRegex;
             return self[[parsedQuery[@"index"] unsignedIntegerValue]][parsedQuery[@"var"]];
         return self[parsedQuery[@"var"]];
     }
-    if([parsedQuery[@"extractionCommand"] isEqualToString:@"%"])
+    if([parsedQuery[@"extractionCommand"] isEqualToString:@"&"])
     {
         if(parsedQuery[@"index"] != nil)
             return [self getField:parsedQuery[@"var"] atIndex:parsedQuery[@"index"]];

@@ -13,7 +13,7 @@ struct AddContactMenu: View {
     var delegate: SheetDismisserProtocol
     static private let jidFaultyPattern = "^([^@]+@)?.+(\\..{2,})?$"
 
-    @State private var connectedAccounts: [xmpp]
+    @State private var enabledAccounts: [xmpp]
     @State private var selectedAccount: Int
     @State private var scannedFingerprints: [NSNumber:Data]? = nil
     @State private var importScannedFingerprints: Bool = false
@@ -47,12 +47,12 @@ struct AddContactMenu: View {
             self.scannedFingerprints = omemoFingerprints
         }
         
-        let connectedAccounts = MLXMPPManager.sharedInstance().connectedXMPP as! [xmpp]
-        self.connectedAccounts = connectedAccounts
-        self.selectedAccount = connectedAccounts.first != nil ? 0 : -1;
+        let enabledAccounts = MLXMPPManager.sharedInstance().connectedXMPP as! [xmpp]
+        self.enabledAccounts = enabledAccounts
+        self.selectedAccount = enabledAccounts.first != nil ? 0 : -1;
         if let prefillAccount = prefillAccount {
-            for index in connectedAccounts.indices {
-                if connectedAccounts[index].accountNo.isEqual(to:prefillAccount.accountNo) {
+            for index in enabledAccounts.indices {
+                if enabledAccounts[index].accountID.isEqual(to:prefillAccount.accountID) {
                     self.selectedAccount = index
                 }
             }
@@ -93,10 +93,6 @@ struct AddContactMenu: View {
         return toAdd.range(of: AddContactMenu.jidFaultyPattern, options:.regularExpression) == nil
     }
 
-    private var buttonColor: Color {
-        return toAddEmpty || toAddInvalid ? Color(UIColor.systemGray) : Color(UIColor.systemBlue)
-    }
-
     func trustFingerprints(_ fingerprints:[NSNumber:Data]?, for jid:String, on account:xmpp) {
         //we don't untrust other devices not included in here, because conversations only exports its own fingerprint
         if let fingerprints = fingerprints {
@@ -118,15 +114,15 @@ struct AddContactMenu: View {
     }
     
     func addJid(jid: String) {
-        let account = self.connectedAccounts[selectedAccount]
-        let contact = MLContact.createContact(fromJid: jid, andAccountNo: account.accountNo)
+        let account = self.enabledAccounts[selectedAccount]
+        let contact = MLContact.createContact(fromJid: jid, andAccountID: account.accountID)
         if contact.isInRoster {
             self.newContact = contact
             //import omemo fingerprints as manually trusted, if requested
             trustFingerprints(self.importScannedFingerprints ? self.scannedFingerprints : [:], for:jid, on:account)
             //only alert of already known contact if we did not import the omemo fingerprints
             if !self.importScannedFingerprints || self.scannedFingerprints?.count ?? 0 == 0 {
-                if self.connectedAccounts.count > 1 {
+                if self.enabledAccounts.count > 1 {
                     self.success = true
                     successAlert(title: Text("Already present"), message: Text("This contact is already in the contact list of the selected account"))
                 } else {
@@ -136,12 +132,12 @@ struct AddContactMenu: View {
             }
             return
         }
-        showPromisingLoadingOverlay(overlay, headline:NSLocalizedString("Adding...", comment: ""), description:"") {
+        showPromisingLoadingOverlay(overlay, headline:"Adding...", description:"") {
             account.checkJidType(jid)
         }.done { type in
             let type = type as! String
             if type == "account" {
-                let contact = MLContact.createContact(fromJid: jid, andAccountNo: account.accountNo)
+                let contact = MLContact.createContact(fromJid: jid, andAccountID: account.accountID)
                 self.newContact = contact
                 MLXMPPManager.sharedInstance().add(contact, withPreauthToken:preauthToken)
                 //import omemo fingerprints as manually trusted, if requested
@@ -153,7 +149,7 @@ struct AddContactMenu: View {
                         account.joinMuc(jid)
                     }
                 }.done { _ in
-                    self.newContact = MLContact.createContact(fromJid: jid, andAccountNo: account.accountNo)
+                    self.newContact = MLContact.createContact(fromJid: jid, andAccountID: account.accountID)
                     successAlert(title: Text("Success!"), message: Text("Successfully joined group/channel \(jid)!"))
                 }.catch { error in
                     errorAlert(title: Text("Error entering group/channel!"), message: Text(error.localizedDescription))
@@ -165,10 +161,10 @@ struct AddContactMenu: View {
     }
 
     var body: some View {
-        let account = self.connectedAccounts[selectedAccount]
+        let account = self.enabledAccounts[selectedAccount]
         let splitJid = HelperTools.splitJid(account.connectionProperties.identity.jid)
         Form {
-            if connectedAccounts.isEmpty {
+            if enabledAccounts.isEmpty {
                 Text("Please make sure at least one account has connected before trying to add a contact or channel.")
                     .foregroundColor(.secondary)
             }
@@ -179,17 +175,17 @@ struct AddContactMenu: View {
                 }
                 
                 Section(header:Text("Contact and Group/Channel Jids are usually in the format: name@domain.tld")) {
-                    if connectedAccounts.count > 1 {
+                    if enabledAccounts.count > 1 {
                         Picker("Use account", selection: $selectedAccount) {
-                            ForEach(Array(self.connectedAccounts.enumerated()), id: \.element) { idx, account in
+                            ForEach(Array(self.enabledAccounts.enumerated()), id: \.element) { idx, account in
                                 Text(account.connectionProperties.identity.jid).tag(idx)
                             }
                         }
                         .pickerStyle(.menu)
                     }
 
-                    TextField(NSLocalizedString("Contact or Group/Channel Jid", comment: "placeholder when adding jid"), text: $toAdd, onEditingChanged: { isEditingJid = $0 })
-                        //ios15: .textInputAutocapitalization(.never)
+                    TextField(NSLocalizedString("Contact-, Group- or Channel-Jid", comment: "placeholder when adding jid"), text: $toAdd, onEditingChanged: { isEditingJid = $0 })
+                        .textInputAutocapitalization(.never)
                         .autocapitalization(.none)
                         .autocorrectionDisabled()
                         .keyboardType(.emailAddress)
@@ -236,12 +232,8 @@ struct AddContactMenu: View {
                         }) {
                             scannedFingerprints == nil ? Text("Add") : Text("Add scanned contact")
                         }
-                        //.fontWeight(.bold)
-                        .padding(10)
-                        .background(toAddEmpty || toAddInvalid ? Color.gray : Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
                         .disabled(toAddEmpty || toAddInvalid)
+                        .buttonStyle(MonalProminentButtonStyle())
                     }
                 }
                 
@@ -274,13 +266,7 @@ struct AddContactMenu: View {
                     .aspectRatio(1, contentMode: .fit)
 
                 if let expires = data["expires"] as? Date {
-                    HStack {
-                        if #available(iOS 15, *) {
-                            Text("This invitation will expire on \(expires.formatted(date:.numeric, time:.shortened))")
-                        } else {
-                            Text("This invitation will expire on \(expires)")
-                        }
-                    }
+                    Text("This invitation will expire on \(expires.formatted(date:.numeric, time:.shortened))")
                     .font(.footnote)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -291,12 +277,7 @@ struct AddContactMenu: View {
                 UIPasteboard.general.setValue(data["landing"] as! String, forPasteboardType:UTType.utf8PlainText.identifier as String)
                 invitationResult = nil
             }) {
-                if #available(iOS 16, *) {
-                    ShareLink("Share invitation link", item: URL(string: data["landing"] as! String)!)
-                } else {
-                    Text("Copy invitation link to clipboard")
-                        .frame(maxWidth: .infinity)
-                }
+                ShareLink("Share invitation link", item: URL(string: data["landing"] as! String)!)
             }
             Button(action: {
                 invitationResult = nil
@@ -305,15 +286,31 @@ struct AddContactMenu: View {
                     .frame(maxWidth: .infinity)
             }
         }
-        .addLoadingOverlay(overlay)
+        .sheet(isPresented: $showQRCodeScanner) {
+            NavigationStack {
+                MLQRCodeScanner(handleClose: {
+                    self.showQRCodeScanner = false
+                })
+                .navigationTitle(Text("QR-Code Scanner"))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar(content: {
+                    ToolbarItem(placement: .navigationBarLeading, content: {
+                        Button(action: {
+                            self.showQRCodeScanner = false
+                        }, label: {
+                            Text("Close")
+                        })
+                    })
+                })
+            }
+        }
         .navigationBarTitle(Text("Add Contact or Channel"), displayMode: .inline)
-        .navigationViewStyle(.stack)
         .toolbar(content: {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 if account.connectionProperties.discoveredAdhocCommands["urn:xmpp:invite#invite"] != nil {
                     Button(action: {
                         DDLogVerbose("Trying to create invitation for: \(String(describing:splitJid["host"]!))")
-                        showLoadingOverlay(overlay, headline: NSLocalizedString("Creating invitation...", comment: ""))
+                        showLoadingOverlay(overlay, headline:"Creating invitation...")
                         account.createInvitation(completion: {
                             let result = $0 as! [String:AnyObject]
                             DispatchQueue.main.async {
@@ -327,35 +324,17 @@ struct AddContactMenu: View {
                             }
                         })
                     }, label: {
-                        Image(systemName: "square.and.arrow.up").foregroundColor(monalGreen)
+                        Image(systemName: "square.and.arrow.up")
                     })
                 }
                 Button(action: {
                     self.showQRCodeScanner = true
                 }, label: {
-                    Image(systemName: "camera.fill").foregroundColor(monalGreen)
+                    Image(systemName: "camera.fill")
                 })
             }
         })
-        .sheet(isPresented: $showQRCodeScanner) {
-            NavigationView {
-                MLQRCodeScanner(handleClose: {
-                    self.showQRCodeScanner = false
-                })
-                .navigationTitle("QR-Code Scanner")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar(content: {
-                    ToolbarItem(placement: .navigationBarLeading, content: {
-                        Button(action: {
-                            self.showQRCodeScanner = false
-                        }, label: {
-                            Text("Close")
-                        })
-                        .foregroundColor(monalGreen)
-                    })
-                })
-            }
-        }
+        .addLoadingOverlay(overlay)
     }
 }
 

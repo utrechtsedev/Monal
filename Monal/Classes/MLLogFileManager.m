@@ -7,10 +7,10 @@
 //
 
 #import <Foundation/Foundation.h>
-#import "HelperTools.h"
-#import "MLLogFileManager.h"
+#import <monalxmpp/HelperTools.h>
+#import <monalxmpp/MLLogFileManager.h>
 
-@interface DDFileLogMLVMessageSerializer : NSObject <DDFileLogMessageSerializer>
+@interface DDFileLogRawlogMessageSerializer : NSObject <DDFileLogMessageSerializer>
 @end
 
 @interface MLLogFileManager ()
@@ -18,7 +18,7 @@
 
 static NSString* appName = @"Monal";
 
-@implementation DDFileLogMLVMessageSerializer
+@implementation DDFileLogRawlogMessageSerializer
 
 -(NSData*) dataForString:(NSString*) string originatingFromMessage:(DDLogMessage*) logMessage
 {
@@ -56,7 +56,7 @@ static NSString* appName = @"Monal";
 -(instancetype) initWithLogsDirectory:(NSString* _Nullable) dir
 {
     self = [super initWithLogsDirectory:dir];
-    self.logMessageSerializer = [DDFileLogMLVMessageSerializer new];
+    self.logMessageSerializer = [DDFileLogRawlogMessageSerializer new];
     return self;
 }
 
@@ -68,7 +68,9 @@ static NSString* appName = @"Monal";
     [dateFormatter setDateFormat: @"yyyy'-'MM'-'dd'--'HH'-'mm'-'ss'-'SSS'"];
     
     NSString* formattedDate = [dateFormatter stringFromDate:[NSDate date]];
-    return [NSString stringWithFormat:@"%@ %@.rawlog", appName, formattedDate];
+    NSString* logfile = [NSString stringWithFormat:@"%@ %@.rawlog", appName, formattedDate];
+    [HelperTools updateCurrentLogfilePath:logfile];
+    return logfile;
 }
 
 -(BOOL) isLogFile:(NSString*) fileName

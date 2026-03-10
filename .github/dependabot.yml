@@ -1,0 +1,15 @@
+version: 2
+updates:
+# see https://github.com/dependabot/dependabot-core/issues/7694
+  # - package-ecosystem: "swift"
+  #   directory: "/Monal/"
+  #   schedule:
+  #     interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/rust/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "github-actions"
+    directory: "/.github/"
+    schedule:
+      interval: "daily"

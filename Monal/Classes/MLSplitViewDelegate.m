@@ -8,7 +8,6 @@
 
 #import "MLSplitViewDelegate.h"
 #import "ActiveChatsViewController.h"
-#import "MLSettingsTableViewController.h"
 
 @implementation MLSplitViewDelegate
 
@@ -28,11 +27,21 @@
     if([splitViewController.viewControllers count] > 1)
         secondaryController = splitViewController.viewControllers[1];
     
+    if([primaryController isKindOfClass:NSClassFromString(@"ActiveChatsViewController")])
+        [(ActiveChatsViewController*)primaryController updateSizeClass];
+
     if([primaryController isKindOfClass:NSClassFromString(@"ActiveChatsViewController")] && [secondaryController isKindOfClass:NSClassFromString(@"MLPlaceholderViewController")])
         [(ActiveChatsViewController*)primaryController presentSplitPlaceholder];
-    
-    if([primaryController isKindOfClass:NSClassFromString(@"MLSettingsTableViewController")] && [secondaryController isKindOfClass:NSClassFromString(@"MLPlaceholderViewController")])
-        [(MLSettingsTableViewController*)primaryController presentSplitPlaceholder];
+}
+
+-(void) splitViewControllerDidCollapse:(UISplitViewController*) splitViewController
+{
+    UINavigationController* nav = (UINavigationController*)splitViewController.viewControllers.firstObject;
+    if(![nav isKindOfClass:[UINavigationController class]] || nav.viewControllers.count == 0)
+        return;
+    UIViewController* primaryController = nav.viewControllers[0];
+    if([primaryController isKindOfClass:NSClassFromString(@"ActiveChatsViewController")])
+        [(ActiveChatsViewController*)primaryController updateSizeClass];
 }
 
 @end

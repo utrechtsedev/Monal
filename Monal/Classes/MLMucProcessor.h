@@ -6,7 +6,7 @@
 //  Copyright © 2020 Monal.im. All rights reserved.
 //
 
-#import "MLConstants.h"
+#import <monalxmpp/MLConstants.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -32,8 +32,8 @@ NS_ASSUME_NONNULL_BEGIN
 -(void) changeNameOfMuc:(NSString*) room to:(NSString*) name;
 -(void) changeSubjectOfMuc:(NSString*) room to:(NSString*) subject;
 -(void) requestVoiceInMuc:(NSString*) roomJid;
--(void) publishAvatar:(UIImage* _Nullable) image forMuc:(NSString*) room;
--(void) setAffiliation:(NSString*) affiliation ofUser:(NSString*) jid inMuc:(NSString*) roomJid;
+-(AnyPromise*) publishAvatar:(UIImage* _Nullable) image forMuc:(NSString*) room;
+-(AnyPromise*) setAffiliation:(NSString*) affiliation ofUser:(NSString*) jid inMuc:(NSString*) roomJid;
 -(void) inviteUser:(NSString*) jid inMuc:(NSString*) roomJid;
 
 -(void) pingAllMucs;

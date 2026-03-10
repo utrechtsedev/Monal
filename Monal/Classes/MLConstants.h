@@ -8,7 +8,7 @@
 
 #import <Foundation/Foundation.h>
 #import <TargetConditionals.h>
-#import "MLHandler.h"
+#import <monalxmpp/MLHandler.h>
 
 @import CocoaLumberjack;
 #define LOG_FLAG_STDERR         (1 << 5)
@@ -18,8 +18,9 @@
 //behave like DDLogError and flush log on DDLogStderr
 #define DDLogStderr(frmt, ...)  do { LOG_MAYBE(NO,  ddLogLevel, LOG_FLAG_STDERR,  0, nil, __PRETTY_FUNCTION__, frmt, ##__VA_ARGS__); [DDLog flushLog]; } while(0)
 #define DDLogStdout(frmt, ...)  LOG_MAYBE(NO,  ddLogLevel, LOG_FLAG_STDOUT,  0, nil, __PRETTY_FUNCTION__, frmt, ##__VA_ARGS__)
+#define DDLogWithLevel(level, frmt, ...)  LOG_MAYBE(NO,  ddLogLevel, level,  0, nil, __PRETTY_FUNCTION__, frmt, ##__VA_ARGS__)
 static const DDLogLevel ddLogLevel = LOG_LEVEL_STDOUT;
-#import "MLLogFileManager.h"
+#import <monalxmpp/MLLogFileManager.h>
 
 @import PromiseKit;
 #define PMKHangEnum(promise)                (((NSNumber*)PMKHang(promise)).integerValue)
@@ -28,39 +29,23 @@ static const DDLogLevel ddLogLevel = LOG_LEVEL_STDOUT;
 #define PMKHangDouble(promise)              (((NSNumber*)PMKHang(promise)).doubleValue)
 
 //configure app group constants
-#ifdef IS_ALPHA
-    #define kAppGroup @"group.monalalpha"
-    #define kMonalOpenURL [NSURL URLWithString:@"monalAlphaOpen://"]
-    #define kBackgroundProcessingTask @"im.monal.alpha.process"
-    #define kBackgroundRefreshingTask @"im.monal.alpha.refresh"
-#elif defined(IS_QUICKSY)
-    #define kAppGroup @"group.quicksy"
-    #define kMonalOpenURL [NSURL URLWithString:@"quicksyOpen://"]
-    #define kBackgroundProcessingTask @"im.monal.process"
-    #define kBackgroundRefreshingTask @"im.monal.refresh"
-#else
-    #define kAppGroup @"group.monal"
-    #define kMonalOpenURL [NSURL URLWithString:@"monalOpen://"]
-    #define kBackgroundProcessingTask @"im.monal.process"
-    #define kBackgroundRefreshingTask @"im.monal.refresh"
-#endif
+
+#define kAppGroup @"group.atay"
+#define kMonalOpenURL [NSURL URLWithString:@"monalOpen://"]
+#define kBackgroundProcessingTask @"im.monal.process"
+#define kBackgroundRefreshingTask @"im.monal.refresh"
 
 #define kMonalKeychainName @"Monal"
+#define kMonalTmpKeychainName @"Monal.tmp"
+#define kMonalHtTokenKeychainName @"Monal.HT"
 #define kMonalDeviceUUIDKeychainName @"Monal.deviceUUID"
 #define kDeviceUUIDKeychainAccount @"deviceUUIDKeychainAccount"
 
 //this is in seconds
-#if TARGET_OS_MACCATALYST
-	#define SHORT_PING 4.0
-	#define LONG_PING 8.0
-    #define MUC_PING 600
-    #define BGFETCH_DEFAULT_INTERVAL 3600*1
-#else
-	#define SHORT_PING 4.0
-	#define LONG_PING 8.0
-    #define MUC_PING 3600
-    #define BGFETCH_DEFAULT_INTERVAL 3600*3
-#endif
+#define SHORT_PING 4.0
+#define LONG_PING 8.0
+#define MUC_PING 1800
+#define BGFETCH_DEFAULT_INTERVAL 3600*3
 
 // #define defineBlockType(name, returntype, ...) \
 //     typedef returntype (^name)(__VA_ARGS__); \
@@ -136,8 +121,6 @@ static inline NSString* _Nonnull LocalizationNotNeeded(NSString* _Nonnull s)
 #define kId @"id"
 #define kMessageId @"kMessageId"
 
-#define kRegisterNameSpace @"jabber:iq:register"
-
 //all other constants needed
 #define kMonalConnectivityChange @"kMonalConnectivityChange"
 #define kMonalCallRemoved @"kMonalCallRemoved"
@@ -150,10 +133,11 @@ static inline NSString* _Nonnull LocalizationNotNeeded(NSString* _Nonnull s)
 #define kMonalFrozen @"kMonalFrozen"
 #define kMonalUnfrozen @"kMonalUnfrozen"
 #define kMonalNewMessageNotice @"kMonalNewMessageNotice"
+#define kMonalUpdatedMessageNotice @"kMonalUpdatedMessageNotice"
 #define kMonalMucSubjectChanged @"kMonalMucSubjectChanged"
+#define kMonalContactHistoryCleared @"kMonalContactHistoryCleared"
 #define kMonalDeletedMessageNotice @"kMonalDeletedMessageNotice"
 #define kMonalDisplayedMessagesNotice @"kMonalDisplayedMessagesNotice"
-#define kMonalHistoryMessagesNotice @"kMonalHistoryMessagesNotice"
 #define kMLMessageSentToContact @"kMLMessageSentToContact"
 #define kMonalSentMessageNotice @"kMonalSentMessageNotice"
 #define kMonalMessageFiletransferUpdateNotice @"kMonalMessageFiletransferUpdateNotice"
@@ -193,6 +177,7 @@ static inline NSString* _Nonnull LocalizationNotNeeded(NSString* _Nonnull s)
 #define kMonalContactRemoved @"kMonalContactRemoved"
 #define kMonalMucParticipantsAndMembersUpdated @"kMonalMucParticipantsAndMembersUpdated"
 #define kMonalMucOwnAffiliationOrRoleChanged @"kMonalMucOwnAffiliationOrRoleChanged"
+#define kMonalMucVoiceRequestsUpdated @"kMonalMucVoiceRequestsUpdated"
 
 #define kMucTypeGroup @"group"
 #define kMucTypeChannel @"channel"
@@ -212,17 +197,11 @@ static inline NSString* _Nonnull LocalizationNotNeeded(NSString* _Nonnull s)
 
 // max count of char's in a single message (both: sending and receiving)
 #define kMonalChatMaxAllowedTextLen 2048
-
-#if TARGET_OS_MACCATALYST
-#define kMonalBackscrollingMsgCount 75
-#else
 #define kMonalBackscrollingMsgCount 50
-#endif
-
 //contact cells
 #define kusernameKey @"username"
 #define kfullNameKey @"fullName"
-#define kaccountNoKey @"accountNo"
+#define kaccountIDKey @"accountID"
 #define kstateKey @"state"
 #define kstatusKey @"status"
 
@@ -230,13 +209,6 @@ static inline NSString* _Nonnull LocalizationNotNeeded(NSString* _Nonnull s)
 #define kaccountNameKey @"accountName"
 #define kinfoTypeKey @"type"
 #define kinfoStatusKey @"status"
-
-//blocking rules
-#define kBlockingNoMatch 0
-#define kBlockingMatchedNodeHostResource 1
-#define kBlockingMatchedNodeHost 2
-#define kBlockingMatchedHostResource 3
-#define kBlockingMatchedHost 4
 
 //use this to completely disable omemo in build
 //#ifndef DISABLE_OMEMO

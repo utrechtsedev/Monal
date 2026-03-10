@@ -7,16 +7,16 @@
 //
 
 #import <UIKit/UIKit.h>
-#import "DataLayer.h"
+#import <monalxmpp/DataLayer.h>
 @import SAMKeychain;
-#import "MLXMPPManager.h"
+#import <monalxmpp/MLXMPPManager.h>
 #import "TOCropViewController.h"
 
 @interface XMPPEdit: UITableViewController <UITextFieldDelegate, UINavigationControllerDelegate, UIImagePickerControllerDelegate, UIDocumentPickerDelegate, TOCropViewControllerDelegate> {
 	IBOutlet UILabel *JIDLabel;
 }
 
-@property (nonatomic, strong) NSNumber* accountNo;
+@property (nonatomic, strong) NSNumber* accountID;
 @property (nonatomic, strong) NSIndexPath* originIndex;
 
 -(IBAction) save:(id) sender;

@@ -8,8 +8,8 @@
 
 #import <Foundation/Foundation.h>
 #import <XCTest/XCTest.h>
-#import "MLConstants.h"
-#import "MLHandler.h"
+#import <monalxmpp/MLConstants.h>
+#import <monalxmpp/MLHandler.h>
 
 #define expressify(...)    ({ __VA_ARGS__ ;})
 

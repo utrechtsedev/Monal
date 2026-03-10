@@ -8,40 +8,40 @@
 
 #import <BackgroundTasks/BackgroundTasks.h>
 #import "MonalAppDelegate.h"
-#import "MLConstants.h"
-#import "HelperTools.h"
+#import <monalxmpp/MLConstants.h>
+#import <monalxmpp/HelperTools.h>
 #import "MLNotificationManager.h"
-#import "DataLayer.h"
-#import "MLImageManager.h"
-#import "ActiveChatsViewController.h"
-#import "IPC.h"
-#import "MLProcessLock.h"
-#import "MLFiletransfer.h"
-#import "xmpp.h"
-#import "MLNotificationQueue.h"
+#import <monalxmpp/DataLayer.h>
+#import <monalxmpp/MLImageManager.h>
+#import <monalxmpp/IPC.h>
+#import <monalxmpp/MLProcessLock.h>
+#import <monalxmpp/MLFileTransfer.h>
+#import <monalxmpp/xmpp.h>
+#import <monalxmpp/MLNotificationQueue.h>
 #import "MLSettingsAboutViewController.h"
-#import "MLMucProcessor.h"
+#import <monalxmpp/MLMucProcessor.h>
 #import "MBProgressHUD.h"
-#import "MLVoIPProcessor.h"
-#import "MLUDPLogger.h"
+#import <monalxmpp/MLVoIPProcessor.h>
+#import <monalxmpp/MLUDPLogger.h>
 #import "MLCrashReporter.h"
+#import <Monal-Swift.h>
 
 @import NotificationBannerSwift;
 @import UserNotifications;
 
-#import "MLXMPPManager.h"
-#import "UIColor+Theme.h"
+#import <monalxmpp/MLXMPPManager.h>
 
 #import <AVKit/AVKit.h>
 
 #import "MLBasePaser.h"
-#import "MLXMLNode.h"
-#import "XMPPStanza.h"
-#import "XMPPDataForm.h"
+#import <monalxmpp/MLXMLNode.h>
+#import <monalxmpp/XMPPStanza.h>
+#import <monalxmpp/XMPPDataForm.h>
 #import "XMPPIQ.h"
-#import "XMPPPresence.h"
+#import <monalxmpp/XMPPPresence.h>
 #import "XMPPMessage.h"
 #import "chatViewController.h"
+#import <Monal-Swift.h>
 
 @import Intents;
 
@@ -61,6 +61,7 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
     monal_id_block_t _completionToCall;
     BOOL _shutdownPending;
     BOOL _wasFrozen;
+    NotificationBannerQueue* _bannerQueue;
 }
 @end
 
@@ -77,6 +78,8 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
     DDLogVerbose(@"Setting _shutdownPending to NO...");
     _shutdownPending = NO;
     _wasFrozen = NO;
+    _showOneClickButton = YES;
+    _bannerQueue = [[NotificationBannerQueue alloc] initWithMaxBannersOnScreenSimultaneously:1];
     
     //register BGTasks as early as possible to make sure a subsequent app termination
     //without proper "bootup" won't crash on unknown bgtask identifiers
@@ -114,7 +117,7 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
         if(unreadMsgCnt != nil)
             unread = [unreadMsgCnt integerValue];
         DDLogInfo(@"Updating unread badge to: %ld", (long)unread);
-        [UIApplication sharedApplication].applicationIconBadgeNumber = unread;
+        [[UNUserNotificationCenter currentNotificationCenter] setBadgeCount:unread withCompletionHandler:nil];
     }];
 }
 
@@ -148,6 +151,9 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
         [[MLImageManager sharedInstance] cleanupHashes];
     });
     
+    // Remove stale promises left in the DB that weren't consumed last time we ran the app
+    [MLPromise removeStalePromises];
+
     //only proceed with launching if the NotificationServiceExtension is *not* running
     if([MLProcessLock checkRemoteRunning:@"NotificationServiceExtension"])
     {
@@ -183,6 +189,7 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
         actionWithIdentifier:@"REPLY_ACTION"
         title:NSLocalizedString(@"Reply", @"")
         options:UNNotificationActionOptionNone
+        icon:[UNNotificationActionIcon iconWithSystemImageName:@"arrowshape.turn.up.left"] 
         textInputButtonTitle:NSLocalizedString(@"Send", @"")
         textInputPlaceholder:NSLocalizedString(@"Your answer", @"")
     ];
@@ -190,64 +197,37 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
         actionWithIdentifier:@"MARK_AS_READ_ACTION"
         title:NSLocalizedString(@"Mark as read", @"")
         options:UNNotificationActionOptionNone
+        icon:[UNNotificationActionIcon iconWithSystemImageName:@"checkmark.bubble"]
     ];
     UNNotificationAction* approveSubscriptionAction = [UNNotificationAction
         actionWithIdentifier:@"APPROVE_SUBSCRIPTION_ACTION"
         title:NSLocalizedString(@"Approve new contact", @"")
         options:UNNotificationActionOptionNone
+        icon:[UNNotificationActionIcon iconWithSystemImageName:@"person.crop.circle.badge.checkmark"]
     ];
     UNNotificationAction* denySubscriptionAction = [UNNotificationAction
         actionWithIdentifier:@"DENY_SUBSCRIPTION_ACTION"
         title:NSLocalizedString(@"Deny new contact", @"")
         options:UNNotificationActionOptionNone
+        icon:[UNNotificationActionIcon iconWithSystemImageName:@"person.crop.circle.badge.minus"]
     ];
     UNNotificationAction* blockSubscriptionAction = [UNNotificationAction
         actionWithIdentifier:@"BLOCK_SUBSCRIPTION_ACTION"
         title:NSLocalizedString(@"Block new contact", @"")
         options:UNNotificationActionOptionNone
+        icon:[UNNotificationActionIcon iconWithSystemImageName:@"person.crop.circle.badge.xmark"]
     ];
-    if(@available(iOS 15.0, macCatalyst 15.0, *))
-    {
-        replyAction = [UNTextInputNotificationAction
-            actionWithIdentifier:@"REPLY_ACTION"
-            title:NSLocalizedString(@"Reply", @"")
-            options:UNNotificationActionOptionNone
-            icon:[UNNotificationActionIcon iconWithSystemImageName:@"arrowshape.turn.up.left"] 
-            textInputButtonTitle:NSLocalizedString(@"Send", @"")
-            textInputPlaceholder:NSLocalizedString(@"Your answer", @"")
-        ];
-        markAsReadAction = [UNNotificationAction
-            actionWithIdentifier:@"MARK_AS_READ_ACTION"
-            title:NSLocalizedString(@"Mark as read", @"")
-            options:UNNotificationActionOptionNone
-            icon:[UNNotificationActionIcon iconWithSystemImageName:@"checkmark.bubble"]
-        ];
-        approveSubscriptionAction = [UNNotificationAction
-            actionWithIdentifier:@"APPROVE_SUBSCRIPTION_ACTION"
-            title:NSLocalizedString(@"Approve new contact", @"")
-            options:UNNotificationActionOptionNone
-            icon:[UNNotificationActionIcon iconWithSystemImageName:@"person.crop.circle.badge.checkmark"]
-        ];
-        denySubscriptionAction = [UNNotificationAction
-            actionWithIdentifier:@"DENY_SUBSCRIPTION_ACTION"
-            title:NSLocalizedString(@"Deny new contact", @"")
-            options:UNNotificationActionOptionNone
-            icon:[UNNotificationActionIcon iconWithSystemImageName:@"person.crop.circle.badge.minus"]
-        ];
-        blockSubscriptionAction = [UNNotificationAction
-            actionWithIdentifier:@"BLOCK_SUBSCRIPTION_ACTION"
-            title:NSLocalizedString(@"Block new contact", @"")
-            options:UNNotificationActionOptionNone
-            icon:[UNNotificationActionIcon iconWithSystemImageName:@"person.crop.circle.badge.xmark"]
-        ];
-    }
+    
     UNAuthorizationOptions authOptions = UNAuthorizationOptionBadge | UNAuthorizationOptionSound | UNAuthorizationOptionAlert | UNAuthorizationOptionProvidesAppNotificationSettings;
-#if TARGET_OS_MACCATALYST
-    authOptions |= UNAuthorizationOptionProvisional;
-#endif
     UNNotificationCategory* messageCategory = [UNNotificationCategory
         categoryWithIdentifier:@"message"
         actions:@[replyAction, markAsReadAction]
+        intentIdentifiers:@[]
+        options:UNNotificationCategoryOptionNone
+    ];
+    UNNotificationCategory* reactionCategory = [UNNotificationCategory
+        categoryWithIdentifier:@"reaction"
+        actions:@[]
         intentIdentifiers:@[]
         options:UNNotificationCategoryOptionNone
     ];
@@ -308,20 +288,12 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
             }
         });
     }];
-    [center setNotificationCategories:[NSSet setWithObjects:messageCategory, somethingRegardingAContactCategory, subscriptionCategory , nil]];
+    [center setNotificationCategories:[NSSet setWithObjects:messageCategory, reactionCategory, somethingRegardingAContactCategory, subscriptionCategory , nil]];
 
     UINavigationBarAppearance* appearance = [UINavigationBarAppearance new];
-    [appearance configureWithTransparentBackground];
-    appearance.backgroundColor = [UIColor systemBackgroundColor];
     
     [[UINavigationBar appearance] setScrollEdgeAppearance:appearance];
     [[UINavigationBar appearance] setStandardAppearance:appearance];
-#if TARGET_OS_MACCATALYST
-    self.window.windowScene.titlebar.titleVisibility = UITitlebarTitleVisibilityHidden;
-#else
-    [[UITabBar appearance] setTintColor:[UIColor monaldarkGreen]];
-    [[UINavigationBar appearance] setTintColor:[UIColor monalGreen]];
-#endif
     [[UINavigationBar appearance] setPrefersLargeTitles:YES];
 
     //handle message notifications by initializing the MLNotificationManager
@@ -353,14 +325,11 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
     //handle IPC messages (this should be done *after* calling connectIfNecessary to make sure any disconnectAll messages are handled properly
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(incomingIPC:) name:kMonalIncomingIPC object:nil];
     
-#if TARGET_OS_MACCATALYST
-    //handle catalyst foregrounding/backgrounding of window
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(windowHandling:) name:@"NSWindowDidResignKeyNotification" object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(windowHandling:) name:@"NSWindowDidBecomeKeyNotification" object:nil];
-#endif
-    
     //initialize callkit (mus be done after connectIfNecessary to make sure the list of accounts is already populated when a voip push comes in)
     _voipProcessor = [MLVoIPProcessor new];
+    
+    // Set up tab bar controller
+    [self setupTabBarController];
 
     /*
     NSDictionary* options = launchOptions[UIApplicationLaunchOptionsUserActivityDictionaryKey];
@@ -372,6 +341,25 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
     */
     
     return YES;
+}
+
+-(void) updateAppIconIfNeeded
+{
+//     if([UIApplication sharedApplication].supportsAlternateIcons)
+//     {
+//         NSString* iconName = nil;
+//         if([UIApplication sharedApplication].alternateIconName == nil)
+//             iconName = @"AlphaAppIcon-Christmas";
+//         DDLogInfo(@"We support alternating app icon sets, switching from '%@' to '%@'...", [UIApplication sharedApplication].alternateIconName, iconName);
+//         [[UIApplication sharedApplication] setAlternateIconName:iconName completionHandler:^(NSError* _Nullable error) {
+//             if(error == nil)
+//                 DDLogInfo(@"Successfully switched app icon to '%@'", iconName);
+//             else
+//                 DDLogError(@"Error switching app icon to '%@': %@", iconName, error);
+//         }];
+//     }
+//     else
+//         DDLogWarn(@"Can not switch app icon: not supported!");
 }
 
 -(BOOL) application:(UIApplication*) application continueUserActivity:(NSUserActivity*) userActivity restorationHandler:(void (^)(NSArray<id<UIUserActivityRestoring>>* restorableObjects)) restorationHandler
@@ -419,42 +407,6 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
     return nil;
 }
 
-#if TARGET_OS_MACCATALYST
--(void) windowHandling:(NSNotification*) notification
-{
-    if([notification.name isEqualToString:@"NSWindowDidResignKeyNotification"])
-    {
-        DDLogInfo(@"Window lost focus (key window)...");
-        [self updateUnread];
-        if(NSProcessInfo.processInfo.isLowPowerModeEnabled)
-        {
-            DDLogInfo(@"LowPowerMode is active: nowReallyBackgrounded to reduce power consumption");
-            [self nowReallyBackgrounded];
-        }
-        else
-            [[MLXMPPManager sharedInstance] noLongerInFocus];
-    }
-    else if([notification.name isEqualToString:@"NSWindowDidBecomeKeyNotification"])
-    {
-        //resume logging and other core tasks
-        [HelperTools signalResumption];
-        
-        DDLogInfo(@"Window got focus (key window)...");
-        [MLProcessLock lock];
-        @synchronized(self) {
-            DDLogVerbose(@"Setting _shutdownPending to NO...");
-            _shutdownPending = NO;
-        }
-        
-        //cancel already running background timer, we are now foregrounded again
-        [self stopBackgroundTimer];
-            
-        [self addBackgroundTask];
-        [[MLXMPPManager sharedInstance] nowForegrounded];
-    }
-}
-#endif
-
 -(void) incomingIPC:(NSNotification*) notification
 {
     NSDictionary* message = notification.userInfo;
@@ -472,12 +424,15 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
 
 -(void) applicationDidBecomeActive:(UIApplication*) application
 {
+    [self updateAppIconIfNeeded];
+    
     if([[MLXMPPManager sharedInstance] connectedXMPP].count > 0)
         [self handleSpinner];
     else
     {
         //hide spinner
         [self.activeChats.spinner stopAnimating];
+        self.activeChats.titleLabel.text = NSLocalizedString(@"Chats", @"");
     }
     
     //report pending crashes
@@ -527,7 +482,7 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
                 NSDictionary* jidParts = [HelperTools splitJid:jid];
                 BOOL isRegister = NO;
                 BOOL isRoster = NO;
-                BOOL isGroupJoin = NO;
+                BOOL isMucJoin = NO;
                 BOOL isIbr = NO;
                 NSString* preauthToken = nil;
                 NSMutableDictionary<NSNumber*, NSData*>* omemoFingerprints = [NSMutableDictionary new];
@@ -548,7 +503,7 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
                     if([name isEqualToString:@"roster"])
                         isRoster = YES;
                     if([name isEqualToString:@"join"])
-                        isGroupJoin = YES;
+                        isMucJoin = YES;
                     if([name isEqualToString:@"ibr"] && [value isEqualToString:@"y"])
                         isIbr = YES;
                     if([name isEqualToString:@"preauth"])
@@ -567,6 +522,7 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
                     return;
                 }
                 
+
                 if(isRegister || (isRoster && registerNeeded))
                 {
                     NSString* username = nilDefault(jidParts[@"node"], @"");
@@ -581,12 +537,15 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
                             host = @"";
                     }
                     
+                    //make sure we don't show the 1-click button if we got a dedicated host and/or username to register on/with
+                    self.showOneClickButton = ![@"" isEqualToString:host];
+                        
                     //show register view and, if isRoster, add contact as usual after register (e.g. call this method again)
                     weakify(self);
-                    [self.activeChats showRegisterWithUsername:username onHost:host withToken:preauthToken usingCompletion:^(NSNumber* accountNo) {
+                    [self.activeChats showRegisterWithUsername:username onHost:host withToken:preauthToken usingCompletion:^(NSNumber* accountID) {
                         strongify(self);
-                        DDLogVerbose(@"Got accountNo for newly registered account: %@", accountNo);
-                        xmpp* account = [[MLXMPPManager sharedInstance] getConnectedAccountForID:accountNo];
+                        DDLogVerbose(@"Got accountID for newly registered account: %@", accountID);
+                        xmpp* account = [[MLXMPPManager sharedInstance] getEnabledAccountForID:accountID];
                         DDLogInfo(@"Got newly registered account: %@", account);
                         
                         //this should never happen
@@ -605,7 +564,7 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
                 //either we already have one or more accounts and the xmpp: uri is of type subscription (ibr does not matter here,
                 //because we already have an account) or muc join
                 //OR the xmpp: uri is a normal xmpp uri having only a jid we should add as our new contact (preauthToken will be nil in this case)
-                else if((!registerNeeded && (isRoster || isGroupJoin)) || !registerNeeded)
+                else if((!registerNeeded && (isRoster || isMucJoin)) || !registerNeeded)
                 {
                     if([MLXMPPManager sharedInstance].connectedXMPP.count == 1)
                     {
@@ -619,9 +578,9 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
                 }
                 else
                 {
-                    DDLogError(@"No account available to handel xmpp: uri!");
+                    DDLogError(@"No account available to handle xmpp: uri!");
                     
-                    UIAlertController* messageAlert = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Error adding contact or channel", @"") message:NSLocalizedString(@"No account available to handel 'xmpp:' URI!", @"") preferredStyle:UIAlertControllerStyleAlert];
+                    UIAlertController* messageAlert = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Error adding contact or channel", @"") message:NSLocalizedString(@"No account available to handle 'xmpp:' URI!", @"") preferredStyle:UIAlertControllerStyleAlert];
                     [messageAlert addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Close", @"") style:UIAlertActionStyleCancel handler:^(UIAlertAction* action __unused) {
                     }]];
                     [self.activeChats presentViewController:messageAlert animated:YES completion:nil];
@@ -674,14 +633,15 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
 
 -(void) userNotificationCenter:(UNUserNotificationCenter*) center didReceiveNotificationResponse:(UNNotificationResponse*) response withCompletionHandler:(void (^)(void)) completionHandler
 {
-    if([response.notification.request.content.categoryIdentifier isEqualToString:@"message"])
+    DDLogVerbose(@"notification action '%@' triggered for %@", response.actionIdentifier, response.notification.request.content.userInfo);
+    if([response.notification.request.content.categoryIdentifier isEqualToString:@"reaction"])
     {
-        DDLogVerbose(@"notification action '%@' triggered for %@", response.actionIdentifier, response.notification.request.content.userInfo);
-        MLContact* fromContact = [MLContact createContactFromJid:response.notification.request.content.userInfo[@"fromContactJid"] andAccountNo:response.notification.request.content.userInfo[@"fromContactAccountId"]];
+        MLContact* fromContact = [HelperTools unserializeData:response.notification.request.content.userInfo[@"contact"]];
         MLAssert(fromContact, @"fromContact should not be nil");
-        NSString* messageId = response.notification.request.content.userInfo[@"messageId"];
-        MLAssert(messageId, @"messageId should not be nil");
-        xmpp* account = [[MLXMPPManager sharedInstance] getConnectedAccountForID:fromContact.accountId];
+        //TODO: use message to scroll to this message when opening chat, see below
+        MLMessage* message = [HelperTools unserializeData:response.notification.request.content.userInfo[@"message"]];
+        MLAssert(message, @"message should not be nil");
+        xmpp* account = fromContact.account;
         //this can happen if that account got disabled
         if(account == nil)
         {
@@ -696,9 +656,40 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
             completionHandler();
         }];
         
+        //make sure we have an active buddy for this chat
+        [[DataLayer sharedInstance] addActiveBuddies:fromContact.contactJid forAccount:fromContact.accountID];
+        
+        if([response.actionIdentifier isEqualToString:@"com.apple.UNNotificationDefaultActionIdentifier"])     //open chat of this contact
+        {
+            //TODO: use message to scroll to this message when opening chat
+            [self openChatOfContact:fromContact];
+        }
+        else
+            unreachable(@"Unexpected notification action!");
+    }
+    else if([response.notification.request.content.categoryIdentifier isEqualToString:@"message"])
+    {
+        MLContact* fromContact = [HelperTools unserializeData:response.notification.request.content.userInfo[@"contact"]];
+        MLAssert(fromContact, @"fromContact should not be nil");
+        MLMessage* message = [HelperTools unserializeData:response.notification.request.content.userInfo[@"message"]];
+        MLAssert(message, @"message should not be nil");
+        xmpp* account = fromContact.account;
+        //this can happen if that account got disabled
+        if(account == nil)
+        {
+            //call completion handler directly (we did not handle anything and no connectIfNecessary was called)
+            if(completionHandler)
+                completionHandler();
+            return;
+        }
+        
+        //add our completion handler to handler queue
+        [self incomingWakeupWithCompletionHandler:^(UIBackgroundFetchResult result __unused) {
+            completionHandler();
+        }];
         
         //make sure we have an active buddy for this chat
-        [[DataLayer sharedInstance] addActiveBuddies:fromContact.contactJid forAccount:fromContact.accountId];
+        [[DataLayer sharedInstance] addActiveBuddies:fromContact.contactJid forAccount:fromContact.accountID];
         
         //handle message actions
         if([response.actionIdentifier isEqualToString:@"REPLY_ACTION"])
@@ -712,11 +703,13 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
             }
             
             //mark messages as read because we are replying
-            NSArray* unread = [[DataLayer sharedInstance] markMessagesAsReadForBuddy:fromContact.contactJid andAccount:fromContact.accountId tillStanzaId:messageId wasOutgoing:NO];
+            NSArray* unread = [[DataLayer sharedInstance] markMessagesAsReadForBuddy:fromContact.contactJid andAccount:fromContact.accountID tillStanzaId:message.messageId wasOutgoing:NO];
             DDLogDebug(@"Marked as read: %@", unread);
             
             //remove notifications of all read messages (this will cause the MLNotificationManager to update the app badge, too)
-            [[MLNotificationQueue currentQueue] postNotificationName:kMonalDisplayedMessagesNotice object:account userInfo:@{@"messagesArray":unread}];
+            [[MLNotificationQueue currentQueue] postNotificationName:kMonalDisplayedMessagesNotice object:account userInfo:@{
+                @"messagesArray": unread
+            }];
             
             //update unread count in active chats list
             [fromContact refresh];      //this will make sure the unread count is correct
@@ -724,15 +717,17 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
                 @"contact": fromContact
             }];
             
-            BOOL encrypted = [[DataLayer sharedInstance] shouldEncryptForJid:fromContact.contactJid andAccountNo:fromContact.accountId];
-            [[MLXMPPManager sharedInstance] sendMessageAndAddToHistory:textResponse.userText havingType:kMessageTypeText toContact:fromContact isEncrypted:encrypted uploadInfo:nil withCompletionHandler:^(BOOL successSendObject, NSString* messageIdSentObject) {
-                DDLogInfo(@"REPLY_ACTION success=%@, messageIdSentObject=%@", bool2str(successSendObject), messageIdSentObject);
-            }];
+            BOOL encrypted = [[DataLayer sharedInstance] shouldEncryptForJid:fromContact.contactJid andAccountID:fromContact.accountID];
+            MLMessage* newMLMessage = [[MLXMPPManager sharedInstance] sendMessageAndAddToHistory:textResponse.userText havingType:kMessageTypeText toContact:fromContact isEncrypted:encrypted uploadInfo:nil];
+            if(newMLMessage)
+                DDLogInfo(@"REPLY_ACTION success=YES, messageIdSentObject=%@", newMLMessage.messageDBId);
+            else
+                DDLogInfo(@"REPLY_ACTION success=NO");
         }
         else if([response.actionIdentifier isEqualToString:@"MARK_AS_READ_ACTION"])
         {
             DDLogInfo(@"MARK_AS_READ_ACTION triggered...");
-            NSArray* unread = [[DataLayer sharedInstance] markMessagesAsReadForBuddy:fromContact.contactJid andAccount:fromContact.accountId tillStanzaId:messageId wasOutgoing:NO];
+            NSArray* unread = [[DataLayer sharedInstance] markMessagesAsReadForBuddy:fromContact.contactJid andAccount:fromContact.accountID tillStanzaId:message.messageId wasOutgoing:NO];
             DDLogDebug(@"Marked as read: %@", unread);
             
             //publish MDS display marker and optionally send displayed marker for last unread message (XEP-0333)
@@ -740,7 +735,9 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
             [account sendDisplayMarkerForMessages:unread];
             
             //remove notifications of all read messages (this will cause the MLNotificationManager to update the app badge, too)
-            [[MLNotificationQueue currentQueue] postNotificationName:kMonalDisplayedMessagesNotice object:account userInfo:@{@"messagesArray":unread}];
+            [[MLNotificationQueue currentQueue] postNotificationName:kMonalDisplayedMessagesNotice object:account userInfo:@{
+                @"messagesArray": unread
+            }];
             
             //update unread count in active chats list
             [fromContact refresh];      //this will make sure the unread count is correct
@@ -749,14 +746,18 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
             }];
         }
         else if([response.actionIdentifier isEqualToString:@"com.apple.UNNotificationDefaultActionIdentifier"])     //open chat of this contact
+        {
+            //TODO: use message to scroll to this message when opening chat
             [self openChatOfContact:fromContact];
+        }
+        else
+            unreachable(@"Unexpected notification action!");
     }
     else if([response.notification.request.content.categoryIdentifier isEqualToString:@"subscription"])
     {
-        DDLogVerbose(@"notification action '%@' triggered for %@", response.actionIdentifier, response.notification.request.content.userInfo);
-        MLContact* fromContact = [MLContact createContactFromJid:response.notification.request.content.userInfo[@"fromContactJid"] andAccountNo:response.notification.request.content.userInfo[@"fromContactAccountId"]];
+        MLContact* fromContact = [HelperTools unserializeData:response.notification.request.content.userInfo[@"contact"]];
         MLAssert(fromContact, @"fromContact should not be nil");
-        xmpp* account = [[MLXMPPManager sharedInstance] getConnectedAccountForID:fromContact.accountId];
+        xmpp* account = fromContact.account;
         //this can happen if that account got disabled
         if(account == nil)
         {
@@ -790,13 +791,33 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
             [[MLXMPPManager sharedInstance] block:YES contact:fromContact];
         }
         else if([response.actionIdentifier isEqualToString:@"com.apple.UNNotificationDefaultActionIdentifier"])     //open chat of this contact
-            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^{
-                while(self.activeChats == nil)
-                    usleep(100000);
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    [(ActiveChatsViewController*)self.activeChats showAddContact];
-                });
-            });
+            [self openChatOfContact:fromContact];
+        else
+            unreachable(@"Unexpected notification action!");
+    }
+    else if([response.notification.request.content.categoryIdentifier isEqualToString:@"somethingRegardingAContact"])
+    {
+        MLContact* fromContact = [HelperTools unserializeData:response.notification.request.content.userInfo[@"contact"]];
+        MLAssert(fromContact, @"fromContact should not be nil");
+        xmpp* account = fromContact.account;
+        //this can happen if that account got disabled
+        if(account == nil)
+        {
+            //call completion handler directly (we did not handle anything and no connectIfNecessary was called)
+            if(completionHandler)
+                completionHandler();
+            return;
+        }
+        
+        //add our completion handler to handler queue
+        [self incomingWakeupWithCompletionHandler:^(UIBackgroundFetchResult result __unused) {
+            completionHandler();
+        }];
+        
+        if([response.actionIdentifier isEqualToString:@"com.apple.UNNotificationDefaultActionIdentifier"])     //open chat of this contact
+            [self openChatOfContact:fromContact];
+        else
+            unreachable(@"Unexpected notification action!");
     }
     else if([response.notification.request.content.categoryIdentifier isEqualToString:@"somethingRegardingAContact"])
     {
@@ -997,10 +1018,10 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
             [[MLXMPPManager sharedInstance] nowForegrounded];           //NOTE: this will unfreeze all queues in our accounts
             
             //open call ui using first call if at least one call is present
-            NSDictionary* activeCalls = [self.voipProcessor getActiveCalls];
-            for(NSUUID* uuid in activeCalls)
+            NSArray<MLCall*>* activeCalls = self.voipProcessor.activeCalls;
+            for(MLCall* call in activeCalls)
             {
-                [self.activeChats presentCall:activeCalls[uuid]];
+                [self.activeChats presentCall:call];
                 break;
             }
             
@@ -1034,17 +1055,7 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
         DDLogInfo(@"Entering BG");
     
     [self updateUnread];
-#if TARGET_OS_MACCATALYST
-    if(NSProcessInfo.processInfo.isLowPowerModeEnabled)
-    {
-        DDLogInfo(@"LowPowerMode is active: nowReallyBackgrounded to reduce power consumption");
-        [self nowReallyBackgrounded];
-    }
-    else
-        [[MLXMPPManager sharedInstance] noLongerInFocus];
-#else
     [self nowReallyBackgrounded];
-#endif
 }
 
 -(void) applicationWillTerminate:(UIApplication*) application
@@ -1083,10 +1094,15 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
                 return;
             if(![notification.userInfo[@"isSevere"] boolValue])
                 DDLogError(@"Minor XMPP Error(%@): %@", xmppAccount.connectionProperties.identity.jid, notification.userInfo[@"message"]);
-            NotificationBanner* banner = [[NotificationBanner alloc] initWithTitle:xmppAccount.connectionProperties.identity.jid subtitle:notification.userInfo[@"message"] leftView:nil rightView:nil style:([notification.userInfo[@"isSevere"] boolValue] ? BannerStyleDanger : BannerStyleWarning) colors:nil];
+            FloatingNotificationBanner* banner = [[MonalFloatingNotificationBanner alloc]
+                initWithTitle:xmppAccount.connectionProperties.identity.jid
+                subtitle:notification.userInfo[@"message"]
+                style:([notification.userInfo[@"isSevere"] boolValue] ? BannerStyleDanger : BannerStyleWarning)
+                colors:nil
+            ];
             banner.duration = 10.0;     //show for 10 seconds to make sure users can read it
-            NotificationBannerQueue* queue = [[NotificationBannerQueue alloc] initWithMaxBannersOnScreenSimultaneously:2];
-            [banner showWithQueuePosition:QueuePositionBack bannerPosition:BannerPositionTop queue:queue on:nil];
+            BannerPosition position = BannerPositionTop;
+            [banner showWithQueuePosition:QueuePositionBack bannerPosition:position queue:self->_bannerQueue on:nil];
         });
     }
     else
@@ -1164,9 +1180,15 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
     //show/hide spinner (dispatch *async* to main queue to allow for ui changes)
     dispatch_async(dispatch_get_main_queue(), ^{
         if(([[MLXMPPManager sharedInstance] allAccountsIdle] && [MLFiletransfer isIdle]))
+        {
             [self.activeChats.spinner stopAnimating];
+            self.activeChats.titleLabel.text = NSLocalizedString(@"Chats", @"");
+        }
         else
+        {
             [self.activeChats.spinner startAnimating];
+            self.activeChats.titleLabel.text = NSLocalizedString(@"Waiting for network", @"");
+        }
     });
 }
 
@@ -1733,6 +1755,46 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
     }
 }
 
+-(void) setupTabBarController
+{
+    // Get the navigation controller from the storyboard's split view and use it directly
+    UISplitViewController* existingSplitViewController = (UISplitViewController*)self.window.rootViewController;
+    UINavigationController* chatsNav = (UINavigationController*)existingSplitViewController.viewControllers.firstObject;
+
+    // Create tab bar controller
+    UITabBarController* tabBarController = [[UITabBarController alloc] init];
+
+    // Tab 1: Contacts
+    UIViewController* contactsVC = [[[SwiftuiInterface alloc] init] makeContactsTabView];
+    UINavigationController* contactsNav = [[UINavigationController alloc] initWithRootViewController:contactsVC];
+    contactsNav.tabBarItem = [[UITabBarItem alloc] initWithTitle:NSLocalizedString(@"Contacts", @"")
+                                                            image:[UIImage systemImageNamed:@"person.2.fill"]
+                                                              tag:0];
+
+    // Tab 2: Chats (navigation controller extracted from split view)
+    chatsNav.tabBarItem = [[UITabBarItem alloc] initWithTitle:NSLocalizedString(@"Chats", @"")
+                                                        image:[UIImage systemImageNamed:@"message.fill"]
+                                                          tag:1];
+
+    // Tab 3: Settings
+    UIViewController* settingsViewController = [[SwiftuiInterface new] makeSettingsTabView];
+    UINavigationController* settingsNav = [[UINavigationController alloc] initWithRootViewController:settingsViewController];
+    settingsNav.tabBarItem = [[UITabBarItem alloc] initWithTitle:NSLocalizedString(@"Settings", @"")
+                                                            image:[UIImage systemImageNamed:@"gear"]
+                                                              tag:2];
+
+    tabBarController.viewControllers = @[contactsNav, chatsNav, settingsNav];
+    tabBarController.selectedIndex = 1;
+
+    self.window.rootViewController = tabBarController;
+    [self.window makeKeyAndVisible];
+
+    // Force the chats tab to load so activeChats gets set properly
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [tabBarController.selectedViewController view];
+    });
+}
+
 
 #pragma mark - share sheet added
 
@@ -1753,7 +1815,7 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
         for(NSDictionary* payload in [[DataLayer sharedInstance] getShareSheetPayload])
         {
             DDLogInfo(@"Sending outbox entry: %@", payload);
-            xmpp* account = [[MLXMPPManager sharedInstance] getConnectedAccountForID:payload[@"account_id"]];
+            xmpp* account = [[MLXMPPManager sharedInstance] getEnabledAccountForID:payload[@"account_id"]];
             if(account == nil)
             {
                 UIAlertController* messageAlert = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Sharing failed", @"") message:[NSString stringWithFormat:NSLocalizedString(@"Cannot share something with disabled/deleted account, destination: %@, internal account id: %@", @""), payload[@"recipient"], payload[@"account_id"]] preferredStyle:UIAlertControllerStyleAlert];
@@ -1763,48 +1825,52 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
                 [[DataLayer sharedInstance] deleteShareSheetPayloadWithId:payload[@"id"]];
                 continue;
             }
-            MLContact* contact = [MLContact createContactFromJid:payload[@"recipient"] andAccountNo:account.accountNo];
+            MLContact* contact = [MLContact createContactFromJid:payload[@"recipient"] andAccountID:account.accountID];
             
             monal_id_block_t cleanup = ^(NSDictionary* payload) {
                 [[DataLayer sharedInstance] deleteShareSheetPayloadWithId:payload[@"id"]];
                 [[MLNotificationQueue currentQueue] postNotificationName:kMonalRefresh object:nil userInfo:nil];
-                if(self.activeChats.currentChatView != nil)
+                chatViewController* chatView = (chatViewController*)self.activeChats.currentChatView;
+                if(chatView != nil)
                 {
-                    [self.activeChats.currentChatView scrollToBottomAnimated:NO];
-                    [self.activeChats.currentChatView hideUploadHUD];
+                    [chatView scrollToBottomAnimated:NO];
+                    [chatView hideUploadHUD];
                 }
                 //send next item (if there is one left)
                 [self sendAllOutboxes];
             };
             
             monal_id_block_t sendItem = ^(id dummy __unused){
-                BOOL encrypted = [[DataLayer sharedInstance] shouldEncryptForJid:contact.contactJid andAccountNo:contact.accountId];
-                if([payload[@"type"] isEqualToString:@"text"])
+                BOOL encrypted = [[DataLayer sharedInstance] shouldEncryptForJid:contact.contactJid andAccountID:contact.accountID];
+                NSDictionary* mapping = @{
+                    @"text": kMessageTypeText,
+                    @"url": kMessageTypeUrl,
+                    @"geo": kMessageTypeGeo,
+                    @"image": kMessageTypeFiletransfer,
+                    @"file": kMessageTypeFiletransfer,
+                    @"contact":kMessageTypeFiletransfer,
+                    @"audiovisual":kMessageTypeFiletransfer,
+                };
+                NSString* messageType = mapping[nilDefault(payload[@"type"], @"<type key not present>")];
+
+                if(!messageType)
+                    unreachable(@"Outbox payload type unknown", payload);
+                else if(![messageType isEqual:kMessageTypeFiletransfer])
                 {
-                    [[MLXMPPManager sharedInstance] sendMessageAndAddToHistory:payload[@"data"] havingType:kMessageTypeText toContact:contact isEncrypted:encrypted uploadInfo:nil withCompletionHandler:^(BOOL successSendObject, NSString* messageIdSentObject) {
-                        DDLogInfo(@"SHARESHEET_SEND_DATA success=%@, account=%@, messageIdSentObject=%@", bool2str(successSendObject), account.accountNo, messageIdSentObject);
-                        cleanup(payload);
-                    }];
+                    //the payload type is either "text", "url" or "geo"
+                    MLMessage* newMLMessage = [[MLXMPPManager sharedInstance] sendMessageAndAddToHistory:payload[@"data"] havingType:messageType toContact:contact isEncrypted:encrypted uploadInfo:nil];
+                    if(newMLMessage)
+                        DDLogInfo(@"SHARESHEET_SEND_DATA success=YES, account=%@, messageIdSentObject=%@", account.accountID, newMLMessage.messageDBId);
+                    else
+                        DDLogInfo(@"SHARESHEET_SEND_DATA success=NO, account=%@", account.accountID);
+
+                    cleanup(payload);
                 }
-                else if([payload[@"type"] isEqualToString:@"url"])
+                else
                 {
-                    [[MLXMPPManager sharedInstance] sendMessageAndAddToHistory:payload[@"data"] havingType:kMessageTypeUrl toContact:contact isEncrypted:encrypted uploadInfo:nil withCompletionHandler:^(BOOL successSendObject, NSString* messageIdSentObject) {
-                        DDLogInfo(@"SHARESHEET_SEND_DATA success=%@, account=%@, messageIdSentObject=%@", bool2str(successSendObject), account.accountNo, messageIdSentObject);
-                        cleanup(payload);
-                    }];
-                }
-                else if([payload[@"type"] isEqualToString:@"geo"])
-                {
-                    [[MLXMPPManager sharedInstance] sendMessageAndAddToHistory:payload[@"data"] havingType:kMessageTypeGeo toContact:contact isEncrypted:encrypted uploadInfo:nil withCompletionHandler:^(BOOL successSendObject, NSString* messageIdSentObject) {
-                        DDLogInfo(@"SHARESHEET_SEND_DATA success=%@, account=%@, messageIdSentObject=%@", bool2str(successSendObject), account.accountNo, messageIdSentObject);
-                        cleanup(payload);
-                    }];
-                }
-                else if([payload[@"type"] isEqualToString:@"image"] || [payload[@"type"] isEqualToString:@"file"] || [payload[@"type"] isEqualToString:@"contact"] || [payload[@"type"] isEqualToString:@"audiovisual"])
-                {
+                    //the payload type is either "image", "file", "contact" or "audiovisual"
                     DDLogInfo(@"Got %@ upload: %@", payload[@"type"], payload[@"data"]);
-                    [self.activeChats.currentChatView showUploadHUD];
-                    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                    [(chatViewController*)self.activeChats.currentChatView showUploadHUD];                    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
                         $call(payload[@"data"], $ID(account), $BOOL(encrypted), $ID(completion, (^(NSString* url, NSString* mimeType, NSNumber* size, NSError* error) {
                             dispatch_async(dispatch_get_main_queue(), ^{
                                 if(error != nil)
@@ -1819,20 +1885,23 @@ typedef void (^pushCompletion)(UIBackgroundFetchResult result);
                                     [self.activeChats presentViewController:messageAlert animated:YES completion:nil];
                                 }
                                 else
-                                    [[MLXMPPManager sharedInstance] sendMessageAndAddToHistory:url havingType:kMessageTypeFiletransfer toContact:contact isEncrypted:encrypted uploadInfo:@{@"mimeType": mimeType, @"size": size} withCompletionHandler:^(BOOL successSendObject, NSString* messageIdSentObject) {
-                                        DDLogInfo(@"SHARESHEET_SEND_DATA success=%@, account=%@, messageIdSentObject=%@", bool2str(successSendObject), account.accountNo, messageIdSentObject);
-                                        cleanup(payload);
-                                    }];
+                                {
+                                    MLMessage* newMLMessage = [[MLXMPPManager sharedInstance] sendMessageAndAddToHistory:url havingType:messageType toContact:contact isEncrypted:encrypted uploadInfo:@{@"mimeType": mimeType, @"size": size}];
+                                    if(newMLMessage)
+                                        DDLogInfo(@"SHARESHEET_SEND_DATA success=YES, account=%@, messageIdSentObject=%@", account.accountID, newMLMessage.messageDBId);
+                                    else
+                                        DDLogInfo(@"SHARESHEET_SEND_DATA success=NO, account=%@", account.accountID);
+
+                                    cleanup(payload);
+                                }
                             });
                         })));
                     });
                 }
-                else
-                    unreachable(@"Outbox payload type unknown", payload);
             };
             
             DDLogVerbose(@"Trying to open chat of outbox receiver: %@", contact);
-            [[DataLayer sharedInstance] addActiveBuddies:contact.contactJid forAccount:contact.accountId];
+            [[DataLayer sharedInstance] addActiveBuddies:contact.contactJid forAccount:contact.accountID];
             //don't use [self openChatOfContact:withCompletion:] because it's asynchronous and can only handle one contact at a time (e.g. until the asynchronous execution finished)
             //we can invoke the activeChats interface directly instead, because we already did the necessary preparations ourselves
             [(ActiveChatsViewController*)self.activeChats presentChatWithContact:contact andCompletion:sendItem];

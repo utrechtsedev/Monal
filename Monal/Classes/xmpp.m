@@ -6,54 +6,62 @@
 //
 //
 
+#import <stdint.h>
 #include <os/proc.h>
 
 #import <CommonCrypto/CommonCrypto.h>
 #import <CFNetwork/CFSocketStream.h>
 #import <Security/SecureTransport.h>
 
-#import "xmpp.h"
+#import <monalxmpp/monalxmpp-Swift.h>
+#import <monalxmpp/xmpp.h>
 #import "MLDNSLookup.h"
-#import "MLSignalStore.h"
-#import "MLPubSub.h"
-#import "MLOMEMO.h"
+#import <monalxmpp/MLSignalStore.h>
+#import <monalxmpp/MLPubSub.h>
+#import <monalxmpp/MLOMEMO.h>
 
-#import "MLStream.h"
-#import "MLPipe.h"
-#import "MLProcessLock.h"
-#import "DataLayer.h"
-#import "HelperTools.h"
-#import "MLXMPPManager.h"
-#import "MLNotificationQueue.h"
-#import "SCRAM.h"
-#import "MLImageManager.h"
+#import <monalxmpp/MLStream.h>
+#import <monalxmpp/MLPipe.h>
+#import <monalxmpp/MLProcessLock.h>
+#import <monalxmpp/DataLayer.h>
+#import <monalxmpp/HelperTools.h>
+#import <monalxmpp/MLXMPPManager.h>
+#import <monalxmpp/MLNotificationQueue.h>
+#import <monalxmpp/SCRAM.h>
+#import <monalxmpp/HT.h>
+#import <monalxmpp/MLImageManager.h>
 
 //XMPP objects
 #import "MLBasePaser.h"
-#import "MLXMLNode.h"
-#import "XMPPStanza.h"
-#import "XMPPDataForm.h"
+#import <monalxmpp/MLXMLNode.h>
+#import <monalxmpp/XMPPStanza.h>
+#import <monalxmpp/XMPPDataForm.h>
 #import "XMPPIQ.h"
-#import "XMPPPresence.h"
+#import <monalxmpp/XMPPPresence.h>
 #import "XMPPMessage.h"
 
 //processors
 #import "MLMessageProcessor.h"
 #import "MLIQProcessor.h"
-#import "MLPubSubProcessor.h"
-#import "MLMucProcessor.h"
+#import <monalxmpp/MLPubSubProcessor.h>
+#import <monalxmpp/MLMucProcessor.h>
 
 #import "MLHTTPRequest.h"
 #import "AESGcm.h"
 
 @import AVFoundation;
+@import SAMKeychain;
 
-#define STATE_VERSION 604019
-#define CONNECT_TIMEOUT 7.0
+#define kInputChunkSize 4096
+
+//monal version 7.x, state counter: 020
+#define STATE_VERSION 7020
+#define CONNECT_TIMEOUT 12.0
 #define IQ_TIMEOUT 60.0
 NSString* const kQueueID = @"queueID";
 NSString* const kStanza = @"stanza";
 
+static NSRegularExpression* fastTokenRemovalRegex;
 
 @interface MLPubSub ()
 -(id) initWithAccount:(xmpp*) account;
@@ -73,16 +81,15 @@ NSString* const kStanza = @"stanza";
 @interface xmpp()
 {
     //network (stream) related stuff
-    MLPipe* _iPipe;
+    NSInputStream* _iStream;
     NSOutputStream* _oStream;
     NSMutableArray* _outputQueue;
+    dispatch_queue_t _xmlParserFeedingQueue;
     // buffer for stanzas we can not (completely) write to the tcp socket
-    uint8_t* _outputBuffer;
-    size_t _outputBufferByteCount;
     BOOL _streamHasSpace;
 
     //parser and queue related stuff
-    NSXMLParser* _xmlParser;
+    XmlParserBridge* _xmlParser;
     MLBasePaser* _baseParserDelegate;
     NSOperationQueue* _parseQueue;
     NSOperationQueue* _receiveQueue;
@@ -132,10 +139,14 @@ NSString* const kStanza = @"stanza";
     
     //scram related stuff
     SCRAM* _scramHandler;
+    HT* _htHandler;
     NSSet* _supportedSaslMechanisms;
+    NSSet* _supportedFastMechanisms;
+    NSSet* _supportedBin2InlinedFeatures;
     NSSet* _supportedChannelBindings;
     monal_void_block_t _blockToCallOnTCPOpen;
     NSString* _upgradeTask;
+    NSString* _fastTokenRequested;
     
     //catchup statistics
     uint32_t _catchupStanzaCounter;
@@ -145,8 +156,10 @@ NSString* const kStanza = @"stanza";
 @property (nonatomic, assign) BOOL smacksRequestInFlight;
 
 @property (nonatomic, assign) BOOL resuming;
+@property (nonatomic, assign) BOOL smacksResumeInlined;
 @property (atomic, strong) NSString* streamID;
 @property (nonatomic, assign) BOOL isDoingFullReconnect;
+@property (nonatomic, assign) BOOL bind2Inlined;
 
 /**
  h to go out in r stanza
@@ -175,22 +188,27 @@ NSString* const kStanza = @"stanza";
 
 @implementation xmpp
 
--(id) initWithServer:(nonnull MLXMPPServer*) server andIdentity:(nonnull MLXMPPIdentity*) identity andAccountNo:(NSNumber*) accountNo
++(void) initialize
+{
+    fastTokenRemovalRegex = [NSRegularExpression regularExpressionWithPattern:@"<token\\b(?=[^>]*\\bxmlns=['\"]urn:xmpp:fast:0['\"])\\b[^>]*/>" options:NSRegularExpressionCaseInsensitive error:nil];
+}
+
+-(id) initWithServer:(nonnull MLXMPPServer*) server andIdentity:(nonnull MLXMPPIdentity*) identity andAccountID:(NSNumber*) accountID
 {
     //initialize ivars depending on provided arguments
     self = [super init];
     u_int32_t i = arc4random();
     _internalID = [HelperTools hexadecimalString:[NSData dataWithBytes: &i length: sizeof(i)]];
-    _logtag = [NSString stringWithFormat:@"[%@:%@]", accountNo, _internalID];
-    DDLogVerbose(@"Creating account %@ with id %@", accountNo, _internalID);
-    self.accountNo = accountNo;
+    _logtag = [NSString stringWithFormat:@"[%@:%@]", accountID, _internalID];
+    DDLogVerbose(@"Creating account %@ with id %@", accountID, _internalID);
+    self.accountID = accountID;
     self.connectionProperties = [[MLXMPPConnection alloc] initWithServer:server andIdentity:identity];
     
     //setup all other ivars
     [self setupObjects];
     
     // don't init omemo on ibr account creation
-    if(accountNo.intValue >= 0)
+    if(accountID.intValue >= 0)
         self.omemo = [[MLOMEMO alloc] initWithAccount:self];
     
     //read persisted state to make sure we never operate stateless
@@ -210,12 +228,7 @@ NSString* const kStanza = @"stanza";
     //we want to get automatic roster name updates (XEP-0172)
     [self.pubsub registerForNode:@"http://jabber.org/protocol/nick" withHandler:$newHandler(MLPubSubProcessor, rosterNameHandler)];
     
-    //we want to get automatic bookmark updates (XEP-0048)
-    //this will only be used/handled, if the account disco feature urn:xmpp:bookmarks:1#compat-pep is not set by the server and ignored otherwise
-    //(it will be automatically headline-pushed nevertheless --> TODO: remove this once all modern servers support XEP-0402 compat)
-    [self.pubsub registerForNode:@"storage:bookmarks" withHandler:$newHandler(MLPubSubProcessor, bookmarksHandler)];
-    
-    //we now support the modern bookmarks protocol (XEP-0402)
+    //we want to get automatic bookmarks2 updates (XEP-0402)    
     [self.pubsub registerForNode:@"urn:xmpp:bookmarks:1" withHandler:$newHandler(MLPubSubProcessor, bookmarks2Handler)];
     
     //we support mds
@@ -262,10 +275,12 @@ NSString* const kStanza = @"stanza";
     _runningMamQueries = [NSMutableDictionary new];
     _inCatchup = [NSMutableDictionary new];
     _mdsData = [NSMutableDictionary new];
-    _pipeliningState = kPipelinedNothing;
-    _cachedStreamFeaturesBeforeAuth = nil;
-    _cachedStreamFeaturesAfterAuth = nil;
+    [self resetAuthPipelining];
     _timersToCancelOnDisconnect = [NSMutableArray new];
+    _supportedSaslMechanisms = [NSSet new];
+    _supportedFastMechanisms = [NSSet new];
+    _supportedBin2InlinedFeatures = [NSSet new];
+    _supportedChannelBindings = [NSSet new];
 
     _SRVDiscoveryDone = NO;
     _discoveredServersList = [NSMutableArray new];
@@ -273,27 +288,25 @@ NSString* const kStanza = @"stanza";
         _usableServersList = [NSMutableArray new];
     _reconnectBackoffTime = 0;
     
+    //do the stanza parsing in the low priority (=utility) global queue
+    _xmlParserFeedingQueue = dispatch_queue_create_with_target([NSString stringWithFormat:@"im.monal.xmlparser%@", self->_logtag].UTF8String, DISPATCH_QUEUE_SERIAL, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0));
     _parseQueue = [NSOperationQueue new];
-    _parseQueue.name = [NSString stringWithFormat:@"parseQueue[%@:%@]", self.accountNo, _internalID];
+    _parseQueue.name = [NSString stringWithFormat:@"parseQueue[%@:%@]", self.accountID, _internalID];
     _parseQueue.qualityOfService = NSQualityOfServiceUtility;
     _parseQueue.maxConcurrentOperationCount = 1;
     [_parseQueue addObserver:self forKeyPath:@"operationCount" options:NSKeyValueObservingOptionNew context:nil];
     
     _receiveQueue = [NSOperationQueue new];
-    _receiveQueue.name = [NSString stringWithFormat:@"receiveQueue[%@:%@]", self.accountNo, _internalID];
+    _receiveQueue.name = [NSString stringWithFormat:@"receiveQueue[%@:%@]", self.accountID, _internalID];
     _receiveQueue.qualityOfService = NSQualityOfServiceUserInitiated;
     _receiveQueue.maxConcurrentOperationCount = 1;
     [_receiveQueue addObserver:self forKeyPath:@"operationCount" options:NSKeyValueObservingOptionNew context:nil];
 
     _sendQueue = [NSOperationQueue new];
-    _sendQueue.name = [NSString stringWithFormat:@"sendQueue[%@:%@]", self.accountNo, _internalID];
+    _sendQueue.name = [NSString stringWithFormat:@"sendQueue[%@:%@]", self.accountID, _internalID];
     _sendQueue.qualityOfService = NSQualityOfServiceUserInitiated;
     _sendQueue.maxConcurrentOperationCount = 1;
     [_sendQueue addObserver:self forKeyPath:@"operationCount" options:NSKeyValueObservingOptionNew context:nil];
-    if(_outputBuffer)
-        free(_outputBuffer);
-    _outputBuffer = nil;
-    _outputBufferByteCount = 0;
     
     _isCSIActive = YES;         //default value is yes if no csi state was set yet
     if([HelperTools isAppExtension])
@@ -313,10 +326,7 @@ NSString* const kStanza = @"stanza";
 
 -(void) dealloc
 {
-    DDLogInfo(@"Deallocating account %@ object %@", self.accountNo, self);
-    if(_outputBuffer)
-        free(_outputBuffer);
-    _outputBuffer = nil;
+    DDLogInfo(@"Deallocating account %@ object %@", self.accountID, self);
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     [_parseQueue removeObserver:self forKeyPath:@"operationCount"];
     [_receiveQueue removeObserver:self forKeyPath:@"operationCount"];
@@ -324,7 +334,19 @@ NSString* const kStanza = @"stanza";
     [_parseQueue cancelAllOperations];
     [_receiveQueue cancelAllOperations];
     [_sendQueue cancelAllOperations];
-    DDLogInfo(@"Done deallocating account %@ object %@", self.accountNo, self);
+    DDLogInfo(@"Done deallocating account %@ object %@", self.accountID, self);
+}
+
+-(void) resetAuthPipelining
+{
+    _pipeliningState = kPipelinedNothing;
+    _cachedStreamFeaturesBeforeAuth = nil;
+    _cachedStreamFeaturesAfterAuth = nil;
+}
+
+-(MLContact*) contact
+{
+    return [MLContact createContactFromJid:self.connectionProperties.identity.jid andAccountID:self.accountID];
 }
 
 -(void) setCapsHash:(NSString* _Nonnull) hash
@@ -368,9 +390,7 @@ NSString* const kStanza = @"stanza";
 {
     DDLogError(@"Server returned invalid xml!");
     DDLogDebug(@"Setting _pipeliningState to kPipelinedNothing and clearing _cachedStreamFeaturesBeforeAuth and _cachedStreamFeaturesAfterAuth...");
-    _pipeliningState = kPipelinedNothing;
-    _cachedStreamFeaturesBeforeAuth = nil;
-    _cachedStreamFeaturesAfterAuth = nil;
+    [self resetAuthPipelining];
     [self postError:NSLocalizedString(@"Server returned invalid xml!", @"") withIsSevere:NO];
     [self reconnect];
     return;
@@ -401,7 +421,7 @@ NSString* const kStanza = @"stanza";
 {
     // Send notification that our account state has changed
     [[MLNotificationQueue currentQueue] postNotificationName:kMonalAccountStatusChanged object:self userInfo:@{
-            kAccountID: self.accountNo,
+            kAccountID: self.accountID,
             kAccountState: [[NSNumber alloc] initWithInt:(int)self.accountState],
     }];
 }
@@ -520,7 +540,7 @@ NSString* const kStanza = @"stanza";
             "\t[_sendQueue operationCount] = %lu\n"
             "\t[[_inCatchup count] = %lu\n\t--> %@"
         ),
-        self.accountNo,
+        self.accountID,
         bool2str(_accountState < kStateReconnecting),
         bool2str(_reconnectInProgress),
         bool2str(_catchupDone),
@@ -543,10 +563,6 @@ NSString* const kStanza = @"stanza";
         DDLogVerbose(@"Cleaning up sendQueue [internal]");
         [self->_sendQueue cancelAllOperations];
         self->_outputQueue = [NSMutableArray new];
-        if(self->_outputBuffer)
-            free(self->_outputBuffer);
-        self->_outputBuffer = nil;
-        self->_outputBufferByteCount = 0;
         self->_streamHasSpace = NO;
         DDLogVerbose(@"Cleanup of sendQueue finished [internal]");
     }]] waitUntilFinished:YES];
@@ -571,9 +587,6 @@ NSString* const kStanza = @"stanza";
         [MLStream connectWithSNIDomain:self.connectionProperties.identity.domain connectHost:self.connectionProperties.server.connectServer connectPort:self.connectionProperties.server.connectPort tls:NO inputStream:&localIStream outputStream:&localOStream logtag:self->_logtag];
     }
     
-    if(localOStream)
-        _oStream = localOStream;
-    
     if((localIStream == nil) || (localOStream == nil))
     {
         DDLogError(@"failed to create streams");
@@ -584,13 +597,19 @@ NSString* const kStanza = @"stanza";
     else
         DDLogInfo(@"streams created ok");
     
-    //open sockets, init pipe and start connecting (including TLS handshake if isDirectTLS==YES)
+    if(localOStream)
+        _oStream = localOStream;
+    if(localIStream)
+        _iStream = localIStream;
+    
+    //open sockets and start connecting (including TLS handshake if isDirectTLS==YES)
     DDLogInfo(@"opening TCP streams");
     _pipeliningState = kPipelinedNothing;
+    [_iStream setDelegate:self];
     [_oStream setDelegate:self];
+    [_iStream scheduleInRunLoop:[HelperTools getExtraRunloopWithIdentifier:MLRunLoopIdentifierNetwork] forMode:NSDefaultRunLoopMode];
     [_oStream scheduleInRunLoop:[HelperTools getExtraRunloopWithIdentifier:MLRunLoopIdentifierNetwork] forMode:NSDefaultRunLoopMode];
-    _iPipe = [[MLPipe alloc] initWithInputStream:localIStream andOuterDelegate:self];
-    [localIStream open];
+    [_iStream open];
     [_oStream open];
     DDLogInfo(@"TCP streams opened");
     
@@ -846,12 +865,12 @@ NSString* const kStanza = @"stanza";
             @synchronized(self->_stateLockObject) {
                 if(self.accountState < kStateReconnecting)
                 {
-                    DDLogInfo(@"Reloading UNfrozen account %@", self.accountNo);
+                    DDLogInfo(@"Reloading UNfrozen account %@", self.accountID);
                     //(re)read persisted state (could be changed by appex)
                     [self readState];
                 }
                 else
-                    DDLogInfo(@"Not reloading UNfrozen account %@, already connected", self.accountNo);
+                    DDLogInfo(@"Not reloading UNfrozen account %@, already connected", self.accountID);
                 
                 //this must be inside the dispatch async, because it will dispatch *SYNC* to the receive queue and potentially block or even deadlock the system
                 [self unfreezeParseQueue];
@@ -929,9 +948,9 @@ NSString* const kStanza = @"stanza";
         }
         
         //make sure we are still enabled ("-1" is used for the account registration process and never saved to db)
-        if(self.accountNo.intValue != -1 && ![[DataLayer sharedInstance] isAccountEnabled:self.accountNo])
+        if(self.accountID.intValue != -1 && ![[DataLayer sharedInstance] isAccountEnabled:self.accountID])
         {
-            DDLogError(@"Account '%@' not enabled anymore, ignoring login", self.accountNo);
+            DDLogError(@"Account '%@' not enabled anymore, ignoring login", self.accountID);
             return;
         }
         
@@ -962,13 +981,15 @@ NSString* const kStanza = @"stanza";
         
         DDLogVerbose(@"Removing scramHandler...");
         self->_scramHandler = nil;
+        self->_htHandler = nil;
+        self->_fastTokenRequested = nil;
         self->_blockToCallOnTCPOpen = nil;
         
         //(re)read persisted state and start connection
         [self readState];
         if([self connectionTask])
         {
-            DDLogError(@"Server disallows xmpp connections for account '%@', ignoring login", self.accountNo);
+            DDLogError(@"Server disallows xmpp connections for account '%@', ignoring login", self.accountID);
             self->_accountState = kStateDisconnected;
             [self accountStatusChanged];
             return;
@@ -1027,9 +1048,7 @@ NSString* const kStanza = @"stanza";
             [self.pubsub invalidateQueue];
             
             //clear pipeline cache
-            self->_pipeliningState = kPipelinedNothing;
-            self->_cachedStreamFeaturesBeforeAuth = nil;
-            self->_cachedStreamFeaturesAfterAuth = nil;
+            [self resetAuthPipelining];
             
             //clear all reconnection handlers
             @synchronized(self->_reconnectionHandlers) {
@@ -1040,7 +1059,10 @@ NSString* const kStanza = @"stanza";
             [self persistState];
         }
         
-        [[DataLayer sharedInstance] resetContactsForAccount:self.accountNo];
+        //delete FAST token for this account --> use SCRAM on next login
+        [SAMKeychain deletePasswordForService:kMonalHtTokenKeychainName account:self.accountID.stringValue];
+        
+        [[DataLayer sharedInstance] resetContactsForAccount:self.accountID];
         
         //trigger view updates to make sure enabled/disabled account state propagates to all ui elements
         [[MLNotificationQueue currentQueue] postNotificationName:kMonalRefresh object:nil userInfo:nil];
@@ -1060,7 +1082,7 @@ NSString* const kStanza = @"stanza";
     
     MLAssert(!_receiveQueue.suspended, @"receive queue suspended while trying to disconnect!");
     
-    //this has to be synchronous because we want to wait for the disconnect to complete before continuingand unlocking the process in the NSE
+    //this has to be synchronous because we want to wait for the disconnect to complete before continuing and unlocking the process in the NSE
     [self dispatchOnReceiveQueue: ^{
         DDLogInfo(@"stopping running timers");
         if(self->_loginTimer)
@@ -1080,6 +1102,8 @@ NSString* const kStanza = @"stanza";
         
         DDLogVerbose(@"Removing scramHandler...");
         self->_scramHandler = nil;
+        self->_htHandler = nil;
+        self->_fastTokenRequested = nil;
         self->_blockToCallOnTCPOpen = nil;
         
         if(self->_accountState<kStateReconnecting)
@@ -1159,9 +1183,7 @@ NSString* const kStanza = @"stanza";
                 [self.pubsub invalidateQueue];
                 
                 //clear pipeline cache
-                self->_pipeliningState = kPipelinedNothing;
-                self->_cachedStreamFeaturesBeforeAuth = nil;
-                self->_cachedStreamFeaturesAfterAuth = nil;
+                [self resetAuthPipelining];
                 
                 //clear all reconnection handlers
                 @synchronized(self->_reconnectionHandlers) {
@@ -1172,7 +1194,10 @@ NSString* const kStanza = @"stanza";
                 [self persistState];
             }
             
-            [[DataLayer sharedInstance] resetContactsForAccount:self.accountNo];
+            //delete FAST token for this account --> use SCRAM on next login
+            [SAMKeychain deletePasswordForService:kMonalHtTokenKeychainName account:self.accountID.stringValue];
+            
+            [[DataLayer sharedInstance] resetContactsForAccount:self.accountID];
             
             //trigger view updates to make sure enabled/disabled account state propagates to all ui elements
             [[MLNotificationQueue currentQueue] postNotificationName:kMonalRefresh object:nil userInfo:nil];
@@ -1220,13 +1245,8 @@ NSString* const kStanza = @"stanza";
 
         //prevent any new read or write
         if(self->_xmlParser != nil)
-        {
-            [self->_xmlParser setDelegate:nil];
-            [self->_xmlParser abortParsing];
             self->_xmlParser = nil;
-        }
-        [self->_iPipe close];
-        self->_iPipe = nil;
+        [self->_iStream setDelegate:nil];
         [self->_oStream setDelegate:nil];
         
         //sadly closing the output stream does not unblock a hanging [_oStream write:maxLength:] call
@@ -1242,10 +1262,22 @@ NSString* const kStanza = @"stanza";
         }
         self->_oStream=nil;
         
+        DDLogInfo(@"closing input stream");
+        @try
+        {
+            [self->_iStream close];
+        }
+        @catch(id theException)
+        {
+            DDLogError(@"Exception in istream close");
+        }
+        self->_iStream=nil;
+        
         //clean up send queue now that the delegate was removed (_streamHasSpace can not switch to YES now)
         [self cleanupSendQueue];
         
         //remove from runloop *after* cleaning up sendQueue (maybe this fixes a rare crash)
+        [self->_iStream removeFromRunLoop:[HelperTools getExtraRunloopWithIdentifier:MLRunLoopIdentifierNetwork] forMode:NSDefaultRunLoopMode];
         [self->_oStream removeFromRunLoop:[HelperTools getExtraRunloopWithIdentifier:MLRunLoopIdentifierNetwork] forMode:NSDefaultRunLoopMode];
 
         DDLogInfo(@"resetting internal stream state to disconnected");
@@ -1329,17 +1361,17 @@ NSString* const kStanza = @"stanza";
 -(void) resetAccountState
 {
     NSMutableDictionary* newState = [xmpp invalidateState:nil];
-    if([[DataLayer sharedInstance] isAccountEnabled:self.accountNo])
+    if([[DataLayer sharedInstance] isAccountEnabled:self.accountID])
     {
         [self dispatchAsyncOnReceiveQueue: ^{
             [self disconnect:YES];      //make sure we are in a safe state before resetting our state
-            [[DataLayer sharedInstance] persistState:newState forAccount:self.accountNo];
+            [[DataLayer sharedInstance] persistState:newState forAccount:self.accountID];
             [self connect];             //this will reread persisted state saved above
         }];
     }
     else
     {
-        [[DataLayer sharedInstance] persistState:newState forAccount:self.accountNo];
+        [[DataLayer sharedInstance] persistState:newState forAccount:self.accountID];
         [self readState];               //better safe than sorry
     }
 }
@@ -1349,11 +1381,10 @@ NSString* const kStanza = @"stanza";
 -(void) prepareXMPPParser
 {
     BOOL appex = [HelperTools isAppExtension];
-    if(_xmlParser!=nil)
+    if(_xmlParser != nil)
     {
         DDLogInfo(@"%@: resetting old xml parser", self->_logtag);
-        [_xmlParser setDelegate:nil];
-        [_xmlParser abortParsing];
+        _xmlParser = nil;
         [_parseQueue cancelAllOperations];      //throw away all parsed but not processed stanzas (we aborted the parser right now)
     }
     if(!_baseParserDelegate)
@@ -1434,7 +1465,7 @@ NSString* const kStanza = @"stanza";
                         DDLogWarn(@"Throwing away incoming stanza queued in parse queue, accountState < kStateConnected");
                         return;
                     }
-                    NSString* loggedStanza = [NSString stringWithFormat:@"%@: %@", parsedStanza.element, nilDefault([parsedStanza findFirst:@"/@id"], parsedStanza)];
+                    NSString* loggedStanza = [NSString stringWithFormat:@"<%@%@/>", parsedStanza.element, [parsedStanza check:@"/@id"] ? [NSString stringWithFormat:@" id='%@'", [parsedStanza findFirst:@"/@id"]] : @""];
                     [MLNotificationQueue queueNotificationsInBlock:^{
                         //add whole processing of incoming stanzas to one big transaction
                         //this will make it impossible to leave inconsistent database entries on app crashes or iphone crashes/reboots
@@ -1462,20 +1493,8 @@ NSString* const kStanza = @"stanza";
         [_baseParserDelegate reset];
     }
     
-    // create (new) pipe and attach a (new) streaming parser
-    _xmlParser = [[NSXMLParser alloc] initWithStream:[_iPipe getNewOutputStream]];
-    [_xmlParser setShouldProcessNamespaces:YES];
-    [_xmlParser setShouldReportNamespacePrefixes:NO];
-    //[_xmlParser setShouldReportNamespacePrefixes:YES];        //for debugging only
-    [_xmlParser setShouldResolveExternalEntities:NO];
-    [_xmlParser setDelegate:_baseParserDelegate];
-    
-    // do the stanza parsing in the low priority (=utility) global queue
-    dispatch_async(dispatch_queue_create_with_target([NSString stringWithFormat:@"im.monal.xmlparser%@", self->_logtag].UTF8String, DISPATCH_QUEUE_SERIAL, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0)), ^{
-        DDLogInfo(@"%@: calling parse", self->_logtag);
-        [self->_xmlParser parse];     //blocking operation
-        DDLogInfo(@"%@: parse ended", self->_logtag);
-    });
+    //create streaming parser
+    _xmlParser = [[XmlParserBridge alloc] initWith:_baseParserDelegate];
 }
 
 -(void) startXMPPStreamWithXMLOpening:(BOOL) withXMLOpening
@@ -1502,10 +1521,10 @@ NSString* const kStanza = @"stanza";
     {
         //log stanzas being sent as idempotent data
         if(withXMLOpening)
-            [self logStanza:xmlOpening withPrefix:@"IDEMPOTENT_SEND"];
-        [self logStanza:stream withPrefix:@"IDEMPOTENT_SEND"];
+            [self logOutgoingStanza:xmlOpening withPrefix:@"IDEMPOTENT_SEND" andLoglevel:DDLogFlagDebug];
+        [self logOutgoingStanza:stream withPrefix:@"IDEMPOTENT_SEND" andLoglevel:DDLogFlagDebug];
         if(withStartTLS)
-            [self logStanza:startTLS withPrefix:@"IDEMPOTENT_SEND"];
+            [self logOutgoingStanza:startTLS withPrefix:@"IDEMPOTENT_SEND" andLoglevel:DDLogFlagDebug];
         
         //concatenate everything and directly write it as one single string, wait until this is finished to make sure
         //the direct write is complete when returning from here (not strictly needed, but done for good measure)
@@ -1537,7 +1556,7 @@ NSString* const kStanza = @"stanza";
         DDLogVerbose(@"sendPing called - now inside receiveQueue");
         
         //make sure we are enabled before doing anything
-        if(![[DataLayer sharedInstance] isAccountEnabled:self.accountNo])
+        if(![[DataLayer sharedInstance] isAccountEnabled:self.accountID])
         {
             DDLogInfo(@"account is disabled, ignoring ping.");
             return;
@@ -1563,14 +1582,15 @@ NSString* const kStanza = @"stanza";
             DDLogInfo(@"ping already sent, ignoring second ping request.");
             return;
         }
-        else if([self->_parseQueue operationCount] > 4)
+        else if([self->_parseQueue operationCount] > 0)
         {
             if(delayTimer != nil)
                 DDLogWarn(@"Ping already delayed, ignoring additional ping...");
             else
             {
+                NSUInteger delayBy = min((NSUInteger)timeout, [self->_parseQueue operationCount]);
                 DDLogWarn(@"parseQueue overflow, delaying ping by 4 seconds.");
-                delayTimer = createTimer(4.0, (^{
+                delayTimer = createTimer(delayBy, (^{
                     [self removeTimerToCancelOnDisconnect:delayTimer];
                     delayTimer = nil;
                     DDLogDebug(@"ping delay expired, retrying ping.");
@@ -1623,7 +1643,8 @@ NSString* const kStanza = @"stanza";
                 [self sendIq:ping withResponseHandler:^(XMPPIQ* result __unused) {
                     handler();
                 } andErrorHandler:^(XMPPIQ* error) {
-                    handler();
+                    if(error != nil)
+                        handler();
                 }];
             }
         }
@@ -1873,9 +1894,9 @@ NSString* const kStanza = @"stanza";
 -(void) processInput:(MLXMLNode*) parsedStanza withDelayedReplay:(BOOL) delayedReplay
 {
     if(delayedReplay)
-        DDLogInfo(@"delayedReplay of Stanza: %@", parsedStanza);
+        [self logIncomingStanza:parsedStanza withPrefix:@"delayedReplay of Stanza" andLoglevel:DDLogFlagInfo];
     else
-        DDLogInfo(@"RECV Stanza: %@", parsedStanza);
+        [self logIncomingStanza:parsedStanza withPrefix:@"RECV Stanza" andLoglevel:DDLogFlagInfo];
     
     //update stanza counter statistics
     self->_catchupStanzaCounter++;
@@ -1933,7 +1954,7 @@ NSString* const kStanza = @"stanza";
                 return;
             }
             
-            MLContact* contact = [MLContact createContactFromJid:presenceNode.fromUser andAccountNo:self.accountNo];
+            MLContact* contact = [MLContact createContactFromJid:presenceNode.fromUser andAccountID:self.accountID];
             if([presenceNode.fromUser isEqualToString:self.connectionProperties.identity.jid])
             {
                 DDLogInfo(@"got self presence");
@@ -1941,7 +1962,7 @@ NSString* const kStanza = @"stanza";
                 //ignore special presences for status updates (they don't have one)
                 if(![presenceNode check:@"/@type"])
                 {
-                    NSMutableDictionary* accountDetails = [[DataLayer sharedInstance] detailsForAccount:self.accountNo];
+                    NSMutableDictionary* accountDetails = [[DataLayer sharedInstance] detailsForAccount:self.accountID];
                     accountDetails[@"statusMessage"] = [presenceNode check:@"status#"] ? [presenceNode findFirst:@"status#"] : @"";
                     [[DataLayer sharedInstance] updateAccounWithDictionary:accountDetails];
                 }
@@ -1951,7 +1972,7 @@ NSString* const kStanza = @"stanza";
                 if([presenceNode check:@"/<type=subscribe>"])
                 {
                     // check if we need a contact request
-                    NSDictionary* contactSub = [[DataLayer sharedInstance] getSubscriptionForContact:contact.contactJid andAccount:contact.accountId];
+                    NSDictionary* contactSub = [[DataLayer sharedInstance] getSubscriptionForContact:contact.contactJid andAccount:contact.accountID];
                     DDLogVerbose(@"Got subscription request for contact %@ having subscription status: %@", presenceNode.fromUser, contactSub);
                     if(!contactSub || !([[contactSub objectForKey:@"subscription"] isEqualToString:kSubFrom] || [[contactSub objectForKey:@"subscription"] isEqualToString:kSubBoth]))
                         [[DataLayer sharedInstance] addContactRequest:contact];
@@ -1961,7 +1982,7 @@ NSString* const kStanza = @"stanza";
                     //wait 1 sec for nickname and profile image to be processed, then send out kMonalContactRefresh notification
                     createTimer(1.0, (^{
                         [[MLNotificationQueue currentQueue] postNotificationName:kMonalContactRefresh object:self userInfo:@{
-                            @"contact": [MLContact createContactFromJid:presenceNode.fromUser andAccountNo:self.accountNo]
+                            @"contact": [MLContact createContactFromJid:presenceNode.fromUser andAccountID:self.accountID]
                         }];
                     }));
                 }
@@ -1969,22 +1990,37 @@ NSString* const kStanza = @"stanza";
                 if([presenceNode check:@"/<type=unsubscribe>"])
                 {
                     // check if we need a contact request
-                    NSDictionary* contactSub = [[DataLayer sharedInstance] getSubscriptionForContact:contact.contactJid andAccount:contact.accountId];
+                    NSDictionary* contactSub = [[DataLayer sharedInstance] getSubscriptionForContact:contact.contactJid andAccount:contact.accountID];
                     DDLogVerbose(@"Got unsubscribe request of contact %@ having subscription status: %@", presenceNode.fromUser, contactSub);
                     [[DataLayer sharedInstance] deleteContactRequest:contact];
                     
                     //wait 1 sec for nickname and profile image to be processed, then send out kMonalContactRefresh notification
                     createTimer(1.0, (^{
                         [[MLNotificationQueue currentQueue] postNotificationName:kMonalContactRefresh object:self userInfo:@{
-                            @"contact": [MLContact createContactFromJid:presenceNode.fromUser andAccountNo:self.accountNo]
+                            @"contact": [MLContact createContactFromJid:presenceNode.fromUser andAccountID:self.accountID]
+                        }];
+                    }));
+                }
+                
+                if([presenceNode check:@"/<type=unsubscribed>"])
+                {
+                    // check if we need a contact request
+                    NSDictionary* contactSub = [[DataLayer sharedInstance] getSubscriptionForContact:contact.contactJid andAccount:contact.accountID];
+                    DDLogVerbose(@"Got unsubscribed/contact deny request of contact %@ having subscription status: %@", presenceNode.fromUser, contactSub);
+                    
+                    //wait 1 sec for nickname and profile image to be processed, then send out kMonalContactRefresh notification
+                    createTimer(1.0, (^{
+                        [[MLNotificationQueue currentQueue] postNotificationName:kMonalContactRefresh object:self userInfo:@{
+                            @"contact": [MLContact createContactFromJid:presenceNode.fromUser andAccountID:self.accountID],
+                            @"unsubscribed": @YES,
                         }];
                     }));
                 }
 
-                if(contact.isGroup || [presenceNode check:@"{http://jabber.org/protocol/muc#user}x"] || [presenceNode check:@"{http://jabber.org/protocol/muc}x"])
+                if(contact.isMuc || [presenceNode check:@"{http://jabber.org/protocol/muc#user}x"] || [presenceNode check:@"{http://jabber.org/protocol/muc}x"])
                 {
                     //only handle presences for mucs we know
-                    if([[DataLayer sharedInstance] isBuddyMuc:presenceNode.fromUser forAccount:self.accountNo])
+                    if([[DataLayer sharedInstance] isBuddyMuc:presenceNode.fromUser forAccount:self.accountID])
                         [self.mucProcessor processPresence:presenceNode];
                     else
                         DDLogError(@"Got presence of unknown muc %@, ignoring...", presenceNode.fromUser);
@@ -2004,7 +2040,7 @@ NSString* const kStanza = @"stanza";
                 if(![presenceNode check:@"/@type"])
                 {
                     DDLogVerbose(@"presence notice from %@", presenceNode.fromUser);
-                    if(contact.isGroup)
+                    if(contact.isMuc)
                         [self.mucProcessor processPresence:presenceNode];
                     else
                     {
@@ -2012,18 +2048,18 @@ NSString* const kStanza = @"stanza";
                         contact.statusMessage = [presenceNode findFirst:@"status#"];
 
                         //add contact if possible (ignore already existing contacts)
-                        [[DataLayer sharedInstance] addContact:presenceNode.fromUser forAccount:self.accountNo nickname:nil];
+                        [[DataLayer sharedInstance] addContact:presenceNode.fromUser forAccount:self.accountID nickname:nil];
 
                         //clear the state field in db and reset the ver hash for this resource
-                        [[DataLayer sharedInstance] setOnlineBuddy:presenceNode forAccount:self.accountNo];
+                        [[DataLayer sharedInstance] setOnlineBuddy:presenceNode forAccount:self.accountID];
                         
                         //update buddy state
-                        [[DataLayer sharedInstance] setBuddyState:presenceNode forAccount:self.accountNo];
-                        [[DataLayer sharedInstance] setBuddyStatus:presenceNode forAccount:self.accountNo];
+                        [[DataLayer sharedInstance] setBuddyState:presenceNode forAccount:self.accountID];
+                        [[DataLayer sharedInstance] setBuddyStatus:presenceNode forAccount:self.accountID];
                         
                         [[MLNotificationQueue currentQueue] postNotificationName:kMonalNewPresenceNotice object:self userInfo:@{
                             @"jid": presenceNode.fromUser,
-                            @"accountNo": self.accountNo,
+                            @"accountID": self.accountID,
                             @"resource": nilWrapper(presenceNode.fromResource),
                             @"available": @YES,
                         }];
@@ -2032,11 +2068,11 @@ NSString* const kStanza = @"stanza";
                 else if([presenceNode check:@"/<type=unavailable>"])
                 {
                     DDLogVerbose(@"Updating lastInteraction from unavailable presence...");
-                    [[DataLayer sharedInstance] setOfflineBuddy:presenceNode forAccount:self.accountNo];
+                    [[DataLayer sharedInstance] setOfflineBuddy:presenceNode forAccount:self.accountID];
                     
                     [[MLNotificationQueue currentQueue] postNotificationName:kMonalNewPresenceNotice object:self userInfo:@{
                         @"jid": presenceNode.fromUser,
-                        @"accountNo": self.accountNo,
+                        @"accountID": self.accountID,
                         @"resource": nilWrapper(presenceNode.fromResource),
                         @"available": @NO,
                     }];
@@ -2045,8 +2081,8 @@ NSString* const kStanza = @"stanza";
                     //(e.g. no supporting resource online anymore)
                     [[MLNotificationQueue currentQueue] postNotificationName:kMonalLastInteractionUpdatedNotice object:self userInfo:@{
                         @"jid": presenceNode.fromUser,
-                        @"accountNo": self.accountNo,
-                        @"lastInteraction": nilWrapper([[DataLayer sharedInstance] lastInteractionOfJid:presenceNode.fromUser forAccountNo:self.accountNo]),
+                        @"accountID": self.accountID,
+                        @"lastInteraction": nilWrapper([[DataLayer sharedInstance] lastInteractionOfJid:presenceNode.fromUser forAccountID:self.accountID]),
                         @"isTyping": @NO,
                         @"resource": nilWrapper(presenceNode.fromResource),
                     }];
@@ -2069,11 +2105,11 @@ NSString* const kStanza = @"stanza";
                     }
                     else
                     {
-                        NSString* ver = [[DataLayer sharedInstance] getVerForUser:presenceNode.fromUser andResource:presenceNode.fromResource onAccountNo:self.accountNo];
+                        NSString* ver = [[DataLayer sharedInstance] getVerForUser:presenceNode.fromUser andResource:presenceNode.fromResource onAccountID:self.accountID];
                         if(!ver || ![ver isEqualToString:newVer])     //caps hash of resource changed
-                            [[DataLayer sharedInstance] setVer:newVer forUser:presenceNode.fromUser andResource:presenceNode.fromResource onAccountNo:self.accountNo];
+                            [[DataLayer sharedInstance] setVer:newVer forUser:presenceNode.fromUser andResource:presenceNode.fromResource onAccountID:self.accountID];
 
-                        if(![[DataLayer sharedInstance] getCapsforVer:newVer onAccountNo:self.accountNo])
+                        if(![[DataLayer sharedInstance] getCapsforVer:newVer onAccountID:self.accountID])
                         {
                             DDLogInfo(@"Presence included unknown caps hash %@, requesting disco query", newVer);
                             shouldQueryCaps = YES;
@@ -2098,17 +2134,17 @@ NSString* const kStanza = @"stanza";
                 
                 //handle last interaction time (this must be done *after* parsing the ver attribute to get the cached capabilities)
                 //but only do so if the urn:xmpp:idle:1 was supported by that resource (e.g. don't send out unneeded updates)
-                if(![presenceNode check:@"/@type"] && presenceNode.fromResource && [[DataLayer sharedInstance] checkCap:@"urn:xmpp:idle:1" forUser:presenceNode.fromUser andResource:presenceNode.fromResource onAccountNo:self.accountNo])
+                if(![presenceNode check:@"/@type"] && presenceNode.fromResource && [[DataLayer sharedInstance] checkCap:@"urn:xmpp:idle:1" forUser:presenceNode.fromUser andResource:presenceNode.fromResource onAccountID:self.accountID])
                 {
                     DDLogVerbose(@"Updating lastInteraction from normal presence...");
                     //findFirst: will return nil for lastInteraction = "online" --> DataLayer will handle that correctly
-                    [[DataLayer sharedInstance] setLastInteraction:[presenceNode findFirst:@"{urn:xmpp:idle:1}idle@since|datetime"] forJid:presenceNode.fromUser andResource:presenceNode.fromResource onAccountNo:self.accountNo];
+                    [[DataLayer sharedInstance] setLastInteraction:[presenceNode findFirst:@"{urn:xmpp:idle:1}idle@since|datetime"] forJid:presenceNode.fromUser andResource:presenceNode.fromResource onAccountID:self.accountID];
                     
                     //inform other parts of our system that the lastInteraction timestamp has changed
                     [[MLNotificationQueue currentQueue] postNotificationName:kMonalLastInteractionUpdatedNotice object:self userInfo:@{
                         @"jid": presenceNode.fromUser,
-                        @"accountNo": self.accountNo,
-                        @"lastInteraction": nilWrapper([[DataLayer sharedInstance] lastInteractionOfJid:presenceNode.fromUser forAccountNo:self.accountNo]),
+                        @"accountID": self.accountID,
+                        @"lastInteraction": nilWrapper([[DataLayer sharedInstance] lastInteractionOfJid:presenceNode.fromUser forAccountID:self.accountID]),
                         @"isTyping": @NO,
                         @"resource": nilWrapper(presenceNode.fromResource),
                     }];
@@ -2169,8 +2205,8 @@ NSString* const kStanza = @"stanza";
                 //create a new XMPPMessage node instead of only a MLXMLNode because messages have some convenience properties and methods
                 messageNode = [[XMPPMessage alloc] initWithXMPPMessage:[outerMessageNode findFirst:@"{urn:xmpp:mam:2}result/{urn:xmpp:forward:0}forwarded/{jabber:client}message"]];
                 
-                //sanity check: if mam query is not our own archive, this is a muc archive and the fromUser or toUser of
-                //the inner stanza should always match the bare jid of our muc we queried the archive of
+                //sanity check: if mam query is not our own archive, this is a muc archive and the fromUser
+                //of the inner stanza should always match the bare jid of our muc we queried the archive of
                 XMPPIQ* mamQueryNode = _runningMamQueries[[outerMessageNode findFirst:@"{urn:xmpp:mam:2}result@queryid"]];  //we already checked for existence above
                 if(
                     //not queried our own archive
@@ -2296,12 +2332,12 @@ NSString* const kStanza = @"stanza";
                 if(stanzaid && [messageNode check:@"/<type=groupchat>"])
                 {
                     DDLogVerbose(@"Updating lastStanzaId of muc archive %@ in database to: %@", messageNode.fromUser, stanzaid);
-                    [[DataLayer sharedInstance] setLastStanzaId:stanzaid forMuc:messageNode.fromUser andAccount:self.accountNo];
+                    [[DataLayer sharedInstance] setLastStanzaId:stanzaid forMuc:messageNode.fromUser andAccount:self.accountID];
                 }
                 else if(stanzaid && ![messageNode check:@"/<type=groupchat>"])
                 {
                     DDLogVerbose(@"Updating lastStanzaId of user archive in database to: %@", stanzaid);
-                    [[DataLayer sharedInstance] setLastStanzaId:stanzaid forAccount:self.accountNo];
+                    [[DataLayer sharedInstance] setLastStanzaId:stanzaid forAccount:self.accountID];
                 }
             }
             else if([[outerMessageNode findFirst:@"{urn:xmpp:mam:2}result@queryid"] hasPrefix:@"MLhistory:"])
@@ -2414,15 +2450,14 @@ NSString* const kStanza = @"stanza";
             self.resuming = NO;
             self.isDoingFullReconnect = NO;
 
-            //now we are initialized again (the following block is *largely* taken from earlyInitSession)
+            //now we are initialized again (the following part is taken from earlyInitSession and initSession)
             DDLogInfo(@"Session resumed, initializing state...");
-            self.isDoingFullReconnect = YES;
             _connectedTime = [NSDate date];
             _reconnectBackoffTime = 0;
             _accountState = kStateInitStarted;
             [[MLNotificationQueue currentQueue] postNotificationName:kMLSessionInitNotice object:self];
             [self accountStatusChanged];
-
+            
             @synchronized(_stateLockObject) {
                 //remove already delivered stanzas and resend the (still) unacked ones
                 [self removeAckedStanzasFromQueue:h];
@@ -2450,7 +2485,7 @@ NSString* const kStanza = @"stanza";
                 //request an ack to accomplish this if stanza replay did not already trigger one (smacksRequestInFlight is false if replay did not trigger one)
                 if(!self.smacksRequestInFlight)
                     [self requestSMAck:YES];    //force sending of the request even if the smacks queue is empty (needed to always trigger the smacks handler below after 1 RTT)
-                DDLogVerbose(@"Adding resume smacks handler to check for completed catchup on account %@: %@", self.accountNo, self.lastOutboundStanza);
+                DDLogVerbose(@"Adding resume smacks handler to check for completed catchup on account %@: %@", self.accountID, self.lastOutboundStanza);
                 weakify(self);
                 [self addSmacksHandler:^{
                     strongify(self);
@@ -2501,10 +2536,13 @@ NSString* const kStanza = @"stanza";
                 [self persistState];
             }
 
+            
             //don't try to bind, if removeAckedStanzasFromQueue returned an error (it will trigger a reconnect in these cases)
-            if(!error)
+            //don't try to bind if we are already handling a BIND2 response
+            if(!error && !self.bind2Inlined)
             {
                 //bind  a new resource like normal on failed resume (supportsSM3 is still YES here but switches to NO on failed enable later on, if necessary)
+                //legacy bind
                 [self bindResource:self.connectionProperties.identity.resource];
             }
         }
@@ -2525,7 +2563,9 @@ NSString* const kStanza = @"stanza";
             //record TLS version
             self.connectionProperties.tlsVersion = [((MLStream*)self->_oStream) streamStatus] == NSStreamStatusOpen ? ([((MLStream*)self->_oStream) isTLS13] ? @"1.3" : @"1.2") : @"unknown";
             
-            NSString* message = [parsedStanza findFirst:@"text#"];;
+            NSString* errorReason = [parsedStanza findFirst:@"{urn:ietf:params:xml:ns:xmpp-sasl}*$"];
+            NSString* message = [parsedStanza findFirst:@"text#"];
+            DDLogWarn(@"Got SASL1 Failure %@: %@", errorReason, message);
             if([parsedStanza check:@"not-authorized"])
             {
                 if(!message)
@@ -2537,12 +2577,11 @@ NSString* const kStanza = @"stanza";
                     message = NSLocalizedString(@"There was a SASL error on the server.", @"");
             }
             message = [NSString stringWithFormat:NSLocalizedString(@"Login error, account disabled: %@", @""), message];
+            DDLogInfo(@"TLS early data accepted: %@", bool2str([((MLStream*)self->_oStream) acceptedTlsEarlyData]));
             
             //clear pipeline cache to make sure we have a fresh restart next time
             xmppPipeliningState oldPipeliningState = _pipeliningState;
-            _pipeliningState = kPipelinedNothing;
-            _cachedStreamFeaturesBeforeAuth = nil;
-            _cachedStreamFeaturesAfterAuth = nil;
+            [self resetAuthPipelining];
             
             //don't report error but reconnect if we pipelined stuff that is not correct anymore...
             if(oldPipeliningState != kPipelinedNothing)
@@ -2569,7 +2608,8 @@ NSString* const kStanza = @"stanza";
             self.connectionProperties.tlsVersion = [((MLStream*)self->_oStream) streamStatus] == NSStreamStatusOpen ? ([((MLStream*)self->_oStream) isTLS13] ? @"1.3" : @"1.2") : @"unknown";
             
             //perform logic to handle sasl success
-            DDLogInfo(@"Got SASL Success");
+            DDLogInfo(@"Got SASL1 Success");
+            DDLogInfo(@"TLS early data accepted: %@", bool2str([((MLStream*)self->_oStream) acceptedTlsEarlyData]));
             
             self->_accountState = kStateLoggedIn;
             [[MLNotificationQueue currentQueue] postNotificationName:kMLIsLoggedInNotice object:self];
@@ -2630,9 +2670,7 @@ NSString* const kStanza = @"stanza";
                 
                 //clear pipeline cache to make sure we have a fresh restart next time
                 xmppPipeliningState oldPipeliningState = _pipeliningState;
-                _pipeliningState = kPipelinedNothing;
-                _cachedStreamFeaturesBeforeAuth = nil;
-                _cachedStreamFeaturesAfterAuth = nil;
+                [self resetAuthPipelining];
                 
                 //don't report error but reconnect if we pipelined stuff that is not correct anymore...
                 if(oldPipeliningState != kPipelinedNothing)
@@ -2657,8 +2695,8 @@ NSString* const kStanza = @"stanza";
             //    would have advertised support
             //    --> the server will abort authentication, if it did advertise support, but a MITM stripped it off
             // 2. we allow an SSDP signed XEP-0440 list not containing tls-server-end-point
-            //    --> since this is signed by SSDP, it cannot have been caused by a MITM attacker
-            // 3. we allow a XEP-0440 list containing tls-server-end-point. support for this cb-type this is mandatory via XEP-0440.
+            //    --> since this is signed by SSDP, it cannot have been manipulated by a MITM attacker
+            // 3. we allow a XEP-0440 list containing tls-server-end-point. support for this cb-type is mandatory via XEP-0440.
             //    --> non-support for tls-server-end-point is likely caused by a MITM attacker (SSDP isn't supported to authenticate this!)
             // ==> abort authentication if cb-types were anounced, but the list doesn't contain tls-server-end-point and this wasn't
             //     signed by SSDP (the check for SSDP is done in [self channelBindingToUse].
@@ -2707,9 +2745,12 @@ NSString* const kStanza = @"stanza";
         }
         else if([parsedStanza check:@"/{urn:xmpp:sasl:2}failure"])
         {
+            if(self.accountState >= kStateLoggedIn)
+                return [self invalidXMLError];
+            
             NSString* errorReason = [parsedStanza findFirst:@"{urn:ietf:params:xml:ns:xmpp-sasl}*$"];
             NSString* message = [parsedStanza findFirst:@"text#"];
-            DDLogWarn(@"Got SASL2 %@: %@", errorReason, message);
+            DDLogWarn(@"Got SASL2 Failure %@: %@", errorReason, message);
             if([errorReason isEqualToString:@"not-authorized"])
             {
                 if(!message)
@@ -2721,12 +2762,11 @@ NSString* const kStanza = @"stanza";
                     message = [NSString stringWithFormat:NSLocalizedString(@"Server returned SASL2 error '%@'.", @""), errorReason];
             }
             message = [NSString stringWithFormat:NSLocalizedString(@"Login error, account disabled: %@", @""), message];
+            DDLogInfo(@"TLS early data accepted: %@", bool2str([((MLStream*)self->_oStream) acceptedTlsEarlyData]));
             
             //clear pipeline cache to make sure we have a fresh restart next time
             xmppPipeliningState oldPipeliningState = _pipeliningState;
-            _pipeliningState = kPipelinedNothing;
-            _cachedStreamFeaturesBeforeAuth = nil;
-            _cachedStreamFeaturesAfterAuth = nil;
+            [self resetAuthPipelining];
             
             //don't report error but reconnect if we pipelined stuff that is not correct anymore...
             if(oldPipeliningState != kPipelinedNothing)
@@ -2745,6 +2785,13 @@ NSString* const kStanza = @"stanza";
                     mechanismList[mechanism] = @([mechanism isEqualToString:self->_scramHandler.method]);
                 DDLogInfo(@"Saving saslMethods list: %@", mechanismList);
                 self.connectionProperties.saslMethods = mechanismList;
+                
+                //build FAST mechanism list displayed in ui (mark _htHandler.method as used)
+                NSMutableDictionary* fastMechanismList = [NSMutableDictionary new];
+                for(NSString* mechanism in _supportedFastMechanisms)
+                    fastMechanismList[mechanism] = @([mechanism isEqualToString:self->_htHandler.method]);
+                DDLogInfo(@"Saving fastMethods list: %@", fastMechanismList);
+                self.connectionProperties.fastMethods = fastMechanismList;
                 
                 //build channel-binding list displayed in ui (mark [self channelBindingToUse] as used)
                 NSMutableDictionary* channelBindings = [NSMutableDictionary new];
@@ -2769,9 +2816,12 @@ NSString* const kStanza = @"stanza";
             if(self.accountState >= kStateLoggedIn)
                 return [self invalidXMLError];
             
-            //check server-final message for correctness if needed
-            if(!self->_scramHandler.finishedSuccessfully)
-                [self handleScramInSuccessOrContinue:parsedStanza];
+            DDLogInfo(@"Got SASL2 Success");
+            DDLogInfo(@"TLS early data accepted: %@", bool2str([((MLStream*)self->_oStream) acceptedTlsEarlyData]));
+            
+            //check FAST responder-message or SCRAM server-final message for correctness if needed
+            if(!self->_htHandler.finishedSuccessfully && !self->_scramHandler.finishedSuccessfully)
+                [self handleSasl2SuccessOrContinue:parsedStanza];
             
             //build mechanism list displayed in ui (mark _scramHandler.method as used)
             NSMutableDictionary* mechanismList = [NSMutableDictionary new];
@@ -2779,6 +2829,13 @@ NSString* const kStanza = @"stanza";
                 mechanismList[mechanism] = @([mechanism isEqualToString:self->_scramHandler.method]);
             DDLogInfo(@"Saving saslMethods list: %@", mechanismList);
             self.connectionProperties.saslMethods = mechanismList;
+            
+            //build FAST mechanism list displayed in ui (mark _htHandler.method as used)
+            NSMutableDictionary* fastMechanismList = [NSMutableDictionary new];
+            for(NSString* mechanism in _supportedFastMechanisms)
+                fastMechanismList[mechanism] = @([mechanism isEqualToString:self->_htHandler.method]);
+            DDLogInfo(@"Saving fastMethods list: %@", fastMechanismList);
+            self.connectionProperties.fastMethods = fastMechanismList;
             
             //build channel-binding list displayed in ui (mark [self channelBindingToUse] as used)
             NSMutableDictionary* channelBindings = [NSMutableDictionary new];
@@ -2797,17 +2854,26 @@ NSString* const kStanza = @"stanza";
             //record TLS version
             self.connectionProperties.tlsVersion = [((MLStream*)self->_oStream) streamStatus] == NSStreamStatusOpen ? ([((MLStream*)self->_oStream) isTLS13] ? @"1.3" : @"1.2") : @"unknown";
             
+            //store FAST token, if requested and provided
+            if(_fastTokenRequested != nil && [parsedStanza check:@"{urn:xmpp:fast:0}token"])
+            {
+                NSString* token = [parsedStanza findFirst:@"{urn:xmpp:fast:0}token@token"];
+                NSString* expiry = [parsedStanza findFirst:@"{urn:xmpp:fast:0}token@expiry|datetime"];
+                DDLogInfo(@"Got new FAST token with expiry: %@", expiry);
+                [SAMKeychain setPasswordData:[HelperTools serializeObject:@{
+                    @"token": token,
+                    @"mechanism": _fastTokenRequested,
+                }] forService:kMonalHtTokenKeychainName account:self.accountID.stringValue];
+            }
+            
             self->_scramHandler = nil;
-            self->_blockToCallOnTCPOpen = nil;     //just to be sure but not strictly necessary
-            //only increment account state if we are still trying to login (calling bindJid could have triggered a disconnect)
-            if(self->_accountState == kStateHasStream)
-                self->_accountState = kStateLoggedIn;
-            else
-                DDLogWarn(@"Not setting accountState to kStateLoggedIn, because we are no longer in kStateHasStream!");
-            _usableServersList = [NSMutableArray new];       //reset list to start again with the highest SRV priority on next connect
+            self->_htHandler = nil;
+            self->_fastTokenRequested = nil;
+            self->_blockToCallOnTCPOpen = nil;              //just to be sure but not strictly necessary
+            _usableServersList = [NSMutableArray new];      //reset list to start again with the highest SRV priority on next connect
             if(_loginTimer)
             {
-                [self->_loginTimer cancel];     //we are now logged in --> cancel running login timer
+                [self->_loginTimer cancel];                 //we are now logged in --> cancel running login timer
                 _loginTimer = nil;
             }
             self->_loggedInOnce = YES;
@@ -2815,21 +2881,99 @@ NSString* const kStanza = @"stanza";
             //pin sasl2 support for this account (this is done only after successful auth to prevent DOS MITM attacks simulating SASL2 support)
             //downgrading to SASL1 would mean PLAIN instead of SCRAM and no protocol agility for channel-bindings,
             //if XEP-0440 is not supported by server
-            [[DataLayer sharedInstance] deactivatePlainForAccount:self.accountNo];
+            [[DataLayer sharedInstance] deactivatePlainForAccount:self.accountID];
             
             //NOTE: we don't have any stream restart when using SASL2
             //NOTE: we don't need to pipeline anything here, because SASL2 sends out the new stream features immediately without a stream restart
             _cachedStreamFeaturesAfterAuth = nil;       //make sure we don't accidentally try to do pipelining
             
-            [self accountStatusChanged];
+            //only increment account state if we are still trying to login (calling bindJid could have triggered a disconnect)
+            if(self->_accountState == kStateHasStream)
+            {
+                self->_accountState = kStateLoggedIn;
+                [self accountStatusChanged];
+                
+                //SASL2 inlined resume
+                if(self.resuming && [parsedStanza check:@"{urn:xmpp:sm:3}resumed"])
+                {
+                    DDLogInfo(@"Handling SASL2 inlined smacks result...");
+                    [self processInput:[parsedStanza findFirst:@"{urn:xmpp:sm:3}resumed"] withDelayedReplay:NO];
+                }
+                else
+                {
+                    if(self.smacksResumeInlined)
+                    {
+                        if(self.resuming && [parsedStanza check:@"{urn:xmpp:sm:3}failed"])
+                        {
+                            DDLogInfo(@"Handling SASL2 inlined smacks result...");
+                            [self processInput:[parsedStanza findFirst:@"{urn:xmpp:sm:3}failed"] withDelayedReplay:NO];
+                        }
+                        else        //just to be sure (e.g. if the server didn't respond to our resumption request at all)
+                        {
+                            self.resuming = NO;
+                            self.smacksResumeInlined = NO;
+                        }
+                    }
+                    
+                    //SASL2 inlined BIND2
+                    if([parsedStanza check:@"{urn:xmpp:bind:0}bound"] && self.bind2Inlined)
+                    {
+                        //identity.bindJid was already called above and since our bind succeeded it included a fullJid
+                        DDLogInfo(@"Now bound to fullJid: %@", [parsedStanza findFirst:@"authorization-identifier#"]);
+                        DDLogDebug(@"bareJid=%@, resource=%@, fullJid=%@", self.connectionProperties.identity.jid, self.connectionProperties.identity.resource, self.connectionProperties.identity.fullJid);
+                        
+                        //technically our connectionProperties.identity is already bound, but we need to initialize everything else, too
+                        [self cleanupBeforeBind];
+                        
+                        //update resource in db (could have been changed by server)
+                        NSMutableDictionary* accountDict = [[NSMutableDictionary alloc] initWithDictionary:[[DataLayer sharedInstance] detailsForAccount:self.accountID]];
+                        accountDict[kResource] = self.connectionProperties.identity.resource;
+                        [[DataLayer sharedInstance] updateAccounWithDictionary:accountDict];
+                        
+                        //we can at least do this
+                        [self earlyInitSession];     //the call to initSession is pending the smacks enable handling below
+                        
+                        if([parsedStanza check:@"{urn:xmpp:bind:0}bound/{urn:xmpp:carbons:2}enabled"])
+                        {
+                            DDLogInfo(@"Carbons now enabled via BIND2...");
+                            self.connectionProperties.usingCarbons2 = YES;
+                        }
+                        
+                        if([parsedStanza check:@"{urn:xmpp:bind:0}bound/{urn:xmpp:sm:3}*"])
+                        {
+                            DDLogInfo(@"Handling BIND2 inlined smacks result...");
+                            [self processInput:[parsedStanza findFirst:@"{urn:xmpp:bind:0}bound/{urn:xmpp:sm:3}*"] withDelayedReplay:NO];
+                        }
+                        else if(self.connectionProperties.supportsSM3)
+                        {
+                            DDLogInfo(@"Sending smacks enable, pipelining it onto BIND2 did not work!");
+                            [self send:[[MLXMLNode alloc]
+                                initWithElement:@"enable"
+                                andNamespace:@"urn:xmpp:sm:3"
+                                withAttributes:@{@"resume": @"true"}
+                                andChildren:@[]
+                                andData:nil
+                            ]];
+                        }
+                        else
+                        {
+                            //init session and query disco, roster etc.
+                            [self initSession];
+                        }
+                    }
+                }
+            }
+            else
+                DDLogWarn(@"Not setting accountState to kStateLoggedIn, because we are no longer in kStateHasStream!");
         }
         else if([parsedStanza check:@"/{urn:xmpp:sasl:2}continue"])
         {
             if(self.accountState >= kStateLoggedIn)
                 return [self invalidXMLError];
             
-            //check server-final message for correctness
-            [self handleScramInSuccessOrContinue:parsedStanza];
+            //check FAST responder-message or SCRAM server-final message for correctness if needed
+            if(!self->_htHandler.finishedSuccessfully && !self->_scramHandler.finishedSuccessfully)
+                [self handleSasl2SuccessOrContinue:parsedStanza];
             
             NSArray* tasks = [parsedStanza find:@"tasks/task#"];
             if(tasks.count == 0)
@@ -2909,9 +3053,7 @@ NSString* const kStanza = @"stanza";
             NSString* errorText = [parsedStanza findFirst:@"{urn:ietf:params:xml:ns:xmpp-streams}text#"];
             DDLogWarn(@"Got secure XMPP stream error %@: %@", errorReason, errorText);
             DDLogDebug(@"Setting _pipeliningState to kPipelinedNothing and clearing _cachedStreamFeaturesBeforeAuth and _cachedStreamFeaturesAfterAuth...");
-            _pipeliningState = kPipelinedNothing;
-            _cachedStreamFeaturesBeforeAuth = nil;
-            _cachedStreamFeaturesAfterAuth = nil;
+            [self resetAuthPipelining];
             NSString* message = [NSString stringWithFormat:NSLocalizedString(@"XMPP stream error: %@", @""), errorReason];
             if(errorText && ![errorText isEqualToString:@""])
                 message = [NSString stringWithFormat:NSLocalizedString(@"XMPP stream error %@: %@", @""), errorReason, errorText];
@@ -2943,9 +3085,6 @@ NSString* const kStanza = @"stanza";
             else
             {
 //this error could be a mitm or some other network problem caused by an active attacker, just ignore it since we are not in a tls context here
-#ifdef IS_ALPHA
-                [self postError:message withIsSevere:NO];
-#endif
             }
             [self reconnect];
         }
@@ -2965,8 +3104,6 @@ NSString* const kStanza = @"stanza";
             if(_xmlParser!=nil)
             {
                 DDLogInfo(@"stopping old xml parser");
-                [_xmlParser setDelegate:nil];
-                [_xmlParser abortParsing];
                 _xmlParser = nil;
                 //throw away all parsed but not processed stanzas (we aborted the parser right now)
                 //the xml parser will fill the parse queue synchronously while < kStateInitStarted
@@ -2974,7 +3111,7 @@ NSString* const kStanza = @"stanza";
                 [_parseQueue cancelAllOperations];
             }
             //prepare input/output streams
-            [_iPipe drainInputStreamAndCloseOutputStream];      //remove all pending data before starting tls handshake
+            [self drainInputStream];      //remove all pending data before starting tls handshake
             self->_streamHasSpace = NO;     //make sure we do not try to send any data while the tls handshake is still performed
             
             //dispatch async to not block the db transaction of the proceed stanza inside the receive queue
@@ -3056,9 +3193,7 @@ NSString* const kStanza = @"stanza";
         
         //clear pipeline cache to make sure we have a fresh restart next time
         xmppPipeliningState oldPipeliningState = self->_pipeliningState;
-        self->_pipeliningState = kPipelinedNothing;
-        self->_cachedStreamFeaturesBeforeAuth = nil;
-        self->_cachedStreamFeaturesAfterAuth = nil;
+        [self resetAuthPipelining];
         
         if(oldPipeliningState != kPipelinedNothing)
         {
@@ -3073,13 +3208,13 @@ NSString* const kStanza = @"stanza";
     };
     //called below, if neither SASL1 nor SASL2 could be used to negotiate a valid SASL mechanism
     monal_void_block_t noAuthSupported = ^{
-        DDLogWarn(@"No supported auth mechanism: %@", self->_supportedSaslMechanisms);
+        DDLogWarn(@"No supported auth mechanism: %@ (%@)", self->_supportedSaslMechanisms, self->_supportedFastMechanisms);
         
         //sasl2 will be pinned if we saw sasl2 support and PLAIN was NOT allowed by creating this account using the  advanced account creation menu
         //display scary warning message if sasl2 is pinned and login was successful at least once
         //or display a message pointing to the advanced account creation menu if sasl2 is pinned and login was NOT successful at least once
         //(e.g. we are trying to create this account just now)
-        if(![[DataLayer sharedInstance] isPlainActivatedForAccount:self.accountNo])
+        if(![[DataLayer sharedInstance] isPlainActivatedForAccount:self.accountID])
         {
             DDLogDebug(@"Plain is not activated for this account...");
             if(self->_loggedInOnce)
@@ -3121,12 +3256,21 @@ NSString* const kStanza = @"stanza";
         [self submitRegForm];
     }
     //prefer SASL2 over SASL1
-    else if([parsedStanza check:@"{urn:xmpp:sasl:2}authentication/mechanism"] && (![[DataLayer sharedInstance] isPlainActivatedForAccount:self.accountNo] || forceSasl2))
+    else if([parsedStanza check:@"{urn:xmpp:sasl:2}authentication/mechanism"] && (![[DataLayer sharedInstance] isPlainActivatedForAccount:self.accountID] || forceSasl2))
     {
         DDLogDebug(@"Trying SASL2...");
         __block BOOL supportsScram = NO;
         __block BOOL supportsPlus = NO;
+        __block BOOL supportsFast = NO;
+        __block BOOL supportsInlinedSmacks = NO;
+        __block BOOL supportsInlinedBind2 = NO;
         
+        NSDictionary* fast2CbMapping = @{
+            @"EXPR": @"tls-exporter",
+            @"ENDP": @"tls-server-end-point",
+            //leaving this out means nil: @"NONE": nil,
+        };
+                    
         weakify(self);
         _blockToCallOnTCPOpen = ^{
             strongify(self);
@@ -3151,12 +3295,79 @@ NSString* const kStanza = @"stanza";
             }
             
             BOOL noMatchingChannelBindingFound = self->_supportedChannelBindings!=nil && ([self channelBindingToUse]==nil || [kServerDoesNotFollowXep0440Error isEqualToString:[self channelBindingToUse]]);
+            MLXMLNode* authenticate = nil;
+            NSMutableArray* sasl2InlinedElements = [NSMutableArray new];
+            
+            //don't reveal our user agent in high security environments (e.g. the preventLeaksBeforeAuth setting is YES)
+            MLXMLNode* sasl2UserAgent = nil;
+            if(![[HelperTools defaultsDB] boolForKey:@"preventLeaksBeforeAuth"])
+                sasl2UserAgent = [[MLXMLNode alloc] initWithElement:@"user-agent" withAttributes:@{
+                    @"id":[[HelperTools deviceUUID] UUIDString],
+                } andChildren:@[
+                    [[MLXMLNode alloc] initWithElement:@"software" andData:@"Monal IM"],
+                    [[MLXMLNode alloc] initWithElement:@"device" andData:[[UIDevice currentDevice] name]],
+                ] andData:nil];
+            
+            //inline smacks resume if possible, but not in high security environment (e.g. the preventLeaksBeforeAuth setting is YES)
+            if(![[HelperTools defaultsDB] boolForKey:@"preventLeaksBeforeAuth"])
+            {
+                @synchronized(self->_stateLockObject) {
+                    if(supportsInlinedSmacks)
+                        self.connectionProperties.supportsSM3 = YES;
+                    if(supportsInlinedSmacks && self.streamID)
+                    {
+                        [sasl2InlinedElements addObject:[[MLXMLNode alloc] initWithElement:@"resume" andNamespace:@"urn:xmpp:sm:3" withAttributes:@{
+                            @"h": [NSString stringWithFormat:@"%@",self.lastHandledInboundStanza],
+                            @"previd": self.streamID,
+                        } andChildren:@[] andData:nil]];
+                        self.smacksResumeInlined = YES;
+                        self.resuming = YES;      //this is needed to distinguish a failed smacks resume and a failed smacks enable later on
+                    }
+                    else
+                    {
+                        self.smacksResumeInlined = NO;
+                        self.resuming = NO;
+                    }
+                }
+            }
+            
+            //inline bind2 if possible, but not in high security environments (e.g. the preventLeaksBeforeAuth setting is YES)
+            if(supportsInlinedBind2 && ![[HelperTools defaultsDB] boolForKey:@"preventLeaksBeforeAuth"])
+            {
+                self.bind2Inlined = YES;
+                
+                [sasl2InlinedElements addObject:[[MLXMLNode alloc] initWithElement:@"bind" andNamespace:@"urn:xmpp:bind:0" withAttributes:@{} andChildren:@[
+                    [[MLXMLNode alloc] initWithElement:@"tag" andData: @"Monal-iOS"],
+                    //inline carbons enable into bind2 if possible
+                    nilWrapper(
+                        [self->_supportedBin2InlinedFeatures containsObject:@"urn:xmpp:carbons:2"]
+                        ? [[MLXMLNode alloc] initWithElement:@"enable" andNamespace:@"urn:xmpp:carbons:2"]
+                        : nil
+                    ),
+                    
+                    //inline smacks enable into bind2 if possible
+                    nilWrapper(
+                        [self->_supportedBin2InlinedFeatures containsObject:@"urn:xmpp:sm:3"]
+                        ? [[MLXMLNode alloc]
+                            initWithElement:@"enable"
+                            andNamespace:@"urn:xmpp:sm:3"
+                            withAttributes:@{@"resume": @"true"}
+                            andChildren:@[]
+                            andData:nil
+                        ]
+                        : nil
+                    ),
+                ] andData:nil]];
+            }
+            else
+                self.bind2Inlined = NO;
             
             //create list of upgradable scram mechanisms and pick the first one (highest security) the server and we support
             //but only do so, if we are using channel-binding for additional security
             //(a MITM could passively intercept the new SCRAM hash which is roughly equivalent to intercepting the plaintext password)
+            //don't do this in high security environments (e.g. the preventLeaksBeforeAuth setting is YES)
             self->_upgradeTask = nil;
-            if([self channelBindingToUse] != nil && ![kServerDoesNotFollowXep0440Error isEqualToString:[self channelBindingToUse]])
+            if([self channelBindingToUse] != nil && ![kServerDoesNotFollowXep0440Error isEqualToString:[self channelBindingToUse]] && ![[HelperTools defaultsDB] boolForKey:@"preventLeaksBeforeAuth"])
             {
                 NSSet* upgradesOffered = [NSSet setWithArray:[parsedStanza find:@"{urn:xmpp:sasl:2}authentication/{urn:xmpp:sasl:upgrade:0}upgrade#"]];
                 for(NSString* method in [SCRAM supportedMechanismsIncludingChannelBinding:NO])
@@ -3167,35 +3378,129 @@ NSString* const kStanza = @"stanza";
                     }
             }
             
-            //check for supported scram mechanisms (highest security first!)
-            for(NSString* mechanism in [SCRAM supportedMechanismsIncludingChannelBinding:[self channelBindingToUse] != nil])
-                if([self->_supportedSaslMechanisms containsObject:mechanism])
+            //XEP-0509 (config versioning, useful for letting the server know we used auth pipelining
+            //so that the server won't count it as failed auth attempt and punish us)
+            MLXMLNode* configVersion = nil;
+            NSString* configVersionString = [parsedStanza findFirst:@"{urn:xmpp:iap:0}config-version@value"];
+            if(configVersionString != nil && self->_pipeliningState != kPipelinedNothing)
+                configVersion = [[MLXMLNode alloc] initWithElement:@"config-version" andNamespace:@"urn:xmpp:iap:0" withAttributes:@{
+                    @"scheme": @"opaque",
+                    @"value": configVersionString,
+                } andChildren:@[] andData:nil];
+            
+            //try to authenticate using FAST
+            //but only use FAST if we don't want to do a SCRAM upgrade via XEP-0480
+            //and don't use FAST in high security environment (e.g. the preventLeaksBeforeAuth setting is YES)
+            if(self->_upgradeTask == nil && ![[HelperTools defaultsDB] boolForKey:@"preventLeaksBeforeAuth"])
+            {
+                NSError* error = nil;
+                NSDictionary* tokenData = [HelperTools unserializeData:[SAMKeychain passwordDataForService:kMonalHtTokenKeychainName account:self.accountID.stringValue error:&error]];
+                if(error != nil)
+                    DDLogDebug(@"Failed to load HT token: %@", error);
+                if(tokenData != nil && [self->_supportedFastMechanisms containsObject:tokenData[@"mechanism"]])
                 {
-                    self->_scramHandler = [[SCRAM alloc] initWithUsername:self.connectionProperties.identity.user password:self.connectionProperties.identity.password andMethod:mechanism];
-                    //set ssdp data for downgrade protection
-                    //_supportedChannelBindings will be nil, if XEP-0440 is not supported by our server (which should never happen because XEP-0440 is mandatory for SASL2)
-                    [self->_scramHandler setSSDPMechanisms:[self->_supportedSaslMechanisms allObjects] andChannelBindingTypes:[self->_supportedChannelBindings allObjects]];
-                    MLXMLNode* authenticate = [[MLXMLNode alloc]
+                    
+                    NSData* channelBindingData = nil;
+                    NSString* cbMethodOfToken = fast2CbMapping[[tokenData[@"mechanism"] substringWithRange:NSMakeRange([tokenData[@"mechanism"] length]-4, 4)]];
+                    //this can only be the case if it was closed shortly before handling this stanza (race condition)
+                    //in this case we'll abort the auth after sending the authenticate element, so not adding cb-data is fine here
+                    if([((MLStream*)self->_oStream) streamStatus] == NSStreamStatusOpen)
+                        channelBindingData = [((MLStream*)self->_oStream) channelBindingDataForType:cbMethodOfToken];
+                    
+                    DDLogInfo(@"Authenticating using FAST token with cb-type %@ and cb-data: %@", cbMethodOfToken, channelBindingData);
+                    self->_htHandler = [[HT alloc]
+                        initWithUsername:self.connectionProperties.identity.user
+                        token:tokenData[@"token"]
+                        method:tokenData[@"mechanism"]
+                        andChannelBindingData:channelBindingData
+                    ];
+                    
+                    authenticate = [[MLXMLNode alloc]
                         initWithElement:@"authenticate"
                         andNamespace:@"urn:xmpp:sasl:2"
-                        withAttributes:@{@"mechanism": mechanism}
+                        withAttributes:@{@"mechanism": tokenData[@"mechanism"]}
                         andChildren:@[
-                            [[MLXMLNode alloc] initWithElement:@"initial-response" andData:[HelperTools encodeBase64WithString:[self->_scramHandler clientFirstMessageWithNoMatchingChannelBindingFound:noMatchingChannelBindingFound andChannelBinding:[self channelBindingToUse]]]],
-                            [[MLXMLNode alloc] initWithElement:@"user-agent" withAttributes:@{
-                                @"id":[[HelperTools deviceUUID] UUIDString],
-                            } andChildren:@[
-                                [[MLXMLNode alloc] initWithElement:@"software" andData:@"Monal IM"],
-                                [[MLXMLNode alloc] initWithElement:@"device" andData:[[UIDevice currentDevice] name]],
-                            ] andData:nil],
+                            [[MLXMLNode alloc] initWithElement:@"initial-response" andData:[HelperTools encodeBase64WithData:[self->_htHandler initiatorMessage]]],
+                            //no count attribute because we don't do any 0rtt TLS here
+                            [[MLXMLNode alloc] initWithElement:@"fast" andNamespace:@"urn:xmpp:fast:0"],
+                            nilWrapper(sasl2UserAgent),
+                            nilWrapper(configVersion),
                         ]
                         andData:nil
                     ];
-                    //add upgrade element if we mutually support upgrades
-                    if(self->_upgradeTask != nil)
-                        [authenticate addChildNode:[[MLXMLNode alloc] initWithElement:@"upgrade" andNamespace:@"urn:xmpp:sasl:upgrade:0" andData:self->_upgradeTask]];
-                    [self send:authenticate];
-                    return;
+                    
+                    //authenticating using FAST always means we accept a new token for token rotation, too
+                    self->_fastTokenRequested = tokenData[@"mechanism"];
+                    
+                    //always request a new fast token if supported by server
+                    //fast token rotation means an attacker who stole our token will be locked out as soon as we authenticate again
+                    //but only accept the exact same token mechanism as the one we already posses and use to authenticate
+                    //or a better one better to prevent downgrades!
+                    /*
+                    if([parsedStanza check:@"{urn:xmpp:sasl:2}authentication/inline/{urn:xmpp:fast:0}fast"])
+                    {
+                        self->_fastTokenRequested = tokenData[@"mechanism"];
+                        [authenticate addChildNode:[[MLXMLNode alloc] initWithElement:@"request-token" andNamespace:@"urn:xmpp:fast:0" withAttributes:@{
+                            @"mechanism": tokenData[@"mechanism"],
+                        } andChildren:@[] andData:nil]];
+                    }
+                    */
                 }
+            }
+            
+            if(self->_htHandler == nil)
+            {
+                //check for supported scram mechanisms (highest security first!)
+                for(NSString* mechanism in [SCRAM supportedMechanismsIncludingChannelBinding:[self channelBindingToUse] != nil])
+                    if([self->_supportedSaslMechanisms containsObject:mechanism])
+                    {
+                        self->_scramHandler = [[SCRAM alloc] initWithUsername:self.connectionProperties.identity.user password:self.connectionProperties.identity.password andMethod:mechanism];
+                        //set ssdp data for downgrade protection
+                        //_supportedChannelBindings will be nil, if XEP-0440 is not supported by our server (which should never happen because XEP-0440 is mandatory for SASL2)
+                        [self->_scramHandler setSSDPMechanisms:[self->_supportedSaslMechanisms allObjects] andChannelBindingTypes:[self->_supportedChannelBindings allObjects]];
+                        authenticate = [[MLXMLNode alloc]
+                            initWithElement:@"authenticate"
+                            andNamespace:@"urn:xmpp:sasl:2"
+                            withAttributes:@{@"mechanism": mechanism}
+                            andChildren:@[
+                                [[MLXMLNode alloc] initWithElement:@"initial-response" andData:[HelperTools encodeBase64WithString:[self->_scramHandler clientFirstMessageWithNoMatchingChannelBindingFound:noMatchingChannelBindingFound andChannelBinding:[self channelBindingToUse]]]],
+                                nilWrapper(sasl2UserAgent),
+                                nilWrapper(configVersion),
+                            ]
+                            andData:nil
+                        ];
+                        
+                        //add upgrade element if we mutually support upgrades
+                        if(self->_upgradeTask != nil)
+                            [authenticate addChildNode:[[MLXMLNode alloc] initWithElement:@"upgrade" andNamespace:@"urn:xmpp:sasl:upgrade:0" andData:self->_upgradeTask]];
+                        
+                        //check for supported FAST mechanisms (highest security first) and request FAST token, if supported by server
+                        //but only accept a token with the same channel-binding as our SCRAM auth to prevent downgrades!
+                        //also don't request a FAST token in high security environments (e.g. the preventLeaksBeforeAuth setting is YES)
+                        if([parsedStanza check:@"{urn:xmpp:sasl:2}authentication/inline/{urn:xmpp:fast:0}fast"] && ![[HelperTools defaultsDB] boolForKey:@"preventLeaksBeforeAuth"])
+                            for(NSString* mechanism in [HT supportedMechanismsIncludingChannelBinding:[self channelBindingToUse] != nil])
+                                if(
+                                    [[self channelBindingToUse] isEqualToString:fast2CbMapping[[mechanism substringWithRange:NSMakeRange(mechanism.length-4, 4)]]] &&
+                                    [self->_supportedFastMechanisms containsObject:mechanism]
+                                ) {
+                                    self->_fastTokenRequested = mechanism;
+                                    [authenticate addChildNode:[[MLXMLNode alloc] initWithElement:@"request-token" andNamespace:@"urn:xmpp:fast:0" withAttributes:@{
+                                        @"mechanism": mechanism,
+                                    } andChildren:@[] andData:nil]];
+                                }
+                        
+                        //use this SCRAM mechanism rather than iterating through the remaining ones
+                        break;
+                    }
+            }
+            
+            if(authenticate != nil)
+            {
+                for(MLXMLNode* inlined in sasl2InlinedElements)
+                    [authenticate addChildNode:inlined];
+                [self send:authenticate];
+                return;
+            }
             
             //could not find any matching SASL2 mechanism (we do NOT support PLAIN)
             noAuthSupported();
@@ -3203,6 +3508,7 @@ NSString* const kStanza = @"stanza";
         
         //extract menchanisms presented
         _supportedSaslMechanisms = [NSSet setWithArray:[parsedStanza find:@"{urn:xmpp:sasl:2}authentication/mechanism#"]];
+        _supportedFastMechanisms = [NSSet setWithArray:[parsedStanza find:@"{urn:xmpp:sasl:2}authentication/inline/{urn:xmpp:fast:0}fast/mechanism#"]];
         
         //extract supported channel-binding types
         _supportedChannelBindings = [NSSet setWithArray:[parsedStanza find:@"{urn:xmpp:sasl-cb:0}sasl-channel-binding/channel-binding@type"]];
@@ -3217,6 +3523,27 @@ NSString* const kStanza = @"stanza";
                 if(mechanism.length > 5 && [@"-PLUS" isEqualToString:[mechanism substringFromIndex:mechanism.length-5]])
                     supportsPlus = YES;
             }
+        for(NSString* mechanism in [HT supportedMechanismsIncludingChannelBinding:YES])
+            if([_supportedFastMechanisms containsObject:mechanism])
+                supportsFast = YES;
+        
+        //check for smacks inline support
+        supportsInlinedSmacks = ![[HelperTools defaultsDB] boolForKey:@"preventLeaksBeforeAuth"] && [parsedStanza check:@"{urn:xmpp:sasl:2}authentication/inline/{urn:xmpp:sm:3}sm"];
+        if(supportsInlinedSmacks)
+            DDLogInfo(@"Server supports inlined SM3");
+        
+        //check for bind2 inline support
+        supportsInlinedBind2 = ![[HelperTools defaultsDB] boolForKey:@"preventLeaksBeforeAuth"] && [parsedStanza check:@"{urn:xmpp:sasl:2}authentication/inline/{urn:xmpp:bind:0}bind"];
+        if(supportsInlinedBind2)
+            DDLogInfo(@"Server supports inlined BIND2");
+        
+        //check for supported bind2-inlined features
+        _supportedBin2InlinedFeatures = [NSSet new];
+        if(supportsInlinedBind2)
+        {
+            _supportedBin2InlinedFeatures = [NSSet setWithArray:[parsedStanza find:@"{urn:xmpp:sasl:2}authentication/inline/{urn:xmpp:bind:0}bind/inline/feature@var"]];
+            DDLogInfo(@"BIND2 inlining supported for: %@", _supportedBin2InlinedFeatures);
+        }
         
         //directly call our continuation block if SCRAM is not supported, because _blockToCallOnTCPOpen() will throw an error then
         //(we currently only support SCRAM for SASL2)
@@ -3224,7 +3551,7 @@ NSString* const kStanza = @"stanza";
         //and if we are not pipelining the auth, we can call the block immediately, too
         //(because the TLS connection was obviously already established and that made us receive the non-cached stream features used here)
         //if we don't call it here, the continuation block will be called automatically once the TLS connection got established
-        if(!supportsScram || !self.connectionProperties.server.isDirectTLS || _pipeliningState < kPipelinedAuth)
+        if((!supportsScram && !supportsFast) || !self.connectionProperties.server.isDirectTLS || _pipeliningState < kPipelinedAuth)
         {
             _blockToCallOnTCPOpen();
             _blockToCallOnTCPOpen = nil;     //don't call this twice
@@ -3233,14 +3560,14 @@ NSString* const kStanza = @"stanza";
             DDLogWarn(@"Waiting until TLS stream is connected before pipelining the auth element due to channel binding...");
     }
     //check if the server activated SASL2 after previously only upporting SASL1
-    else if([[DataLayer sharedInstance] isPlainActivatedForAccount:self.accountNo] && ((NSNumber*)checkProperSasl2Support()).boolValue)
+    else if([[DataLayer sharedInstance] isPlainActivatedForAccount:self.accountID] && ((NSNumber*)checkProperSasl2Support()).boolValue)
     {
         DDLogInfo(@"We detected SASL2 SCRAM support, retrying using SASL2...");
         //try again, this time using sasl2
         return [self handleFeaturesBeforeAuth:parsedStanza withForceSasl2:YES];
     }
     //SASL1 is fallback only if SASL2 isn't supported with something better than PLAIN
-    else if([parsedStanza check:@"{urn:ietf:params:xml:ns:xmpp-sasl}mechanisms/mechanism"] && [[DataLayer sharedInstance] isPlainActivatedForAccount:self.accountNo])
+    else if([parsedStanza check:@"{urn:ietf:params:xml:ns:xmpp-sasl}mechanisms/mechanism"] && [[DataLayer sharedInstance] isPlainActivatedForAccount:self.accountID])
     {
         DDLogDebug(@"Trying SASL1...");
         
@@ -3297,8 +3624,9 @@ NSString* const kStanza = @"stanza";
 {
     self.connectionProperties.serverFeatures = parsedStanza;
     
-    //this is set to NO if we fail to enable it
-    if([parsedStanza check:@"{urn:xmpp:sm:3}sm"])
+    //this is later on set to NO if we fail to enable it
+    //don't check the stream feature if its support was already detected via SASL2 inlining
+    if(!self.connectionProperties.supportsSM3 && [parsedStanza check:@"{urn:xmpp:sm:3}sm"])
     {
         DDLogInfo(@"Server supports SM3");
         self.connectionProperties.supportsSM3 = YES;
@@ -3310,51 +3638,81 @@ NSString* const kStanza = @"stanza";
         self.connectionProperties.serverIdentity = [parsedStanza findFirst:@"{http://jabber.org/protocol/caps}c@node"];
     }
     
+    if(self.accountState >= kStateBinding)
+    {
+        DDLogInfo(@"Not reacting with smacks resume or bind to stream features after login: we are already binding/bound!");
+        return;
+    }
+    
+    //don't try to resume if already inlined via SASL2
     MLXMLNode* resumeNode = nil;
-    @synchronized(_stateLockObject) {
-        //test if smacks is supported and allows resume
-        if(self.connectionProperties.supportsSM3 && self.streamID)
-        {
-            NSDictionary* dic = @{
-                @"h":[NSString stringWithFormat:@"%@",self.lastHandledInboundStanza],
-                @"previd":self.streamID,
-            };
-            resumeNode = [[MLXMLNode alloc] initWithElement:@"resume" andNamespace:@"urn:xmpp:sm:3" withAttributes:dic andChildren:@[] andData:nil];
-            self.resuming = YES;      //this is needed to distinguish a failed smacks resume and a failed smacks enable later on
+    if(!self.smacksResumeInlined)
+    {
+        @synchronized(_stateLockObject) {
+            //test if smacks is supported and allows resume
+            if(self.connectionProperties.supportsSM3 && self.streamID)
+            {
+                NSDictionary* dic = @{
+                    @"h":[NSString stringWithFormat:@"%@",self.lastHandledInboundStanza],
+                    @"previd":self.streamID,
+                };
+                resumeNode = [[MLXMLNode alloc] initWithElement:@"resume" andNamespace:@"urn:xmpp:sm:3" withAttributes:dic andChildren:@[] andData:nil];
+                self.resuming = YES;      //this is needed to distinguish a failed smacks resume and a failed smacks enable later on
+            }
         }
     }
     if(resumeNode)
-        [self send:resumeNode];
+        [self send:resumeNode];     //legacy resume
     else
+    {
+        //legacy bind
         [self bindResource:self.connectionProperties.identity.resource];
+    }
 }
 
--(void) handleScramInSuccessOrContinue:(MLXMLNode*) parsedStanza
+-(void) handleSasl2SuccessOrContinue:(MLXMLNode*) parsedStanza
 {
     //perform logic to handle sasl success
     DDLogInfo(@"Got SASL2 Success/Continue");
-    
-    //only parse and validate scram response, if we are in scram mode (should always be the case)
-    MLAssert(self->_scramHandler != nil, @"self->_scramHandler should NEVER be nil when using SASL2!");
+    MLAssert(self->_scramHandler != nil || self->_htHandler != nil, @"At least self->_scramHandler or self->_htHandler must not be nil when using SASL2!");
     
     NSString* message = nil;
     BOOL deactivate_account = NO;
-    NSString* innerSASLData = [[NSString alloc] initWithData:[parsedStanza findFirst:@"additional-data#|base64"] encoding:NSUTF8StringEncoding];
-    switch([self->_scramHandler parseServerFinalMessage:innerSASLData]) {
-        case MLScramStatusWrongServerProof: deactivate_account = YES; message = NSLocalizedString(@"SCRAM server proof wrong, ongoing MITM attack highly likely, aborting authentication and disabling account to limit damage. You should try to reenable your account once you are in a clean networking environment again.", @""); break;
-        case MLScramStatusServerError: deactivate_account = NO; message = NSLocalizedString(@"Unexpected error authenticating server using SASL2 (does your server have a bug?), disconnecting!", @""); break;
-        case MLScramStatusServerFinalOK: deactivate_account = NO; message = nil; break;        //everything is okay
-        default: unreachable(@"wrong status for scram message!"); break;
+    if(_htHandler != nil)
+    {
+        switch([_htHandler parseResponderMessage:[parsedStanza findFirst:@"additional-data#|base64"]])
+        {
+            case MLHtStatusResponderSignatureError: deactivate_account = YES; message = NSLocalizedString(@"FAST responder message wrong, ongoing MITM attack highly likely, aborting authentication and disabling account to limit damage. You should try to reenable your account once you are in a clean networking environment again.", @""); break;
+            case MLHtStatusResponderMessageError:
+                DDLogWarn(@"Fast token invalid, reconnecting to flush pipeline and use normal SCRAM...");
+                //clear pipeline cache to make sure we have a fresh restart next time
+                [self resetAuthPipelining];
+                //clear FAST token (it was reported to be invalid by the server) --> use SCRAM on next login
+                [SAMKeychain deletePasswordForService:kMonalHtTokenKeychainName account:self.accountID.stringValue];
+                [self reconnect];
+                return;
+            case MLHtStatusResponderMessageOK: deactivate_account = NO; message = nil; break;        //everything is okay
+            default: unreachable(@"wrong status for ht response!"); break;
+        }
     }
-    
+    else if(_scramHandler != nil)
+    {
+        NSString* innerSASLData = [[NSString alloc] initWithData:[parsedStanza findFirst:@"additional-data#|base64"] encoding:NSUTF8StringEncoding];
+        switch([_scramHandler parseServerFinalMessage:innerSASLData])
+        {
+            case MLScramStatusWrongServerProof: deactivate_account = YES; message = NSLocalizedString(@"SCRAM server proof wrong, ongoing MITM attack highly likely, aborting authentication and disabling account to limit damage. You should try to reenable your account once you are in a clean networking environment again.", @""); break;
+            case MLScramStatusServerError: deactivate_account = NO; message = NSLocalizedString(@"Unexpected error authenticating server using SASL2 (does your server have a bug?), disconnecting!", @""); break;
+            case MLScramStatusServerFinalOK: deactivate_account = NO; message = nil; break;        //everything is okay
+            default: unreachable(@"wrong status for scram message!"); break;
+        }
+    }
+        
     if(message != nil)
     {
-        DDLogError(@"SCRAM says this server-final message was wrong: %@", message);
+        DDLogError(@"SCRAM/HT says this server-final-message/responder-message was wrong: %@", message);
         
         //clear pipeline cache to make sure we have a fresh restart next time
-        _pipeliningState = kPipelinedNothing;
-        _cachedStreamFeaturesBeforeAuth = nil;
-        _cachedStreamFeaturesAfterAuth = nil;
+        [self resetAuthPipelining];
         
         //make sure this error is reported, even if there are other SRV records left (we disconnect here and won't try again)
         //deactivate the account if requested, too
@@ -3364,7 +3722,7 @@ NSString* const kStanza = @"stanza";
         return;
     }
     else
-        DDLogDebug(@"SCRAM says this server-final message was correct");
+        DDLogDebug(@"SCRAM/HT says this server-final-message/responder-message was correct");
 }
 
 //bridge needed fo MLServerDetails.m
@@ -3401,16 +3759,21 @@ NSString* const kStanza = @"stanza";
 
 #pragma mark stanza handling
 
-// -(AnyPromise*) sendIq:(XMPPIQ*) iq
-// {
-//     return [AnyPromise promiseWithResolverBlock:^(PMKResolver resolve) {
-//         [self sendIq:iq withResponseHandler:^(XMPPIQ* response) {
-//             resolve(response);
-//         } andErrorHandler:^(XMPPIQ* error) {
-//             resolve(error);
-//         }];
-//     }];
-// }
+-(AnyPromise*) sendIq:(XMPPIQ*) iq
+{
+    return [self sendIq:iq withErrorDescription:nil];
+}
+
+-(AnyPromise*) sendIq:(XMPPIQ*) iq withErrorDescription:(NSString*) description
+{
+    return [AnyPromise promiseWithResolverBlock:^(PMKResolver resolve) {
+        [self sendIq:iq withResponseHandler:^(XMPPIQ* response) {
+            resolve(response);
+        } andErrorHandler:^(XMPPIQ* error) {
+            resolve([HelperTools getNSErrorFrom:error withDescription:description]);
+        }];
+    }];
+}
 
 -(void) sendIq:(XMPPIQ*) iq withResponseHandler:(monal_iq_handler_t) resultHandler andErrorHandler:(monal_iq_handler_t) errorHandler
 {
@@ -3468,7 +3831,7 @@ NSString* const kStanza = @"stanza";
                     [queued_stanza addDelayTagFrom:self.connectionProperties.identity.jid];
             }
             @synchronized(self->_stateLockObject) {
-                [self logStanza:queued_stanza withPrefix:[NSString stringWithFormat:@"ADD UNACKED STANZA: %@", self.lastOutboundStanza]];
+                [self logOutgoingStanza:queued_stanza withPrefix:[NSString stringWithFormat:@"ADD UNACKED STANZA (%@)", self.lastOutboundStanza] andLoglevel:DDLogFlagDebug];
                 NSDictionary* dic = @{kQueueID:self.lastOutboundStanza, kStanza:queued_stanza};
                 [self.unAckedStanzas addObject:dic];
                 //increment for next call
@@ -3489,27 +3852,44 @@ NSString* const kStanza = @"stanza";
         )
         {
             [self->_sendQueue addOperation:[NSBlockOperation blockOperationWithBlock:^{
-                [self logStanza:stanza withPrefix:@"SEND"];
+                [self logOutgoingStanza:stanza withPrefix:@"SEND" andLoglevel:DDLogFlagDebug];
                 [self->_outputQueue addObject:stanza];
                 [self writeFromQueue];      // try to send if there is space
             }]];
         }
         else
-            [self logStanza:stanza withPrefix:@"NOT ADDING STANZA TO SEND QUEUE"];
+            [self logOutgoingStanza:stanza withPrefix:@"NOT ADDING STANZA TO SEND QUEUE" andLoglevel:DDLogFlagDebug];
     }];
 }
 
--(void) logStanza:(MLXMLNode*) stanza withPrefix:(NSString*) prefix
+-(void) logIncomingStanza:(MLXMLNode*) stanza withPrefix:(NSString*) prefix andLoglevel:(unsigned long) loglevel
+{
+#if !TARGET_OS_SIMULATOR
+    if([stanza check:@"/{urn:xmpp:sasl:2}success/{urn:xmpp:fast:0}token"])
+    {
+        MLXMLNode* redactedStanza = [stanza copy];
+        MLXMLNode* fastTokenNode = [redactedStanza findFirst:@"/{urn:xmpp:sasl:2}success/{urn:xmpp:fast:0}token"];
+        fastTokenNode.attributes[@"token"] = @"redacted_token";
+        DDLogWithLevel(loglevel, @"%@: %@", prefix, redactedStanza);
+    }
+    else
+        DDLogWithLevel(loglevel, @"%@: %@", prefix, stanza);
+#else
+    DDLogWithLevel(loglevel, @"%@: %@", prefix, stanza);
+#endif
+}
+
+-(void) logOutgoingStanza:(MLXMLNode*) stanza withPrefix:(NSString*) prefix andLoglevel:(unsigned long) loglevel
 {
 #if !TARGET_OS_SIMULATOR
     if([stanza check:@"/{urn:ietf:params:xml:ns:xmpp-sasl}*"])
-        DDLogDebug(@"%@: redacted sasl element: %@", prefix, [stanza findFirst:@"/{urn:ietf:params:xml:ns:xmpp-sasl}*$"]);
+        DDLogWithLevel(loglevel, @"%@: redacted sasl element: %@", prefix, [stanza findFirst:@"/{urn:ietf:params:xml:ns:xmpp-sasl}*$"]);
     else if([stanza check:@"/{jabber:client}iq<type=set>/{jabber:iq:register}query"])
-        DDLogDebug(@"%@: redacted register/change password iq", prefix);
+        DDLogWithLevel(loglevel, @"%@: redacted register/change password iq", prefix);
     else
-        DDLogDebug(@"%@: %@", prefix, stanza);
+        DDLogWithLevel(loglevel, @"%@: %@", prefix, stanza);
 #else
-    DDLogDebug(@"%@: %@", prefix, stanza);
+    DDLogWithLevel(loglevel, @"%@: %@", prefix, stanza);
 #endif
 }
 
@@ -3518,7 +3898,7 @@ NSString* const kStanza = @"stanza";
 
 -(void) retractMessage:(MLMessage*) msg
 {
-    MLAssert([msg.accountId isEqual:self.accountNo], @"Can not retract message from one account on another account!", (@{@"self.accountNo": self.accountNo, @"msg": msg}));
+    MLAssert([msg.accountID isEqual:self.accountID], @"Can not retract message from one account on another account!", (@{@"self.accountID": self.accountID, @"msg": msg}));
     XMPPMessage* messageNode = [[XMPPMessage alloc] initWithType:msg.isMuc ? kMessageGroupChatType : kMessageChatType to:msg.buddyName];
     
     DDLogVerbose(@"Retracting message: %@", msg);
@@ -3536,7 +3916,14 @@ NSString* const kStanza = @"stanza";
     //for MAM
     [messageNode setStoreHint];
     
-    [self send:messageNode];
+    [self dispatchAsyncOnReceiveQueue: ^{
+        [self send:messageNode];
+        [[DataLayer sharedInstance] retractMessageHistory:msg.messageDBId];
+        [[MLNotificationQueue currentQueue] postNotificationName:kMonalDeletedMessageNotice object:self userInfo:@{
+            @"historyId": msg.messageDBId,
+            @"contact": msg.chatContact
+        }];
+    }];
 }
 
 -(void) moderateMessage:(MLMessage*) msg withReason:(NSString*) reason
@@ -3579,19 +3966,8 @@ NSString* const kStanza = @"stanza";
     if(messageId)       //use the uuid autogenerated when our message node was created above if no id was supplied
         messageNode.id = messageId;
 
-#ifdef IS_ALPHA
-    // WARNING NOT FOR PRODUCTION
-    // encrypt messages that should not be encrypted (but still use plaintext body for devices not speaking omemo)
-    if(!encrypt && !isUpload && (!contact.isGroup || (contact.isGroup && [contact.mucType isEqualToString:@"group"])))
-    {
-        [self.omemo encryptMessage:messageNode withMessage:message toContact:contact.contactJid];
-        //[self addEME:@"eu.siacs.conversations.axolotl" withName:@"OMEMO" toMessageNode:messageNode];
-    }
-    // WARNING NOT FOR PRODUCTION END
-#endif
-
 #ifndef DISABLE_OMEMO
-    if(encrypt && (!contact.isGroup || (contact.isGroup && [contact.mucType isEqualToString:@"group"])))
+    if(encrypt && (!contact.isMuc || (contact.isMuc && [contact.mucType isEqualToString:kMucTypeGroup])))
     {
         [self.omemo encryptMessage:messageNode withMessage:message toContact:contact.contactJid];
         [self addEME:@"eu.siacs.conversations.axolotl" withName:@"OMEMO" toMessageNode:messageNode];
@@ -3606,13 +3982,13 @@ NSString* const kStanza = @"stanza";
     }
     
     //set message type
-    if(contact.isGroup)
+    if(contact.isMuc)
         [messageNode.attributes setObject:kMessageGroupChatType forKey:@"type"];
     else
         [messageNode.attributes setObject:kMessageChatType forKey:@"type"];
     
     //request receipts and chat-markers in 1:1 or groups (no channels!)
-    if(!contact.isGroup || [@"group" isEqualToString:contact.mucType])
+    if(!contact.isMuc || [kMucTypeGroup isEqualToString:contact.mucType])
     {
         [messageNode addChildNode:[[MLXMLNode alloc] initWithElement:@"request" andNamespace:@"urn:xmpp:receipts"]];
         [messageNode addChildNode:[[MLXMLNode alloc] initWithElement:@"markable" andNamespace:@"urn:xmpp:chat-markers:0"]];
@@ -3642,13 +4018,64 @@ NSString* const kStanza = @"stanza";
     [self send:messageNode];
 }
 
+-(void) sendReactions:(NSOrderedSet*) reactions forMessage:(MLMessage*) message
+{
+    DDLogInfo(@"Sending reactions for message %@: %@", message, reactions);
+    XMPPMessage* messageNode = [[XMPPMessage alloc] initToContact:message.chatContact];
+    
+    NSMutableArray* reactionNodes = [NSMutableArray new];
+    for(NSString* reaction in reactions)
+        [reactionNodes addObject:[[MLXMLNode alloc] initWithElement:@"reaction" andData:reaction]];
+    
+    [messageNode addChildNode:[[MLXMLNode alloc] initWithElement:@"reactions" andNamespace:@"urn:xmpp:reactions:0" withAttributes:@{
+        @"id": message.isMuc ? message.stanzaId : message.messageId,
+    } andChildren:reactionNodes andData:nil]];
+    
+    //set message type
+    if(message.isMuc)
+        [messageNode.attributes setObject:kMessageGroupChatType forKey:@"type"];
+    else
+        [messageNode.attributes setObject:kMessageChatType forKey:@"type"];
+    
+    //for MAM
+    [messageNode setStoreHint];
+    
+    [self dispatchAsyncOnReceiveQueue: ^{
+        [self send:messageNode];
+        
+        //now add the sent reaction to our database, too
+        NSDate* reactionDate = [NSDate date];
+        NSString* jid = nil;
+        NSString* occupantId = nil;
+        NSString* actualFrom = nil;
+        if(message.isMuc && [kMucTypeChannel isEqualToString:message.mucType])
+        {
+            occupantId = [[DataLayer sharedInstance] getOwnOccupantIdForMuc:message.chatContact.contactJid onAccountID:message.chatContact.accountID];
+            actualFrom = [[DataLayer sharedInstance] ownNickNameforMuc:message.chatContact.contactJid forAccount:message.chatContact.accountID];
+        }
+        else
+            jid = self.connectionProperties.identity.jid;
+        [[DataLayer sharedInstance] setReactions:reactions fromJid:jid orOccupantId:occupantId forHistoryId:message.messageDBId withDate:reactionDate andActualFrom:actualFrom];
+        
+        DDLogInfo(@"Sending out kMonalUpdatedMessageNotice notification for historyId %@", message.messageDBId);
+        [[MLNotificationQueue currentQueue] postNotificationName:kMonalUpdatedMessageNotice object:self userInfo:@{
+            @"message": message,
+            @"showAlert": @NO,
+            @"contact": message.chatContact,
+            @"LMCReplaced": @NO,
+            @"reactionsUpdate": @YES,
+            @"reactions": [[DataLayer sharedInstance] getReactionsForHistoryId:message.messageDBId],
+        }];
+    }];
+}
+
 #pragma mark set connection attributes
 
 -(void) persistState
 {
-    DDLogVerbose(@"%@ --> persistState before: used/available memory: %.3fMiB / %.3fMiB)...", self.accountNo, [HelperTools report_memory], (CGFloat)os_proc_available_memory() / 1048576);
+    DDLogVerbose(@"%@ --> persistState before: used/available memory: %.3fMiB / %.3fMiB)...", self.accountID, [HelperTools report_memory], (CGFloat)os_proc_available_memory() / 1048576);
     [self realPersistState];
-    DDLogVerbose(@"%@ --> persistState after: used/available memory: %.3fMiB / %.3fMiB)...", self.accountNo, [HelperTools report_memory], (CGFloat)os_proc_available_memory() / 1048576);
+    DDLogVerbose(@"%@ --> persistState after: used/available memory: %.3fMiB / %.3fMiB)...", self.accountID, [HelperTools report_memory], (CGFloat)os_proc_available_memory() / 1048576);
 }
 
 -(void) realPersistState
@@ -3658,7 +4085,7 @@ NSString* const kStanza = @"stanza";
     //thread 2 (for example: urllib session): holding state lock object and waiting for write transaction
     [[DataLayer sharedInstance] createTransaction:^{
         @synchronized(self->_stateLockObject) {
-            DDLogVerbose(@"%@ --> realPersistState before: used/available memory: %.3fMiB / %.3fMiB)...", self.accountNo, [HelperTools report_memory], (CGFloat)os_proc_available_memory() / 1048576);
+            DDLogVerbose(@"%@ --> realPersistState before: used/available memory: %.3fMiB / %.3fMiB)...", self.accountID, [HelperTools report_memory], (CGFloat)os_proc_available_memory() / 1048576);
             //state dictionary
             NSMutableDictionary* values = [NSMutableDictionary new];
 
@@ -3690,6 +4117,9 @@ NSString* const kStanza = @"stanza";
             [values setValue:[self.connectionProperties.serverDiscoFeatures copy] forKey:@"serverDiscoFeatures"];
             [values setValue:[self.connectionProperties.accountDiscoFeatures copy] forKey:@"accountDiscoFeatures"];
             
+            if(self.connectionProperties.serverContactAddresses)
+                [values setValue:[self.connectionProperties.serverContactAddresses copy] forKey:@"serverContactAddresses"];
+
             if(self.connectionProperties.uploadServer)
                 [values setObject:self.connectionProperties.uploadServer forKey:@"uploadServer"];
             
@@ -3702,7 +4132,6 @@ NSString* const kStanza = @"stanza";
             [values setObject:[self->_runningMamQueries copy] forKey:@"runningMamQueries"];
             [values setObject:[NSNumber numberWithBool:self->_loggedInOnce] forKey:@"loggedInOnce"];
             [values setObject:[NSNumber numberWithBool:self.connectionProperties.usingCarbons2] forKey:@"usingCarbons2"];
-            [values setObject:[NSNumber numberWithBool:self.connectionProperties.supportsBookmarksCompat] forKey:@"supportsBookmarksCompat"];
             [values setObject:[NSNumber numberWithBool:self.connectionProperties.pushEnabled] forKey:@"pushEnabled"];
             [values setObject:[NSNumber numberWithBool:self.connectionProperties.supportsPubSub] forKey:@"supportsPubSub"];
             [values setObject:[NSNumber numberWithBool:self.connectionProperties.supportsPubSubMax] forKey:@"supportsPubSubMax"];
@@ -3739,11 +4168,11 @@ NSString* const kStanza = @"stanza";
             [values setObject:[NSNumber numberWithBool:self.hasSeenOmemoDeviceListAfterOwnDeviceid] forKey:@"hasSeenOmemoDeviceListAfterOwnDeviceid"];
             
             //save state dictionary
-            [[DataLayer sharedInstance] persistState:values forAccount:self.accountNo];
+            [[DataLayer sharedInstance] persistState:values forAccount:self.accountID];
 
             //debug output
-            DDLogVerbose(@"%@ --> persistState(saved at %@):\n\tisDoingFullReconnect=%@,\n\tlastHandledInboundStanza=%@,\n\tlastHandledOutboundStanza=%@,\n\tlastOutboundStanza=%@,\n\t#unAckedStanzas=%lu%s,\n\tstreamID=%@\n\tlastInteractionDate=%@\n\tpersistentIqHandlers=%@\n\tsupportsHttpUpload=%d\n\tpushEnabled=%d\n\tsupportsPubSub=%d\n\tsupportsModernPubSub=%d\n\tsupportsPubSubMax=%d\n\tsupportsBookmarksCompat=%d\n\taccountDiscoDone=%d\n\t_inCatchup=%@\n\tomemo.state=%@\n\thasSeenOmemoDeviceListAfterOwnDeviceid=%@\n\t_cachedStreamFeaturesBeforeAuth=%@\n\t_cachedStreamFeaturesAfterAuth=%@\n",
-                self.accountNo,
+            DDLogVerbose(@"%@ --> persistState(saved at %@):\n\tisDoingFullReconnect=%@,\n\tlastHandledInboundStanza=%@,\n\tlastHandledOutboundStanza=%@,\n\tlastOutboundStanza=%@,\n\t#unAckedStanzas=%lu%s,\n\tstreamID=%@\n\tlastInteractionDate=%@\n\tpersistentIqHandlers=%@\n\tsupportsHttpUpload=%d\n\tpushEnabled=%d\n\tsupportsPubSub=%d\n\tsupportsModernPubSub=%d\n\tsupportsPubSubMax=%d\n\taccountDiscoDone=%d\n\t_inCatchup=%@\n\tomemo.state=%@\n\thasSeenOmemoDeviceListAfterOwnDeviceid=%@\n\t_cachedStreamFeaturesBeforeAuth=%@\n\t_cachedStreamFeaturesAfterAuth=%@\n",
+                self.accountID,
                 values[@"stateSavedAt"],
                 bool2str(self.isDoingFullReconnect),
                 self.lastHandledInboundStanza,
@@ -3758,7 +4187,6 @@ NSString* const kStanza = @"stanza";
                 self.connectionProperties.supportsPubSub,
                 self.connectionProperties.supportsModernPubSub,
                 self.connectionProperties.supportsPubSubMax,
-                self.connectionProperties.supportsBookmarksCompat,
                 self.connectionProperties.accountDiscoDone,
                 self->_inCatchup,
                 self.omemo.state,
@@ -3766,23 +4194,23 @@ NSString* const kStanza = @"stanza";
                 bool2str(self->_cachedStreamFeaturesBeforeAuth!=nil),
                 bool2str(self->_cachedStreamFeaturesAfterAuth!=nil)
             );
-            DDLogVerbose(@"%@ --> realPersistState after: used/available memory: %.3fMiB / %.3fMiB)...", self.accountNo, [HelperTools report_memory], (CGFloat)os_proc_available_memory() / 1048576);
+            DDLogVerbose(@"%@ --> realPersistState after: used/available memory: %.3fMiB / %.3fMiB)...", self.accountID, [HelperTools report_memory], (CGFloat)os_proc_available_memory() / 1048576);
         }
     }];
 }
 
 -(void) readState
 {
-    DDLogVerbose(@"%@ --> readState before: used/available memory: %.3fMiB / %.3fMiB)...", self.accountNo, [HelperTools report_memory], (CGFloat)os_proc_available_memory() / 1048576);
+    DDLogVerbose(@"%@ --> readState before: used/available memory: %.3fMiB / %.3fMiB)...", self.accountID, [HelperTools report_memory], (CGFloat)os_proc_available_memory() / 1048576);
     [self realReadState];
-    DDLogVerbose(@"%@ --> readState after: used/available memory: %.3fMiB / %.3fMiB)...", self.accountNo, [HelperTools report_memory], (CGFloat)os_proc_available_memory() / 1048576);
+    DDLogVerbose(@"%@ --> readState after: used/available memory: %.3fMiB / %.3fMiB)...", self.accountID, [HelperTools report_memory], (CGFloat)os_proc_available_memory() / 1048576);
 }
 
 -(void) realReadState
 {
     @synchronized(_stateLockObject) {
-        DDLogVerbose(@"%@ --> realReadState before: used/available memory: %.3fMiB / %.3fMiB)...", self.accountNo, [HelperTools report_memory], (CGFloat)os_proc_available_memory() / 1048576);
-        NSMutableDictionary* dic = [[DataLayer sharedInstance] readStateForAccount:self.accountNo];
+        DDLogVerbose(@"%@ --> realReadState before: used/available memory: %.3fMiB / %.3fMiB)...", self.accountID, [HelperTools report_memory], (CGFloat)os_proc_available_memory() / 1048576);
+        NSMutableDictionary* dic = [[DataLayer sharedInstance] readStateForAccount:self.accountID];
         if(dic)
         {
             //check state version
@@ -3814,11 +4242,7 @@ NSString* const kStanza = @"stanza";
                 //invalidate corrupt smacks states (this could potentially loose messages, but hey, the state is corrupt anyways)
                 if(self.lastHandledInboundStanza == nil || self.lastHandledOutboundStanza == nil || self.lastOutboundStanza == nil || !self.unAckedStanzas)
                 {
-#ifndef IS_ALPHA
                     [self initSM3];
-#else
-                    @throw [NSException exceptionWithName:@"RuntimeError" reason:@"corrupt smacks state" userInfo:dic];
-#endif
                 }
             }
             
@@ -3847,6 +4271,8 @@ NSString* const kStanza = @"stanza";
             self.connectionProperties.serverDiscoFeatures = [dic objectForKey:@"serverDiscoFeatures"];
             self.connectionProperties.accountDiscoFeatures = [dic objectForKey:@"accountDiscoFeatures"];
             
+            self.connectionProperties.serverContactAddresses = [dic objectForKey:@"serverContactAddresses"];
+
             self.connectionProperties.discoveredServices = [[dic objectForKey:@"discoveredServices"] mutableCopy];
             self.connectionProperties.discoveredStunTurnServers = [[dic objectForKey:@"discoveredStunTurnServers"] mutableCopy];
             self.connectionProperties.discoveredAdhocCommands = [[dic objectForKey:@"discoveredAdhocCommands"] mutableCopy];
@@ -3865,12 +4291,6 @@ NSString* const kStanza = @"stanza";
             {
                 NSNumber* carbonsNumber = [dic objectForKey:@"usingCarbons2"];
                 self.connectionProperties.usingCarbons2 = carbonsNumber.boolValue;
-            }
-            
-            if([dic objectForKey:@"supportsBookmarksCompat"])
-            {
-                NSNumber* compatNumber = [dic objectForKey:@"supportsBookmarksCompat"];
-                self.connectionProperties.supportsBookmarksCompat = compatNumber.boolValue;
             }
             
             if([dic objectForKey:@"pushEnabled"])
@@ -3945,8 +4365,8 @@ NSString* const kStanza = @"stanza";
             }
             
             //debug output
-            DDLogVerbose(@"%@ --> readState(saved at %@):\n\tisDoingFullReconnect=%@,\n\tlastHandledInboundStanza=%@,\n\tlastHandledOutboundStanza=%@,\n\tlastOutboundStanza=%@,\n\t#unAckedStanzas=%lu%s,\n\tstreamID=%@,\n\tlastInteractionDate=%@\n\tpersistentIqHandlers=%@\n\tsupportsHttpUpload=%d\n\tpushEnabled=%d\n\tsupportsPubSub=%d\n\tsupportsModernPubSub=%d\n\tsupportsPubSubMax=%d\n\tsupportsBookmarksCompat=%d\n\taccountDiscoDone=%d\n\t_inCatchup=%@\n\tomemo.state=%@\n\thasSeenOmemoDeviceListAfterOwnDeviceid=%@\n\t_cachedStreamFeaturesBeforeAuth=%@\n\t_cachedStreamFeaturesAfterAuth=%@\n",
-                self.accountNo,
+            DDLogVerbose(@"%@ --> readState(saved at %@):\n\tisDoingFullReconnect=%@,\n\tlastHandledInboundStanza=%@,\n\tlastHandledOutboundStanza=%@,\n\tlastOutboundStanza=%@,\n\t#unAckedStanzas=%lu%s,\n\tstreamID=%@,\n\tlastInteractionDate=%@\n\tpersistentIqHandlers=%@\n\tsupportsHttpUpload=%d\n\tpushEnabled=%d\n\tsupportsPubSub=%d\n\tsupportsModernPubSub=%d\n\tsupportsPubSubMax=%d\n\taccountDiscoDone=%d\n\t_inCatchup=%@\n\tomemo.state=%@\n\thasSeenOmemoDeviceListAfterOwnDeviceid=%@\n\t_cachedStreamFeaturesBeforeAuth=%@\n\t_cachedStreamFeaturesAfterAuth=%@\n",
+                self.accountID,
                 dic[@"stateSavedAt"],
                 bool2str(self.isDoingFullReconnect),
                 self.lastHandledInboundStanza,
@@ -3961,7 +4381,6 @@ NSString* const kStanza = @"stanza";
                 self.connectionProperties.supportsPubSub,
                 self.connectionProperties.supportsModernPubSub,
                 self.connectionProperties.supportsPubSubMax,
-                self.connectionProperties.supportsBookmarksCompat,
                 self.connectionProperties.accountDiscoDone,
                 self->_inCatchup,
                 self.omemo.state,
@@ -3978,7 +4397,7 @@ NSString* const kStanza = @"stanza";
         _smacksAckHandler = [NSMutableArray new];
         self.smacksRequestInFlight = NO;
         
-        DDLogVerbose(@"%@ --> realReadState after: used/available memory: %.3fMiB / %.3fMiB)...", self.accountNo, [HelperTools report_memory], (CGFloat)os_proc_available_memory() / 1048576);
+        DDLogVerbose(@"%@ --> realReadState after: used/available memory: %.3fMiB / %.3fMiB)...", self.accountID, [HelperTools report_memory], (CGFloat)os_proc_available_memory() / 1048576);
     }
 }
 
@@ -4051,12 +4470,22 @@ NSString* const kStanza = @"stanza";
     if([parts count] < 2 || [[HelperTools dataWithHexString:parts[1]] length] < 1)
         return [self bindResource:[HelperTools encodeRandomResource]];
     
+    [self cleanupBeforeBind];
+    
+    //send bind iq
+    XMPPIQ* iqNode = [[XMPPIQ alloc] initWithType:kiqSetType];
+    [iqNode setBindWithResource:resource];
+    [self sendIq:iqNode withHandler:$newHandler(MLIQProcessor, handleBind)];
+}
+
+-(void) cleanupBeforeBind
+{
     self.isDoingFullReconnect = YES;
     _accountState = kStateBinding;
     [self accountStatusChanged];
     
     //delete old resources because we get new presences once we're done initializing the session
-    [[DataLayer sharedInstance] resetContactsForAccount:self.accountNo];
+    [[DataLayer sharedInstance] resetContactsForAccount:self.accountID];
     
     //inform all old iq handlers of invalidation and clear _iqHandlers dictionary afterwards
     @synchronized(_iqHandlers) {
@@ -4079,7 +4508,7 @@ NSString* const kStanza = @"stanza";
     [self.pubsub invalidateQueue];
     
     //clean up all idle timers
-    [[DataLayer sharedInstance] cleanupIdleTimerOnAccountNo:self.accountNo];
+    [[DataLayer sharedInstance] cleanupIdleTimerOnAccountID:self.accountID];
     
     //force new disco queries because we landed here because of a failed smacks resume
     //(or the account got forcibly disconnected/reconnected or this is the very first login of this account)
@@ -4088,6 +4517,7 @@ NSString* const kStanza = @"stanza";
     //(smacks state will be reset/cleared later on if appropriate, no need to handle smacks here)
     self.connectionProperties.serverDiscoFeatures = [NSSet new];
     self.connectionProperties.accountDiscoFeatures = [NSSet new];
+    self.connectionProperties.serverContactAddresses = [NSDictionary new];
     self.connectionProperties.discoveredServices = [NSMutableArray new];
     self.connectionProperties.discoveredStunTurnServers = [NSMutableArray new];
     self.connectionProperties.discoveredAdhocCommands = [NSMutableDictionary new];
@@ -4097,7 +4527,6 @@ NSString* const kStanza = @"stanza";
     self.connectionProperties.uploadServer = nil;
     //self.connectionProperties.supportsSM3 = NO;                   //already set by stream feature parsing
     self.connectionProperties.pushEnabled = NO;
-    self.connectionProperties.supportsBookmarksCompat = NO;
     self.connectionProperties.usingCarbons2 = NO;
     //self.connectionProperties.serverIdentity = @"";               //already set by stream feature parsing
     self.connectionProperties.supportsPubSub = NO;
@@ -4115,12 +4544,7 @@ NSString* const kStanza = @"stanza";
     //in the parseQueue in the last run and deleted there)
     //--> no harm in deleting them when starting a new session (but DON'T DELETE them when resuming the old smacks session)
     _inCatchup = [NSMutableDictionary new];
-    [[DataLayer sharedInstance] deleteDelayedMessageStanzasForAccount:self.accountNo];
-    
-    //send bind iq
-    XMPPIQ* iqNode = [[XMPPIQ alloc] initWithType:kiqSetType];
-    [iqNode setBindWithResource:resource];
-    [self sendIq:iqNode withHandler:$newHandler(MLIQProcessor, handleBind)];
+    [[DataLayer sharedInstance] deleteDelayedMessageStanzasForAccount:self.accountID];
 }
 
 -(void) queryDisco
@@ -4211,7 +4635,7 @@ NSString* const kStanza = @"stanza";
     XMPPIQ* roster = [[XMPPIQ alloc] initWithType:kiqGetType];
     NSString* rosterVer;
     if([self.connectionProperties.serverFeatures check:@"{urn:xmpp:features:rosterver}ver"])
-        rosterVer = [[DataLayer sharedInstance] getRosterVersionForAccount:self.accountNo];
+        rosterVer = [[DataLayer sharedInstance] getRosterVersionForAccount:self.accountID];
     [roster setRosterRequest:rosterVer];
     [self sendIq:roster withHandler:$newHandler(MLIQProcessor, handleRoster)];
 }
@@ -4330,7 +4754,7 @@ NSString* const kStanza = @"stanza";
 
 -(void) updateLocalBlocklistCache:(NSSet<NSString*>*) blockedJids
 {
-    [[DataLayer sharedInstance] updateLocalBlocklistCache:blockedJids forAccountNo:self.accountNo];
+    [[DataLayer sharedInstance] updateLocalBlocklistCache:blockedJids forAccountID:self.accountID];
 }
 
 #pragma mark vcard
@@ -4339,7 +4763,7 @@ NSString* const kStanza = @"stanza";
 {
     NSDictionary* split = [HelperTools splitJid:jid];
     MLAssert(split[@"resource"] != nil, @"getEntitySoftWareVersion needs a full jid!");
-    if([[DataLayer sharedInstance] checkCap:@"jabber:iq:version" forUser:split[@"user"] andResource:split[@"resource"] onAccountNo:self.accountNo])
+    if([[DataLayer sharedInstance] checkCap:@"jabber:iq:version" forUser:split[@"user"] andResource:split[@"resource"] onAccountID:self.accountID])
     {
         XMPPIQ* iqEntitySoftWareVersion = [[XMPPIQ alloc] initWithType:kiqGetType to:jid];
         [iqEntitySoftWareVersion getEntitySoftwareVersionInfo];
@@ -4499,151 +4923,32 @@ NSString* const kStanza = @"stanza";
     [self sendIq:query withHandler:$newHandler(MLIQProcessor, handleMamPrefs)];
 }
 
--(void) setMAMQueryMostRecentForContact:(MLContact*) contact before:(NSString*) uid withCompletion:(void (^)(NSArray* _Nullable, NSString* _Nullable error)) completion
+-(XMPPIQ*) prepareIQForMAMQueryMostRecentForContact:(MLContact*) contact before:(NSString*) before
 {
-    //the completion handler will get nil, if an error prevented us toget any messaes, an empty array, if the upper end of our archive was reached or an array
-    //of newly loaded mlmessages in all other cases
-    unsigned int __block retrievedBodies = 0;
-    NSMutableArray* __block pageList = [NSMutableArray new];
-    void __block (^query)(NSString* before);
-    monal_iq_handler_t __block responseHandler;
-    monal_void_block_t callUI = ^{
-        //if we did not retrieve any body messages we don't need to process metadata sanzas (if any), but signal we reached the end of our archive
-        //callUI() will only be called with retrievedBodies == 0 if we reached the upper end of our mam archive, because iq errors have already been
-        //handled in the iq error handler below
-        if(retrievedBodies == 0)
-        {
-            completion(@[], nil);
-            return;
-        }
-        
-        NSMutableArray* __block historyIdList = [NSMutableArray new];
-        NSNumber* __block historyId = [NSNumber numberWithInt:[[[DataLayer sharedInstance] getSmallestHistoryId] intValue] - retrievedBodies];
-        
-        //ignore all notifications generated while processing the queued stanzas
-        [MLNotificationQueue queueNotificationsInBlock:^{
-            uint32_t pageNo = 0;
-            //iterate through all pages and their messages forward in time (pages have already been sorted forward in time internally)
-            DDLogDebug(@"Handling %@ mam pages...", @([pageList count]));
-            for(NSArray* page in [[pageList reverseObjectEnumerator] allObjects])
-            {
-                //process received message stanzas and manipulate the db accordingly
-                //if a new message got added to the history db, the message processor will return a MLMessage instance containing the history id of the newly created entry
-                DDLogDebug(@"Handling %@ entries in mam page...", @([page count]));
-                uint32_t entryNo = 0;
-                for(NSDictionary* data in page)
-                {
-                    //don't write data to our tcp stream while inside this db transaction
-                    //(all effects to the outside world should be transactional, too)
-                    [self freezeSendQueue];
-                    //process all queued mam stanzas in a dedicated db write transaction
-                    [[DataLayer sharedInstance] createTransaction:^{
-                        DDLogVerbose(@"Handling mam page entry[%u(%@).%u(%@)]): %@", pageNo, @([pageList count]), entryNo, @([page count]), data);
-                        MLMessage* msg = [MLMessageProcessor processMessage:data[@"messageNode"] andOuterMessage:data[@"outerMessageNode"] forAccount:self withHistoryId:historyId];
-                        DDLogVerbose(@"Got message processor result: %@", msg);
-                        //add successfully added messages to our display list
-                        //stanzas not transporting a body will be processed, too, but the message processor will return nil for these
-                        if(msg != nil)
-                        {
-                            [historyIdList addObject:msg.messageDBId];      //we only need the history id to fetch a fresh copy later
-                            historyId = [NSNumber numberWithInt:[historyId intValue] + 1];      //calculate next history id
-                        }
-                    }];
-                    [self unfreezeSendQueue];      //this will flush all stanzas added inside the db transaction and now waiting in the send queue
-                    entryNo++;
-                }
-                pageNo++;
-            }
-            
-            //throw away all queued notifications before leaving this context
-            [(MLNotificationQueue*)[MLNotificationQueue currentQueue] clear];
-        } onQueue:@"MLhistoryIgnoreQueue"];
-        
-        DDLogDebug(@"collected mam:2 before-pages now contain %lu messages in summary not already in history", (unsigned long)[historyIdList count]);
-        MLAssert([historyIdList count] <= retrievedBodies, @"did add more messages to historydb table than bodies collected!", (@{
-            @"historyIdList": historyIdList,
-            @"retrievedBodies": @(retrievedBodies),
-        }));
-        if([historyIdList count] < retrievedBodies)
-            DDLogWarn(@"Got %lu mam history messages already contained in history db, possibly ougoing messages that did not have a stanzaid yet!", (unsigned long)(retrievedBodies - [historyIdList count]));
-        //query db (again) for the real MLMessage to account for changes in history table by non-body metadata messages received after the body-message
-        completion([[DataLayer sharedInstance] messagesForHistoryIDs:historyIdList], nil);
-    };
-    responseHandler = ^(XMPPIQ* response) {
-        NSMutableArray* mamPage = [self getOrderedMamPageFor:[response findFirst:@"/@id"]];
-        
-        //count new bodies
-        for(NSDictionary* data in mamPage)
-            if([data[@"messageNode"] check:@"body#"])
-                retrievedBodies++;
-        
-        //add new mam page to page list
-        [pageList addObject:mamPage];
-        
-        //check if we need to load more messages
-        if(retrievedBodies > 25)
-        {
-            //call completion to display all messages saved in db
-            callUI();
-        }
-        //query fo more messages or call completion to display all messages saved in db if we reached the end of our mam archive
-        else
-        {
-            //page through to get more messages (a page possibly contains fewer than 25 messages having a body)
-            //but because we query for 50 stanzas we could easily get more than 25 messages having a body, too
-            if(
-                ![[response findFirst:@"{urn:xmpp:mam:2}fin@complete|bool"] boolValue] &&
-                [response check:@"{urn:xmpp:mam:2}fin/{http://jabber.org/protocol/rsm}set/first#"]
-            )
-            {
-                query([response findFirst:@"{urn:xmpp:mam:2}fin/{http://jabber.org/protocol/rsm}set/first#"]);
-            }
-            else
-            {
-                DDLogDebug(@"Reached upper end of mam:2 archive, returning %lu messages to ui", (unsigned long)retrievedBodies);
-                //can be fewer than 25 messages because we reached the upper end of the mam archive
-                //even zero body-messages could be true
-                callUI();
-            }
-        }
-    };
-    query = ^(NSString* _Nullable before) {
-        XMPPIQ* query = [[XMPPIQ alloc] initWithType:kiqSetType];
-        if(contact.isGroup)
-        {
-            if(!before)
-                before = [[DataLayer sharedInstance] lastStanzaIdForMuc:contact.contactJid andAccount:self.accountNo];
-            [query setiqTo:contact.contactJid];
-            [query setMAMQueryLatestMessagesForJid:nil before:before];
-        }
-        else
-        {
-            if(!before)
-                before = [[DataLayer sharedInstance] lastStanzaIdForAccount:self.accountNo];
-            [query setMAMQueryLatestMessagesForJid:contact.contactJid before:before];
-        }
-        DDLogDebug(@"Loading (next) mam:2 page before: %@", before);
-        //we always want to use blocks here because we want to make sure we get not interrupted by an app crash/restart
-        //which would make us use incomplete mam pages that would produce holes in history (those are very hard to remove/fill afterwards)
-        [self sendIq:query withResponseHandler:responseHandler andErrorHandler:^(XMPPIQ* error) {
-            DDLogWarn(@"Got mam:2 before-query error, returning %lu messages to ui", (unsigned long)retrievedBodies);
-            if(retrievedBodies == 0)
-            {
-                //call completion with nil, if there was an error or xmpp reconnect that prevented us to get any body-messages
-                //but only for non-item-not-found errors (and internal-server-error errors sent by one of ejabberd or prosody instead [don't know which one it was])
-                if(error == nil || ([error check:@"error/{urn:ietf:params:xml:ns:xmpp-stanzas}internal-server-error"] && [@"item-not-found" isEqualToString:[error findFirst:@"error/{urn:ietf:params:xml:ns:xmpp-stanzas}text#"]]))
-                    completion(nil, nil);
-                else
-                    completion(nil, [HelperTools extractXMPPError:error withDescription:nil]);
-            }
-            else
-            {
-                //we had an error but we did already load some body-messages --> update ui anyways
-                callUI();
-            }
-        }];
-    };
-    query(uid);
+    XMPPIQ* query = [[XMPPIQ alloc] initWithType:kiqSetType];
+    if(contact.isMuc)
+    {
+        if(!before)
+            before = [[DataLayer sharedInstance] lastStanzaIdForMuc:contact.contactJid andAccount:self.accountID];
+        [query setiqTo:contact.contactJid];
+        [query setMAMQueryLatestMessagesForJid:nil before:before];
+    }
+    else
+    {
+        if(!before)
+            before = [[DataLayer sharedInstance] lastStanzaIdForAccount:self.accountID];
+        [query setMAMQueryLatestMessagesForJid:contact.contactJid before:before];
+    }
+    return query;
+}
+
+-(AnyPromise*) setMAMQueryMostRecentForContact:(MLContact*) contact before:(NSString*) before
+{
+    MLPromise* promise = [MLPromise new];
+    XMPPIQ* query = [self prepareIQForMAMQueryMostRecentForContact:contact before:before];
+    DDLogDebug(@"Loading mam:2 page before stanzaId %@", before);
+    [self sendIq:query withHandler:$newHandlerWithInvalidation(MLIQProcessor, handleMAMBackscrollingResult, handleMAMBackscrollingResultInvalidation, $ID(contact), $PROMISE(promise))];
+    return [promise toAnyPromise];
 }
 
 #pragma mark - MUC
@@ -4778,24 +5083,20 @@ NSString* const kStanza = @"stanza";
     }];
 }
 
--(void) changePassword:(NSString *) newPass withCompletion:(xmppCompletion) completion
+-(AnyPromise*) changePassword:(NSString*) newPass
 {
-    XMPPIQ* iq = [[XMPPIQ alloc] initWithType:kiqSetType];
-    [iq setiqTo:self.connectionProperties.identity.domain];
-    [iq changePasswordForUser:self.connectionProperties.identity.user newPassword:newPass];
-    [self sendIq:iq withResponseHandler:^(XMPPIQ* response __unused) {
-        //dispatch completion handler outside of the receiveQueue
-        if(completion)
-            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-                completion(YES, @"");
-            });
-    } andErrorHandler:^(XMPPIQ* error) {
-        //dispatch completion handler outside of the receiveQueue
-        if(completion)
-            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-                completion(NO, error ? [HelperTools extractXMPPError:error withDescription:NSLocalizedString(@"Could not change password", @"")] : NSLocalizedString(@"Could not change password: your account is currently not connected", @""));
-            });
-    }];
+    MLPromise* promise = [MLPromise new];
+    XMPPIQ* iqNode = [[XMPPIQ alloc] initWithType:kiqSetType];
+    [iqNode setiqTo:self.connectionProperties.identity.domain];
+    [iqNode changePasswordForUser:self.connectionProperties.identity.user newPassword:newPass];
+
+    //temporarily store the new password in the keychain.
+    //this way, we don't store the password in the db when serializing the handler
+    NSString* uuid = [[NSUUID UUID] UUIDString];
+    [SAMKeychain setPassword:newPass forService:kMonalTmpKeychainName account:uuid];
+
+    [self sendIq:iqNode withHandler:$newHandlerWithInvalidation(MLIQProcessor, handlePasswordChange,handlePasswordChangeInvalidation, $ID(uuid), $PROMISE(promise))];
+    return [promise toAnyPromise];
 }
 
 -(void) requestRegFormWithToken:(NSString* _Nullable) token andCompletion:(xmppDataCompletion) completion andErrorCompletion:(xmppCompletion) errorCompletion
@@ -4814,7 +5115,7 @@ NSString* const kStanza = @"stanza";
     //this is a registration submission
     _registration = NO;
     _registrationSubmission = YES;
-    self.regUser = username;
+    self.regUser = [username lowercaseString];
     self.regPass = password;
     self.regCode = captcha;
     self.regHidden = hiddenFields;
@@ -4910,7 +5211,7 @@ NSString* const kStanza = @"stanza";
     }];
 }
 
-#pragma mark - nsstream delegate
+#pragma mark network I/O
 
 -(void)stream:(NSStream*) stream handleEvent:(NSStreamEvent) eventCode
 {
@@ -4948,7 +5249,7 @@ NSString* const kStanza = @"stanza";
         {
             if(stream != _oStream)
             {
-                DDLogDebug(@"Ignoring NSStreamEventHasSpaceAvailable event on wrong stream %@", stream);
+                DDLogWarn(@"Ignoring NSStreamEventHasSpaceAvailable event on wrong stream %@", stream);
                 break;
             }
             [_sendQueue addOperationWithBlock: ^{
@@ -4962,7 +5263,27 @@ NSString* const kStanza = @"stanza";
         //for reading
         case NSStreamEventHasBytesAvailable:
         {
-            DDLogError(@"Stream %@ has bytes to read (should not be called!)", stream);
+            if(stream != _iStream)
+            {
+                DDLogWarn(@"Ignoring NSStreamEventHasBytesAvailable event on wrong stream %@", stream);
+                break;
+            }
+            dispatch_async(_xmlParserFeedingQueue, ^{
+                DDLogVerbose(@"Stream %@ has bytes to read", stream);
+                uint8_t buffer[kInputChunkSize+1];      //+1 for '\0' needed for logging the received raw bytes
+                NSInteger readLen = [self->_iStream read:buffer maxLength:kInputChunkSize];
+                if(readLen <= 0)
+                {
+                    DDLogWarn(@"Did not receive anything in NSStreamEventHasBytesAvailable event!");
+                    return;
+                }
+                buffer[readLen] = '\0';      //null termination for log output of raw string
+                DDLogVerbose(@"RECV(%ld): %@", (long)readLen, [fastTokenRemovalRegex stringByReplacingMatchesInString:[NSString stringWithFormat:@"%s", buffer] options:0 range:NSMakeRange(0, readLen) withTemplate:@"<redacted-fast-element/>"]);
+                //this is zero-copy (but only valid for the lifetime of this function call)
+                //only a single copy is made, when the VecDequeue buffer gets extended on the rust side
+                [self->_xmlParser feedData:buffer withLength:readLen];
+                DDLogVerbose(@"XML parser returned...");
+            });
             break;
         }
         
@@ -4970,13 +5291,6 @@ NSString* const kStanza = @"stanza";
         {
             NSError* st_error = [stream streamError];
             DDLogError(@"Stream %@ error code=%ld domain=%@ local desc:%@", stream, (long)st_error.code,st_error.domain, st_error.localizedDescription);
-            /*
-            if(stream != _oStream)      //check for _oStream here, because we don't have any _iStream (the mlpipe input stream was directly handed over to the xml parser)
-            {
-                DDLogInfo(@"Ignoring error in iStream (will already be handled in oStream error handler");
-                break;
-            }
-            */
             
             //check accountState to make sure we don't swallow any errors thrown while [self connect] was already called,
             //but the _reconnectInProgress flag not reset yet
@@ -5059,7 +5373,26 @@ NSString* const kStanza = @"stanza";
     }
 }
 
-#pragma mark network I/O
+-(void) drainInputStream
+{
+    uint8_t buffer[kInputChunkSize+1];      //+1 for '\0' needed for logging the received raw bytes
+    NSInteger drainedBytes = 0;
+    NSInteger len = 0;
+    do
+    {
+        if(![_iStream hasBytesAvailable])
+            break;
+        len = [_iStream read:buffer maxLength:kInputChunkSize];
+        DDLogDebug(@"iStream drained %ld bytes", (long)len);
+        if(len > 0)
+        {
+            drainedBytes += len;
+            buffer[len] = '\0';      //null termination for log output of raw string
+            DDLogDebug(@"iStream got raw drained string '%s'", buffer);
+        }
+    } while(len > 0 && [_iStream hasBytesAvailable]);
+    DDLogDebug(@"iStream done draining %ld bytes", (long)drainedBytes);
+}
 
 -(void) writeFromQueue
 {
@@ -5146,90 +5479,17 @@ NSString* const kStanza = @"stanza";
     if(!_oStream)
     {
         DDLogVerbose(@"no stream to write. returning.");
-        return NO;		//no stream to write --> stanza has to remain in _outputQueue and get dropped later on
+        return NO;		//no stream to write --> stanza has to remain in _outputQueue and possibly get dropped later on
     }
-
-    //try to send remaining buffered data first
-    if(_outputBufferByteCount > 0)
-    {
-        DDLogVerbose(@"sending remaining bytes in outputBuffer: %lu", (unsigned long)_outputBufferByteCount);
-        NSInteger sentLen = [_oStream write:_outputBuffer maxLength:_outputBufferByteCount];
-        if(sentLen > 0)
-        {
-            if((NSUInteger)sentLen != _outputBufferByteCount)		//some bytes remaining to send --> trim buffer and return NO
-            {
-                DDLogVerbose(@"could not send all bytes in outputBuffer: %lu of %lu sent, %lu remaining", (unsigned long)sentLen, (unsigned long)_outputBufferByteCount, (unsigned long)(_outputBufferByteCount-sentLen));
-                memmove(_outputBuffer, _outputBuffer+(size_t)sentLen, _outputBufferByteCount-(size_t)sentLen);
-                _outputBufferByteCount-=sentLen;
-                _streamHasSpace=NO;
-                return NO;		//stanza has to remain in _outputQueue
-            }
-            else
-            {
-                DDLogVerbose(@"managed to send whole outputBuffer: %lu bytes", (unsigned long)sentLen);
-                //dealloc empty buffer
-                free(_outputBuffer);
-                _outputBuffer=nil;
-                _outputBufferByteCount=0;		//everything sent
-            }
-        }
-        else
-        {
-            NSError* error = [_oStream streamError];
-            DDLogError(@"sending: failed with error %ld domain %@ message %@", (long)error.code, error.domain, error.userInfo);
-            //reconnect from third party queue to not block send queue
-            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
-                [self reconnect];
-            });
-            return NO;
-        }
-    }
-
-    //then try to send the stanza in question and buffer half sent data
-    if(!messageOut)
+    if(!messageOut || messageOut.length == 0)
     {
         DDLogInfo(@"tried to send empty message. returning without doing anything.");
         return YES;     //pretend we sent the empty "data"
     }
-    const uint8_t* rawstring = (const uint8_t *)[messageOut UTF8String];
-    NSInteger rawstringLen = strlen((char*)rawstring);
-    if(rawstringLen <= 0)
-        return YES;     //pretend we sent the empty "data"
-    NSInteger sentLen = [_oStream write:rawstring maxLength:rawstringLen];
-    if(sentLen!=-1)
-    {
-        if(sentLen!=rawstringLen)
-        {
-            DDLogVerbose(@"could not send all bytes of outgoing stanza: %lu of %lu sent, %lu remaining", (unsigned long)sentLen, (unsigned long)rawstringLen, (unsigned long)(rawstringLen-sentLen));
-            //allocate new _outputBuffer
-            _outputBuffer=malloc(sizeof(uint8_t) * (rawstringLen-sentLen));
-            if(_outputBuffer == NULL)
-            {
-                [NSException raise:@"NSInternalInconsistencyException" format:@"failed malloc" arguments:nil];
-                return NO;      //since the stanza was partially written, neither YES nor NO as return value will result in a consistent state
-            }
-            //copy the remaining data into the buffer and set the buffer pointer accordingly
-            memcpy(_outputBuffer, rawstring+(size_t)sentLen, (size_t)(rawstringLen-sentLen));
-            _outputBufferByteCount=(size_t)(rawstringLen-sentLen);
-            _streamHasSpace=NO;
-        }
-        else
-        {
-            DDLogVerbose(@"managed to send whole outgoing stanza: %lu bytes", (unsigned long)sentLen);
-            _outputBufferByteCount=0;
-        }
-        return YES;
-    }
-    else
-    {
-        NSError* error = [_oStream streamError];
-        DDLogError(@"sending: failed with error %ld domain %@ message %@", (long)error.code, error.domain, error.userInfo);
-        //reconnect from third party queue to not block send queue
-        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
-            [self reconnect];
-        });
-        return NO;
-    }
+    
+    //we have to use strlen to count bytes instead of utf8 codepoints
+    [_oStream write:(void*)messageOut.UTF8String maxLength:strlen((void*)messageOut.UTF8String)];
+    return YES;         //write complete --> stanza has to be removed from _outputQueue
 }
 
 #pragma mark misc
@@ -5261,7 +5521,7 @@ NSString* const kStanza = @"stanza";
             selectedPushServer = newPushServer;
         }
         // check if the last used push server (db) matches the currently selected server
-        NSString* lastUsedPushServer = [[DataLayer sharedInstance] lastUsedPushServerForAccount:self.accountNo];
+        NSString* lastUsedPushServer = [[DataLayer sharedInstance] lastUsedPushServerForAccount:self.accountID];
         if([lastUsedPushServer isEqualToString:selectedPushServer] == NO)
             [self disablePushOnOldAndAdditionalServers:lastUsedPushServer];
         else if(needsDeregister)
@@ -5285,9 +5545,9 @@ NSString* const kStanza = @"stanza";
 
 -(void) disablePush
 {
-    DDLogVerbose(@"Trying to disable push on account: %@", self.accountNo);
+    DDLogVerbose(@"Trying to disable push on account: %@", self.accountID);
     NSString* pushToken = [[HelperTools defaultsDB] objectForKey:@"pushToken"];
-    NSString* pushServer = [[DataLayer sharedInstance] lastUsedPushServerForAccount:self.accountNo];
+    NSString* pushServer = [[DataLayer sharedInstance] lastUsedPushServerForAccount:self.accountID];
     if(pushToken == nil || pushServer == nil)
         return;
     DDLogInfo(@"DISABLING push token %@ on server %@ (accountState: %ld, supportsPush: %@)", pushToken, pushServer, (long)self.accountState, bool2str([self.connectionProperties.accountDiscoFeatures containsObject:@"urn:xmpp:push:0"]));
@@ -5417,7 +5677,7 @@ NSString* const kStanza = @"stanza";
     if([[originalParsedStanza findFirst:@"/@type"] isEqualToString:@"groupchat"])
         archiveJid = originalParsedStanza.fromUser;
     
-    [[DataLayer sharedInstance] addDelayedMessageStanza:originalParsedStanza forArchiveJid:archiveJid andAccountNo:self.accountNo];
+    [[DataLayer sharedInstance] addDelayedMessageStanza:originalParsedStanza forArchiveJid:archiveJid andAccountID:self.accountID];
 }
 
 //this method is needed to not have a retain cycle (happens when using a block instead of this method in mamFinishedFor:)
@@ -5435,8 +5695,8 @@ NSString* const kStanza = @"stanza";
             //don't write data to our tcp stream while inside this db transaction (all effects to the outside world should be transactional, too)
             [self freezeSendQueue];
             //pick the next delayed message stanza (will return nil if there isn't any left)
-            MLXMLNode* delayedStanza = [[DataLayer sharedInstance] getNextDelayedMessageStanzaForArchiveJid:archiveJid andAccountNo:self.accountNo];
-            DDLogDebug(@"Got delayed stanza: %@", delayedStanza);
+            MLXMLNode* delayedStanza = [[DataLayer sharedInstance] getNextDelayedMessageStanzaForArchiveJid:archiveJid andAccountID:self.accountID];
+            [self logIncomingStanza:delayedStanza withPrefix:@"Got delayed stanza" andLoglevel:DDLogFlagDebug];
             if(delayedStanza == nil)
             {
                 DDLogInfo(@"Catchup finished for jid %@", archiveJid);
@@ -5462,7 +5722,7 @@ NSString* const kStanza = @"stanza";
                 //now *really* process delayed message stanza
                 [self processInput:delayedStanza withDelayedReplay:YES];
                 
-                DDLogDebug(@"Delayed Stanza finished processing: %@", delayedStanza);
+                [self logIncomingStanza:delayedStanza withPrefix:@"Delayed Stanza finished processing" andLoglevel:DDLogFlagDebug];
                 
                 //add async processing of next delayed message stanza to receiveQueue
                 //the async dispatching makes it possible to abort the replay by pushing a disconnect block etc. onto the receieve queue
@@ -5541,7 +5801,7 @@ NSString* const kStanza = @"stanza";
         //handle mds update directly, if not in catchup for this jid
         //everything else will be handled once the catchup is finished
         NSString* catchupJid = self.connectionProperties.identity.jid;
-        if([[DataLayer sharedInstance] isBuddyMuc:jid forAccount:self.accountNo])
+        if([[DataLayer sharedInstance] isBuddyMuc:jid forAccount:self.accountID])
             catchupJid = jid;
         if(_inCatchup[catchupJid] == nil && _mdsData[jid] != nil)
             [self handleMdsData:_mdsData[jid] forJid:jid];
@@ -5554,7 +5814,7 @@ NSString* const kStanza = @"stanza";
     NSString* by = [data findFirst:@"{urn:xmpp:mds:displayed:0}displayed/{urn:xmpp:sid:0}stanza-id@by"];
     DDLogInfo(@"Got mds displayed element for chat %@ by %@: %@", jid, by, stanzaId);
     
-    if([[DataLayer sharedInstance] isBuddyMuc:jid forAccount:self.accountNo])
+    if([[DataLayer sharedInstance] isBuddyMuc:jid forAccount:self.accountID])
     {
         if(![jid isEqualToString:by])
         {
@@ -5562,8 +5822,8 @@ NSString* const kStanza = @"stanza";
             return;
         }
         
-        //NSString* ownNick = [[DataLayer sharedInstance] ownNickNameforMuc:jid forAccount:self.accountNo]
-        NSArray* unread = [[DataLayer sharedInstance] markMessagesAsReadForBuddy:jid andAccount:self.accountNo tillStanzaId:stanzaId wasOutgoing:NO];
+        //NSString* ownNick = [[DataLayer sharedInstance] ownNickNameforMuc:jid forAccount:self.accountID]
+        NSArray* unread = [[DataLayer sharedInstance] markMessagesAsReadForBuddy:jid andAccount:self.accountID tillStanzaId:stanzaId wasOutgoing:NO];
         DDLogDebug(@"Muc marked as read: %@", unread);
         
         //remove notifications of all remotely read messages (indicated by sending a display marker)
@@ -5571,7 +5831,7 @@ NSString* const kStanza = @"stanza";
         
         //update unread count in active chats list
         [[MLNotificationQueue currentQueue] postNotificationName:kMonalContactRefresh object:self userInfo:@{
-            @"contact": [MLContact createContactFromJid:jid andAccountNo:self.accountNo]
+            @"contact": [MLContact createContactFromJid:jid andAccountID:self.accountID]
         }];
     }
     else
@@ -5582,7 +5842,7 @@ NSString* const kStanza = @"stanza";
             return;
         }
         
-        NSArray* unread = [[DataLayer sharedInstance] markMessagesAsReadForBuddy:jid andAccount:self.accountNo tillStanzaId:stanzaId wasOutgoing:NO];
+        NSArray* unread = [[DataLayer sharedInstance] markMessagesAsReadForBuddy:jid andAccount:self.accountID tillStanzaId:stanzaId wasOutgoing:NO];
         DDLogDebug(@"1:1 marked as read: %@", unread);
         
         //remove notifications of all remotely read messages (indicated by sending a display marker)
@@ -5590,7 +5850,7 @@ NSString* const kStanza = @"stanza";
         
         //update unread count in active chats list
         [[MLNotificationQueue currentQueue] postNotificationName:kMonalContactRefresh object:self userInfo:@{
-            @"contact": [MLContact createContactFromJid:jid andAccountNo:self.accountNo]
+            @"contact": [MLContact createContactFromJid:jid andAccountID:self.accountID]
         }];
     }
 }
@@ -5659,7 +5919,7 @@ NSString* const kStanza = @"stanza";
     }
     
     //don't send chatmarkers in channels (all messages have the same muc attributes, randomly pick the last one)
-    if(lastUnreadMessage.isMuc && [@"channel" isEqualToString:lastUnreadMessage.mucType])
+    if(lastUnreadMessage.isMuc && [kMucTypeChannel isEqualToString:lastUnreadMessage.mucType])
     {
         DDLogVerbose(@"Not sending XEP-0333 chat marker in channel...");
         [self publishMDSMarkerForMessage:lastUnreadMessage];      //always publish mds marker
@@ -5667,9 +5927,9 @@ NSString* const kStanza = @"stanza";
     }
     
     //all messages have the same contact, randomly pick the last one
-    MLContact* contact = [MLContact createContactFromJid:lastUnreadMessage.buddyName andAccountNo:lastUnreadMessage.accountId];
+    MLContact* contact = [MLContact createContactFromJid:lastUnreadMessage.buddyName andAccountID:lastUnreadMessage.accountID];
     //don't send chatmarkers to 1:1 chats with users in our contact list that did not subscribe us (e.g. are not allowed to see us)
-    if(!contact.isGroup && !contact.isSubscribedFrom)
+    if(!contact.isMuc && !contact.isSubscribedFrom)
     {
         DDLogVerbose(@"Not sending chat marker, we are not subscribed from this contact...");
         [self publishMDSMarkerForMessage:lastUnreadMessage];      //always publish mds marker
@@ -5704,7 +5964,7 @@ NSString* const kStanza = @"stanza";
         //disconnect account and throw away everything waiting to be processed
         //(for example the stream close coming from the server after removing the account on the server)
         [self disconnect:YES];  //this disconnect is needed to not show spurious errors on delete (technically the explicitLogout is not needed, but it doesn't hurt either)
-        [[MLXMPPManager sharedInstance] removeAccountForAccountNo:self.accountNo];
+        [[MLXMPPManager sharedInstance] removeAccountForAccountID:self.accountID];
         completion(nil);        //signal success to UI
     } andErrorHandler:^(XMPPIQ* error) {
         if(error != nil)        //don't report iq invalidation on disconnect as error
@@ -5781,9 +6041,17 @@ NSString* const kStanza = @"stanza";
     [self sendPresence];
 }
 
+-(AnyPromise*) pingPushserver
+{
+    NSString* selectedPushServer = [[HelperTools defaultsDB] objectForKey:@"selectedPushServer"];
+    XMPPIQ* ping = [[XMPPIQ alloc] initWithType:kiqGetType to:selectedPushServer];
+    [ping setPing];
+    return [self sendIq:ping withErrorDescription:@"Ping error"];
+}
+
 -(NSString*) description
 {
-    return [NSString stringWithFormat:@"%@[%@]: %@", self.accountNo, _internalID, self.connectionProperties.identity.jid];
+    return [NSString stringWithFormat:@"%@[%@]: %@", self.accountID, _internalID, self.connectionProperties.identity.jid];
 }
 
 @end

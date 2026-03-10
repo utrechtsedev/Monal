@@ -11,13 +11,13 @@
 		1D3623260D0F684500981E51 /* MonalAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 1D3623250D0F684500981E51 /* MonalAppDelegate.m */; };
 		1D60589B0D05DD56006BFB54 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 29B97316FDCFA39411CA2CEA /* main.m */; };
 		20D3611C2C10E12500E46587 /* BoardingCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20D3611B2C10E12500E46587 /* BoardingCards.swift */; };
+		20D8C65E2C3C37FE00E6BDA2 /* MediaGallery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20D8C65D2C3C37FE00E6BDA2 /* MediaGallery.swift */; };
 		20ED55852BADDA5C0005783E /* GeneralSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20ED55842BADDA5C0005783E /* GeneralSettings.swift */; };
 		2601D9CB0FBF25EF004DB939 /* sworim.sqlite in Resources */ = {isa = PBXBuildFile; fileRef = 2601D9CA0FBF25EF004DB939 /* sworim.sqlite */; };
 		260773C4232FC4E800BFD50F /* NotificationService.m in Sources */ = {isa = PBXBuildFile; fileRef = 260773C3232FC4E800BFD50F /* NotificationService.m */; };
 		2609B5291FD5B26800F09FA1 /* MLSplitViewDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 2609B5281FD5B26800F09FA1 /* MLSplitViewDelegate.m */; };
 		26158AF21FFA6E4500E53BDC /* MLWebViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 26158AF11FFA6E4500E53BDC /* MLWebViewController.m */; };
 		26158AF41FFA8A6A00E53BDC /* opensource.html in Resources */ = {isa = PBXBuildFile; fileRef = 26158AF31FFA8A6A00E53BDC /* opensource.html */; };
-		261A6281176C055400059090 /* ContactsViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 261A627F176C055400059090 /* ContactsViewController.m */; };
 		261A628B176C159000059090 /* AccountListController.m in Sources */ = {isa = PBXBuildFile; fileRef = 261A628A176C159000059090 /* AccountListController.m */; };
 		261E542523A0A1D300394F59 /* monalxmpp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 26CC579223A0867400ABB92A /* monalxmpp.framework */; };
 		261E542623A0A1D300394F59 /* monalxmpp.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 26CC579223A0867400ABB92A /* monalxmpp.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -43,7 +43,6 @@
 		26AA70152146BBB900598605 /* ShareViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 26AA70142146BBB900598605 /* ShareViewController.m */; };
 		26AA70182146BBB900598605 /* iosShare.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 26AA70162146BBB900598605 /* iosShare.storyboard */; };
 		26AA701C2146BBB900598605 /* shareSheet.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 26AA70112146BBB800598605 /* shareSheet.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		26AAAADC2295742500200433 /* MLPasswordChangeTableViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 26AAAAD92295742400200433 /* MLPasswordChangeTableViewController.m */; };
 		26AAE285179F7B0200271345 /* MLSettingCell.m in Sources */ = {isa = PBXBuildFile; fileRef = 26AAE284179F7B0200271345 /* MLSettingCell.m */; };
 		26B0CA8921AE2E3C0080B133 /* MLSoundsTableViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 26B0CA8821AE2E3C0080B133 /* MLSoundsTableViewController.m */; };
 		26B0CA8B21AE410E0080B133 /* AlertSounds in Resources */ = {isa = PBXBuildFile; fileRef = 26B0CA8A21AE410E0080B133 /* AlertSounds */; };
@@ -71,15 +70,33 @@
 		26CC57D523A08D7100ABB92A /* MLSignalStore.m in Sources */ = {isa = PBXBuildFile; fileRef = 263AFDFB209B3B35007F9CEE /* MLSignalStore.m */; };
 		26CC57DA23A08DD800ABB92A /* MLXMPPManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 26352EA7177D222600E2C8FF /* MLXMPPManager.m */; };
 		26CC57EB23A08F4400ABB92A /* monalxmpp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 26CC579223A0867400ABB92A /* monalxmpp.framework */; };
-		26D4389123A5EB6C00242AAA /* MLConstants.h in Headers */ = {isa = PBXBuildFile; fileRef = 262D9EAB17924532009292B4 /* MLConstants.h */; };
-		26D59D9320714F32006F1DEE /* UIColor+Theme.m in Sources */ = {isa = PBXBuildFile; fileRef = 26D59D9220714F32006F1DEE /* UIColor+Theme.m */; };
+		26D4389123A5EB6C00242AAA /* MLConstants.h in Headers */ = {isa = PBXBuildFile; fileRef = 262D9EAB17924532009292B4 /* MLConstants.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		26D7C05E23D6AFD800CA123C /* MLChatInputContainer.m in Sources */ = {isa = PBXBuildFile; fileRef = 26D7C05D23D6AFD800CA123C /* MLChatInputContainer.m */; };
 		26D89F061A890672009B147C /* MLSwitchCell.m in Sources */ = {isa = PBXBuildFile; fileRef = 26D89F051A890672009B147C /* MLSwitchCell.m */; };
-		26E3ED871FEC0CB7008ABDA5 /* MLServerDetails.m in Sources */ = {isa = PBXBuildFile; fileRef = 26E3ED861FEC0CB7008ABDA5 /* MLServerDetails.m */; };
 		26E8462224EABAD600ECE419 /* Settings.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 26E8462424EABAD600ECE419 /* Settings.storyboard */; };
 		26E8462824EABAED00ECE419 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 26E8462A24EABAED00ECE419 /* Main.storyboard */; };
 		26F9794D1ACAC73A0008E005 /* MLContactCell.xib in Resources */ = {isa = PBXBuildFile; fileRef = 26F9794C1ACAC73A0008E005 /* MLContactCell.xib */; };
 		26FE3BCB1C61A6C3003CC230 /* MLResizingTextView.m in Sources */ = {isa = PBXBuildFile; fileRef = 26FE3BCA1C61A6C3003CC230 /* MLResizingTextView.m */; };
+		340F0CA02D2425A4006224D0 /* MLMessage.h in Headers */ = {isa = PBXBuildFile; fileRef = 26611024238F17B20030A4EE /* MLMessage.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		340F0CA12D2425AA006224D0 /* MLXMPPConnection.h in Headers */ = {isa = PBXBuildFile; fileRef = 26611015238F08AC0030A4EE /* MLXMPPConnection.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		340F0CA22D2425C4006224D0 /* XMPPPresence.h in Headers */ = {isa = PBXBuildFile; fileRef = 264E34591787BAB100BC7BD0 /* XMPPPresence.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		340F0CA32D2425D2006224D0 /* MLXMPPServer.h in Headers */ = {isa = PBXBuildFile; fileRef = 2661100B238F08820030A4EE /* MLXMPPServer.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		340F0CA42D2425D9006224D0 /* MLXMPPIdentity.h in Headers */ = {isa = PBXBuildFile; fileRef = 26611010238F08980030A4EE /* MLXMPPIdentity.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		340F0CA52D2425E1006224D0 /* MLLogFileManager.h in Headers */ = {isa = PBXBuildFile; fileRef = C15D504824C727CC002F75BB /* MLLogFileManager.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		340F0CA62D24267B006224D0 /* MLXMLNode.h in Headers */ = {isa = PBXBuildFile; fileRef = 260C51D2177F44AD0039634B /* MLXMLNode.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		341F44662CAF427500AA6C7D /* MLPromise.h in Headers */ = {isa = PBXBuildFile; fileRef = 341F44642CAF427500AA6C7D /* MLPromise.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		341F44672CAF427500AA6C7D /* MLPromise.m in Sources */ = {isa = PBXBuildFile; fileRef = 341F44652CAF427500AA6C7D /* MLPromise.m */; };
+		3424B4E72D232BE2009F6503 /* MLContact.h in Headers */ = {isa = PBXBuildFile; fileRef = 26611029238F17CA0030A4EE /* MLContact.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		3424B4E82D232BE7009F6503 /* DataLayer.h in Headers */ = {isa = PBXBuildFile; fileRef = 2601D9A80FBF255D004DB939 /* DataLayer.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		3424B4E92D232BEB009F6503 /* xmpp.h in Headers */ = {isa = PBXBuildFile; fileRef = 260C51CF177F08F50039634B /* xmpp.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		3424B4EA2D232BF5009F6503 /* MLSignalStore.h in Headers */ = {isa = PBXBuildFile; fileRef = 263AFDFA209B3B35007F9CEE /* MLSignalStore.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		3424B4EB2D232BFA009F6503 /* MLXMPPManager.h in Headers */ = {isa = PBXBuildFile; fileRef = 26352EA6177D222600E2C8FF /* MLXMPPManager.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		3424B4EC2D232BFF009F6503 /* MLImageManager.h in Headers */ = {isa = PBXBuildFile; fileRef = 26EC411117BDE39E0031304D /* MLImageManager.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		3424B4ED2D232C07009F6503 /* MLVoIPProcessor.h in Headers */ = {isa = PBXBuildFile; fileRef = 849A53E5287135D7007E941A /* MLVoIPProcessor.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		3424B4EE2D232C0F009F6503 /* MLCall.h in Headers */ = {isa = PBXBuildFile; fileRef = 848717F2295ED64500B8D288 /* MLCall.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		3424B4EF2D232C14009F6503 /* HelperTools.h in Headers */ = {isa = PBXBuildFile; fileRef = C1AAC3E224B5EF4100BB15D6 /* HelperTools.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		34BC08122C5E9BE30099FB85 /* ContentUnavailableShimView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34BC08112C5E9BE30099FB85 /* ContentUnavailableShimView.swift */; };
+		34E58B4B2C68E7BC009A1634 /* ContactsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34E58B4A2C68E7BC009A1634 /* ContactsView.swift */; };
 		38720923251EDE07001837EB /* MLXEPSlashMeHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = 38720921251EDE07001837EB /* MLXEPSlashMeHandler.m */; };
 		389E298C25E901CA009A5268 /* MLAudioRecoderManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 389E298925E901CA009A5268 /* MLAudioRecoderManager.m */; };
 		389E298D25E901CA009A5268 /* MLAudioRecoderManager.h in Headers */ = {isa = PBXBuildFile; fileRef = 389E298B25E901CA009A5268 /* MLAudioRecoderManager.h */; };
@@ -91,37 +108,37 @@
 		3D65B791272350F0005A30F4 /* SwiftuiHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D65B790272350F0005A30F4 /* SwiftuiHelpers.swift */; };
 		3D7D352328626CB80042C5E5 /* LoadingOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D7D352228626CB80042C5E5 /* LoadingOverlay.swift */; };
 		3D85E587282AE523006F5B3A /* OmemoQrCodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D85E586282AE523006F5B3A /* OmemoQrCodeView.swift */; };
-		3DC5035C2822F5220064C8A7 /* OmemoKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DC5035B2822F5220064C8A7 /* OmemoKeys.swift */; };
+		3DC5035C2822F5220064C8A7 /* OmemoKeysView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DC5035B2822F5220064C8A7 /* OmemoKeysView.swift */; };
 		43A92B80C8CD5E04074B5A3E /* Pods_MonalXMPPUnitTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2C59BAF969550DFAC27E5F2B /* Pods_MonalXMPPUnitTests.framework */; };
 		540A3FAD24D674BD0008965D /* MLSQLite.m in Sources */ = {isa = PBXBuildFile; fileRef = 540A3FAC24D674BD0008965D /* MLSQLite.m */; };
-		540BD0D224D8D1F40087A743 /* IPC.h in Headers */ = {isa = PBXBuildFile; fileRef = 540BD0D124D8D1F20087A743 /* IPC.h */; };
+		540BD0D224D8D1F40087A743 /* IPC.h in Headers */ = {isa = PBXBuildFile; fileRef = 540BD0D124D8D1F20087A743 /* IPC.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		540BD0D424D8D2000087A743 /* IPC.m in Sources */ = {isa = PBXBuildFile; fileRef = 540BD0D324D8D1FF0087A743 /* IPC.m */; };
 		540E13A024CDCDB30038FDA0 /* MLProcessLock.m in Sources */ = {isa = PBXBuildFile; fileRef = 540E139F24CDCDB30038FDA0 /* MLProcessLock.m */; };
-		540E13A224CDCE3B0038FDA0 /* MLProcessLock.h in Headers */ = {isa = PBXBuildFile; fileRef = 540E13A124CDCE3B0038FDA0 /* MLProcessLock.h */; };
+		540E13A224CDCE3B0038FDA0 /* MLProcessLock.h in Headers */ = {isa = PBXBuildFile; fileRef = 540E13A124CDCE3B0038FDA0 /* MLProcessLock.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		540E13A524CF6A8C0038FDA0 /* MLNotificationManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 26EE8B1E179B67FA006781F3 /* MLNotificationManager.m */; };
 		540F625F24BA951E0008A6D8 /* HelperTools.m in Sources */ = {isa = PBXBuildFile; fileRef = C1AAC3E324B5EF4100BB15D6 /* HelperTools.m */; };
 		54179CC0251CBAFA008F398E /* XMPPStanza.m in Sources */ = {isa = PBXBuildFile; fileRef = 54179CBF251CBAF9008F398E /* XMPPStanza.m */; };
-		54179CC3251CBB2B008F398E /* XMPPStanza.h in Headers */ = {isa = PBXBuildFile; fileRef = 54179CC2251CBB2B008F398E /* XMPPStanza.h */; };
+		54179CC3251CBB2B008F398E /* XMPPStanza.h in Headers */ = {isa = PBXBuildFile; fileRef = 54179CC2251CBB2B008F398E /* XMPPStanza.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		541B6AB4262BC9040038B936 /* MLStream.m in Sources */ = {isa = PBXBuildFile; fileRef = 541B6AB2262BC9040038B936 /* MLStream.m */; };
 		541B6AB5262BC9040038B936 /* MLStream.h in Headers */ = {isa = PBXBuildFile; fileRef = 541B6AB3262BC9040038B936 /* MLStream.h */; };
 		541E4CBC254AA08700FD7B28 /* MLSQLite.h in Headers */ = {isa = PBXBuildFile; fileRef = 541E4CBB254AA08600FD7B28 /* MLSQLite.h */; };
-		541E4CBE254AA0B600FD7B28 /* MLHandler.h in Headers */ = {isa = PBXBuildFile; fileRef = 541E4CBD254AA0B600FD7B28 /* MLHandler.h */; };
+		541E4CBE254AA0B600FD7B28 /* MLHandler.h in Headers */ = {isa = PBXBuildFile; fileRef = 541E4CBD254AA0B600FD7B28 /* MLHandler.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		541E4CC0254AA0E700FD7B28 /* MLHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = 541E4CBF254AA0E700FD7B28 /* MLHandler.m */; };
 		541E4CC4254D369200FD7B28 /* MLPubSubProcessor.h in Headers */ = {isa = PBXBuildFile; fileRef = 541E4CC3254D369100FD7B28 /* MLPubSubProcessor.h */; };
 		541E4CC7254D370200FD7B28 /* MLPubSubProcessor.m in Sources */ = {isa = PBXBuildFile; fileRef = 541E4CC6254D370100FD7B28 /* MLPubSubProcessor.m */; };
-		5427C94C276A6BC4003217D5 /* UIColor+Extension.h in Headers */ = {isa = PBXBuildFile; fileRef = 54391BB9273499E80050DAFB /* UIColor+Extension.h */; };
+		5427C94C276A6BC4003217D5 /* UIColor+Extension.h in Headers */ = {isa = PBXBuildFile; fileRef = 54391BB9273499E80050DAFB /* UIColor+Extension.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		5427C94E276A6BE1003217D5 /* UIColor+Extension.m in Sources */ = {isa = PBXBuildFile; fileRef = 54391BBA273499E80050DAFB /* UIColor+Extension.m */; };
 		542CF3FF2763314F002C3710 /* hsluv.c in Sources */ = {isa = PBXBuildFile; fileRef = 542CF3FD2763314E002C3710 /* hsluv.c */; };
 		542CF4002763314F002C3710 /* hsluv.h in Headers */ = {isa = PBXBuildFile; fileRef = 542CF3FE2763314F002C3710 /* hsluv.h */; };
 		54391BBB273499E80050DAFB /* UIColor+Extension.m in Sources */ = {isa = PBXBuildFile; fileRef = 54391BBA273499E80050DAFB /* UIColor+Extension.m */; };
 		544656BB2534910D006B2953 /* XMPPDataForm.m in Sources */ = {isa = PBXBuildFile; fileRef = 544656BA2534910D006B2953 /* XMPPDataForm.m */; };
-		544656BD25349133006B2953 /* XMPPDataForm.h in Headers */ = {isa = PBXBuildFile; fileRef = 544656BC25349133006B2953 /* XMPPDataForm.h */; };
+		544656BD25349133006B2953 /* XMPPDataForm.h in Headers */ = {isa = PBXBuildFile; fileRef = 544656BC25349133006B2953 /* XMPPDataForm.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		54507CE5255D8C14007092F4 /* MLFiletransfer.m in Sources */ = {isa = PBXBuildFile; fileRef = 54507CE4255D8C14007092F4 /* MLFiletransfer.m */; };
-		54507CE8255D8C47007092F4 /* MLFiletransfer.h in Headers */ = {isa = PBXBuildFile; fileRef = 54507CE7255D8C47007092F4 /* MLFiletransfer.h */; };
+		54507CE8255D8C47007092F4 /* MLFiletransfer.h in Headers */ = {isa = PBXBuildFile; fileRef = 54507CE7255D8C47007092F4 /* MLFiletransfer.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		5455BC3324EB776F0024D80F /* MLUDPLogger.m in Sources */ = {isa = PBXBuildFile; fileRef = 5455BC3024EB776B0024D80F /* MLUDPLogger.m */; };
-		5455BC3424EB776F0024D80F /* MLUDPLogger.h in Headers */ = {isa = PBXBuildFile; fileRef = 5455BC3224EB776E0024D80F /* MLUDPLogger.h */; };
+		5455BC3424EB776F0024D80F /* MLUDPLogger.h in Headers */ = {isa = PBXBuildFile; fileRef = 5455BC3224EB776E0024D80F /* MLUDPLogger.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		54A22D2526185C2900B56EAD /* MLNotificationQueue.m in Sources */ = {isa = PBXBuildFile; fileRef = 54A22D2426185C2900B56EAD /* MLNotificationQueue.m */; };
-		54A22D2D26185E7E00B56EAD /* MLNotificationQueue.h in Headers */ = {isa = PBXBuildFile; fileRef = 54A22D2C26185E7E00B56EAD /* MLNotificationQueue.h */; };
+		54A22D2D26185E7E00B56EAD /* MLNotificationQueue.h in Headers */ = {isa = PBXBuildFile; fileRef = 54A22D2C26185E7E00B56EAD /* MLNotificationQueue.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		54D2307E24CB0F4600638D65 /* monalxmpp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 26CC579223A0867400ABB92A /* monalxmpp.framework */; };
 		54D2308424CB10EE00638D65 /* MLLogFileManager.m in Sources */ = {isa = PBXBuildFile; fileRef = C15D504A24C727CC002F75BB /* MLLogFileManager.m */; };
 		54E594BD2523C34B00E4172B /* MLPubSub.h in Headers */ = {isa = PBXBuildFile; fileRef = 54E594BA2523C34900E4172B /* MLPubSub.h */; };
@@ -133,24 +150,31 @@
 		8414AE002A7ABC4300EFFCCC /* LibMonalRustSwiftBridge in Frameworks */ = {isa = PBXBuildFile; productRef = 8414ADFF2A7ABC4300EFFCCC /* LibMonalRustSwiftBridge */; };
 		841898AA2957712000FEC77D /* ViewExtractor in Frameworks */ = {isa = PBXBuildFile; productRef = 841898A92957712000FEC77D /* ViewExtractor */; };
 		841898AC2957DBAD00FEC77D /* RichAlert.swift in Sources */ = {isa = PBXBuildFile; fileRef = 841898AB2957DBAC00FEC77D /* RichAlert.swift */; };
+		8418B55D2C7EC6B7006FAF60 /* Quicksy_Country.h in Headers */ = {isa = PBXBuildFile; fileRef = 8418B55B2C7EC6B7006FAF60 /* Quicksy_Country.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		8418B55E2C7EC6B7006FAF60 /* Quicksy_Country.m in Sources */ = {isa = PBXBuildFile; fileRef = 8418B55C2C7EC6B7006FAF60 /* Quicksy_Country.m */; };
+		8418B5632C7ECFD6006FAF60 /* HelperTools+Quicksy_CountryCodes.h in Headers */ = {isa = PBXBuildFile; fileRef = 8418B5612C7ECFD6006FAF60 /* HelperTools+Quicksy_CountryCodes.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		8418B5642C7ECFD6006FAF60 /* HelperTools+Quicksy_CountryCodes.m in Sources */ = {isa = PBXBuildFile; fileRef = 8418B5622C7ECFD6006FAF60 /* HelperTools+Quicksy_CountryCodes.m */; };
 		841B6F1A297B18720074F9B7 /* AccountPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 841B6F19297B18720074F9B7 /* AccountPicker.swift */; };
 		841B6F1C297B3CFC0074F9B7 /* AVCallUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 841B6F1B297B3CFC0074F9B7 /* AVCallUI.swift */; };
 		841EE4302A426F2300D3AF14 /* MLCrashReporter.m in Sources */ = {isa = PBXBuildFile; fileRef = 841EE42F2A426F2300D3AF14 /* MLCrashReporter.m */; };
-		8420EA9B2915E4FE0038FF40 /* OmemoState.h in Headers */ = {isa = PBXBuildFile; fileRef = 8420EA9A2915E4FE0038FF40 /* OmemoState.h */; };
+		8420EA9B2915E4FE0038FF40 /* OmemoState.h in Headers */ = {isa = PBXBuildFile; fileRef = 8420EA9A2915E4FE0038FF40 /* OmemoState.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		8420EA9D2915E5100038FF40 /* OmemoState.m in Sources */ = {isa = PBXBuildFile; fileRef = 8420EA9C2915E5100038FF40 /* OmemoState.m */; };
 		842790852A32D16D005C18CC /* CallSounds in Resources */ = {isa = PBXBuildFile; fileRef = 842790842A32D16C005C18CC /* CallSounds */; };
 		843AD3AB2AA55CE20036844D /* MLOgHtmlParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 843AD3AA2AA55CE20036844D /* MLOgHtmlParser.swift */; };
+		843DC1B22C8E51E3002724FE /* ExyteChat in Frameworks */ = {isa = PBXBuildFile; productRef = 843DC1B12C8E51E3002724FE /* ExyteChat */; };
 		8441EFF92921B53500E851E9 /* BackgroundSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8441EFF82921B53500E851E9 /* BackgroundSettings.swift */; };
 		844921EA2C29F9A000B99A9C /* MLDelayableTimer.m in Sources */ = {isa = PBXBuildFile; fileRef = 844921E92C29F9A000B99A9C /* MLDelayableTimer.m */; };
-		844921EC2C29F9BE00B99A9C /* MLDelayableTimer.h in Headers */ = {isa = PBXBuildFile; fileRef = 844921EB2C29F9BE00B99A9C /* MLDelayableTimer.h */; };
-		844EEC6D28E718DB00CB5EF9 /* UIColor+Theme.m in Sources */ = {isa = PBXBuildFile; fileRef = 26D59D9220714F32006F1DEE /* UIColor+Theme.m */; };
+		844921EC2C29F9BE00B99A9C /* MLDelayableTimer.h in Headers */ = {isa = PBXBuildFile; fileRef = 844921EB2C29F9BE00B99A9C /* MLDelayableTimer.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		84558DBF2DF04C3100F8357F /* OneClickRegistration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84558DBE2DF04C3100F8357F /* OneClickRegistration.swift */; };
 		845836BA2C49F36300B11EC5 /* Quicksy Launch Screen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 845836B92C49F36300B11EC5 /* Quicksy Launch Screen.storyboard */; };
-		845D636B2AD4AEDA0066EFFB /* ImageViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 845D636A2AD4AEDA0066EFFB /* ImageViewer.swift */; };
+		845D636B2AD4AEDA0066EFFB /* MediaViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 845D636A2AD4AEDA0066EFFB /* MediaViewer.swift */; };
 		845EFFBD2918721800C1E03E /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = C1E4654624EE517000CA5AAF /* Localizable.strings */; };
 		845EFFBE2918723D00C1E03E /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = C1E4654624EE517000CA5AAF /* Localizable.strings */; };
 		846DF27C2937FAA600AAB9C0 /* ChatPlaceholder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846DF27B2937FAA600AAB9C0 /* ChatPlaceholder.swift */; };
+		847311232C893D2600739CC6 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 847311222C893D2600739CC6 /* ChatView.swift */; };
+		84774DF52D1A935000B15E51 /* ExyteChat in Frameworks */ = {isa = PBXBuildFile; productRef = 84774DF42D1A935000B15E51 /* ExyteChat */; };
+		84774DFB2D1A956400B15E51 /* ExyteChat in Frameworks */ = {isa = PBXBuildFile; productRef = 84774DFA2D1A956400B15E51 /* ExyteChat */; };
 		848227912C4A6194003CCA33 /* MLPlaceholderViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 848227902C4A6194003CCA33 /* MLPlaceholderViewController.m */; };
-		848501342C4F2B6D00C1B693 /* CountryCodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 848501332C4F2B6D00C1B693 /* CountryCodes.swift */; };
 		848717F3295ED64600B8D288 /* MLCall.m in Sources */ = {isa = PBXBuildFile; fileRef = 848717F1295ED64500B8D288 /* MLCall.m */; };
 		848904A9289C82C30097E19C /* SCRAM.m in Sources */ = {isa = PBXBuildFile; fileRef = 848904A8289C82C30097E19C /* SCRAM.m */; };
 		848C73E02BDF2014007035C9 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 848C73DF2BDF2014007035C9 /* PrivacyInfo.xcprivacy */; };
@@ -161,20 +185,39 @@
 		849ADF3F2BACF0360009BCD7 /* CocoaLumberjack in Frameworks */ = {isa = PBXBuildFile; productRef = 849ADF3E2BACF0360009BCD7 /* CocoaLumberjack */; };
 		849ADF412BACF0360009BCD7 /* CocoaLumberjackSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 849ADF402BACF0360009BCD7 /* CocoaLumberjackSwift */; };
 		849ADF432BACF0360009BCD7 /* CocoaLumberjackSwiftLogBackend in Frameworks */ = {isa = PBXBuildFile; productRef = 849ADF422BACF0360009BCD7 /* CocoaLumberjackSwiftLogBackend */; };
+		849DFCFA2EEBC1ED008821AF /* MLNotificationManager.h in Headers */ = {isa = PBXBuildFile; fileRef = 26EE8B1D179B67FA006781F3 /* MLNotificationManager.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		84A8340C2F1156F5004738AE /* WebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = 84A8340B2F1156F5004738AE /* WebRTC */; };
+		84AF79C22DF3C0A900FE3818 /* CropViewController in Frameworks */ = {isa = PBXBuildFile; productRef = 84AF79C12DF3C0A900FE3818 /* CropViewController */; };
+		84AF79C42DF3C0A900FE3818 /* TOCropViewController in Frameworks */ = {isa = PBXBuildFile; productRef = 84AF79C32DF3C0A900FE3818 /* TOCropViewController */; };
 		84BBAECA2C42D272009492E2 /* Quicksy_RegisterAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84BBAEC92C42D272009492E2 /* Quicksy_RegisterAccount.swift */; };
 		84C1CD502A8C764D007076ED /* SwiftHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84C1CD4F2A8C764D007076ED /* SwiftHelpers.swift */; };
 		84C1CD522A8F617F007076ED /* MLStreamRedirect.m in Sources */ = {isa = PBXBuildFile; fileRef = 84C1CD512A8F617F007076ED /* MLStreamRedirect.m */; };
 		84C1CD542A8F6196007076ED /* MLStreamRedirect.h in Headers */ = {isa = PBXBuildFile; fileRef = 84C1CD532A8F6196007076ED /* MLStreamRedirect.h */; };
 		84C6F6032D597FB20015575E /* ParserTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 84C6F6022D597FB20015575E /* ParserTest.m */; };
+		84C6F6052D597FD10015575E /* SDPTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 84C6F6042D597FD10015575E /* SDPTest.m */; };
 		84C6F6072D597FF40015575E /* HandlerTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 84C6F6062D597FF40015575E /* HandlerTest.m */; };
+		84CAED6D2ECAC5E500F4FCBF /* XMPPIQ.h in Headers */ = {isa = PBXBuildFile; fileRef = 26CF3EA81780D6B7002B7085 /* XMPPIQ.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		84CAED6E2ECAC5F700F4FCBF /* XMPPMessage.h in Headers */ = {isa = PBXBuildFile; fileRef = 262D9EA817921E82009292B4 /* XMPPMessage.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		84D31CE628653B83006D7926 /* WebRTCClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84D31CE528653B83006D7926 /* WebRTCClient.swift */; };
+		84DED8562EE0774700401D3A /* MLChannelContact.m in Sources */ = {isa = PBXBuildFile; fileRef = 84DED8552EE0774600401D3A /* MLChannelContact.m */; };
+		84DED8582EE0776400401D3A /* MLChannelContact.h in Headers */ = {isa = PBXBuildFile; fileRef = 84DED8572EE0776400401D3A /* MLChannelContact.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		84DED85A2EE0795200401D3A /* MLContactProtocol.h in Headers */ = {isa = PBXBuildFile; fileRef = 84DED8592EE0795200401D3A /* MLContactProtocol.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		84E231F32C16A9CE00735FB7 /* SVGView in Frameworks */ = {isa = PBXBuildFile; productRef = 84E231F22C16A9CE00735FB7 /* SVGView */; };
 		84E55E7D2964424E003E191A /* ActiveChatsViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 261A6284176C156500059090 /* ActiveChatsViewController.m */; };
-		84E55E8029644279003E191A /* ActiveChatsViewController.h in Headers */ = {isa = PBXBuildFile; fileRef = 84E55E7F2964426D003E191A /* ActiveChatsViewController.h */; };
+		84E5AF192EE63FBA00FF1E4A /* MLReactionsEntry.m in Sources */ = {isa = PBXBuildFile; fileRef = 84E5AF182EE63FBA00FF1E4A /* MLReactionsEntry.m */; };
+		84E5AF1B2EE63FCF00FF1E4A /* MLReactionsEntry.h in Headers */ = {isa = PBXBuildFile; fileRef = 84E5AF1A2EE63FCF00FF1E4A /* MLReactionsEntry.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		84E8870C2EEADD34006A61FC /* HT.m in Sources */ = {isa = PBXBuildFile; fileRef = 84E8870B2EEADD34006A61FC /* HT.m */; };
+		84E8870D2EEADD34006A61FC /* HT.h in Headers */ = {isa = PBXBuildFile; fileRef = 84E8870A2EEADD34006A61FC /* HT.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		84E8870E2EEADD8F006A61FC /* SCRAM.h in Headers */ = {isa = PBXBuildFile; fileRef = 848904AA289C82DB0097E19C /* SCRAM.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		84F194D12C15197200F0A994 /* FrameUp in Frameworks */ = {isa = PBXBuildFile; productRef = 84F194D02C15197200F0A994 /* FrameUp */; };
 		84FC37552897521500634E3E /* snprintf.m in Sources */ = {isa = PBXBuildFile; fileRef = 84FC37542897521400634E3E /* snprintf.m */; };
-		84FC37572897523500634E3E /* metamacros.h in Headers */ = {isa = PBXBuildFile; fileRef = 84FC37562897523500634E3E /* metamacros.h */; };
+		84FC37572897523500634E3E /* metamacros.h in Headers */ = {isa = PBXBuildFile; fileRef = 84FC37562897523500634E3E /* metamacros.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		84FC375928981A5600634E3E /* PasswordMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84FC375828981A5600634E3E /* PasswordMigration.swift */; };
+		9341BC682F4FBA0F00FCD32B /* ActiveChatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9341BC672F4FBA0C00FCD32B /* ActiveChatsView.swift */; };
+		9341BC6C2F4FBF4700FCD32B /* ActiveChatsBridgeHelper.h in Headers */ = {isa = PBXBuildFile; fileRef = 9341BC692F4FBEC100FCD32B /* ActiveChatsBridgeHelper.h */; };
+		9342E6B32F50EE670065EAE2 /* ActiveChatsBridgeHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = 9341BC6A2F4FBEE700FCD32B /* ActiveChatsBridgeHelper.m */; };
+		9371C49B2F4F3EF100668BA9 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9371C49A2F4F3EF100668BA9 /* SettingsView.swift */; };
+		93D2AE402F55E8330074E42B /* NewChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93D2AE3F2F55E8330074E42B /* NewChatView.swift */; };
 		952EBC802BAF72F300183DBF /* DebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 952EBC7F2BAF72F300183DBF /* DebugView.swift */; };
 		BE8B63D2491B1E5582965A8F /* Pods_monalxmpp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5B9C86E0A568734587FE9BA2 /* Pods_monalxmpp.framework */; };
 		C10490492612ED2F0054AC9E /* MLEmoji.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10490482612ED2F0054AC9E /* MLEmoji.swift */; };
@@ -189,9 +232,9 @@
 		C12436142434AB5D00B8F074 /* MLAttributedLabel.m in Sources */ = {isa = PBXBuildFile; fileRef = C12436132434AB5D00B8F074 /* MLAttributedLabel.m */; };
 		C1414E9D24312F0100948788 /* MLChatMapsCell.m in Sources */ = {isa = PBXBuildFile; fileRef = C1414E9C24312F0100948788 /* MLChatMapsCell.m */; };
 		C15489B925680BBE00BBA2F0 /* MLQRCodeScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = C15489B825680BBE00BBA2F0 /* MLQRCodeScanner.swift */; };
-		C158D40025A0AB810005AA40 /* MLMucProcessor.h in Headers */ = {isa = PBXBuildFile; fileRef = C158D3FE25A0AB810005AA40 /* MLMucProcessor.h */; };
+		C158D40025A0AB810005AA40 /* MLMucProcessor.h in Headers */ = {isa = PBXBuildFile; fileRef = C158D3FE25A0AB810005AA40 /* MLMucProcessor.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		C158D41425A0AC630005AA40 /* MLMucProcessor.m in Sources */ = {isa = PBXBuildFile; fileRef = C158D41225A0AC630005AA40 /* MLMucProcessor.m */; };
-		C1613B5A2520723D0062C0C2 /* MLBasePaser.h in Headers */ = {isa = PBXBuildFile; fileRef = C1613B572520723C0062C0C2 /* MLBasePaser.h */; };
+		C1613B5A2520723D0062C0C2 /* MLBasePaser.h in Headers */ = {isa = PBXBuildFile; fileRef = C1613B572520723C0062C0C2 /* MLBasePaser.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		C1613B5B2520723D0062C0C2 /* MLBasePaser.m in Sources */ = {isa = PBXBuildFile; fileRef = C1613B592520723C0062C0C2 /* MLBasePaser.m */; };
 		C16D18352792A4AF00F869A0 /* DataLayerMigrations.h in Headers */ = {isa = PBXBuildFile; fileRef = C16D18332792A4AF00F869A0 /* DataLayerMigrations.h */; };
 		C16D18362792A4AF00F869A0 /* DataLayerMigrations.m in Sources */ = {isa = PBXBuildFile; fileRef = C16D18342792A4AF00F869A0 /* DataLayerMigrations.m */; };
@@ -203,18 +246,24 @@
 		C18E757C245E8AE900AE8FB7 /* MLPipe.m in Sources */ = {isa = PBXBuildFile; fileRef = C18E7579245E8AE900AE8FB7 /* MLPipe.m */; };
 		C1943A4C25309A9D0036172F /* MLReloadCell.m in Sources */ = {isa = PBXBuildFile; fileRef = C1943A4B25309A9D0036172F /* MLReloadCell.m */; };
 		C1A80DA424D9552400B99E01 /* MLChatViewHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = C1A80DA324D9552400B99E01 /* MLChatViewHelper.m */; };
-		C1B1982625AB31B800D5028E /* MLBlockedUsersTableViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = C1B1982525AB31B800D5028E /* MLBlockedUsersTableViewController.m */; };
 		C1B940EA26144AF500E9D290 /* AESGCMTest.m in Sources */ = {isa = PBXBuildFile; fileRef = C1B940E926144AF500E9D290 /* AESGCMTest.m */; };
-		C1C839DD24F15DF800BBCF17 /* MLOMEMO.h in Headers */ = {isa = PBXBuildFile; fileRef = C1C839DA24F15DF800BBCF17 /* MLOMEMO.h */; };
+		C1C839DD24F15DF800BBCF17 /* MLOMEMO.h in Headers */ = {isa = PBXBuildFile; fileRef = C1C839DA24F15DF800BBCF17 /* MLOMEMO.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		C1C839DE24F15DF800BBCF17 /* MLOMEMO.m in Sources */ = {isa = PBXBuildFile; fileRef = C1C839DC24F15DF800BBCF17 /* MLOMEMO.m */; };
 		C1D7D7AF283FB4E500401389 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 26B2A4BA1B73061400272E63 /* Images.xcassets */; };
 		C1D7D7B0283FB4E700401389 /* Media.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 26470F511835C4080069E3E0 /* Media.xcassets */; };
 		C1E4654824EE517000CA5AAF /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = C1E4654624EE517000CA5AAF /* Localizable.strings */; };
 		C1E8A7F72B8E47C300760220 /* EditGroupSubject.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1E8A7F62B8E47C300760220 /* EditGroupSubject.swift */; };
-		C1F5C7A92775DA000001F295 /* MLContactSoftwareVersionInfo.h in Headers */ = {isa = PBXBuildFile; fileRef = C1F5C7A72775DA000001F295 /* MLContactSoftwareVersionInfo.h */; };
+		C1F5C7A92775DA000001F295 /* MLContactSoftwareVersionInfo.h in Headers */ = {isa = PBXBuildFile; fileRef = C1F5C7A72775DA000001F295 /* MLContactSoftwareVersionInfo.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		C1F5C7AA2775DA000001F295 /* MLContactSoftwareVersionInfo.m in Sources */ = {isa = PBXBuildFile; fileRef = C1F5C7A82775DA000001F295 /* MLContactSoftwareVersionInfo.m */; };
 		C1F5C7AC2777621B0001F295 /* ContactResources.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1F5C7AB2777621B0001F295 /* ContactResources.swift */; };
 		C1F5C7AF2777638B0001F295 /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = C1F5C7AE2777638B0001F295 /* OrderedCollections */; };
+		D02192F32C89BB3800202A59 /* BlockedUsers.swift in Sources */ = {isa = PBXBuildFile; fileRef = D02192F22C89BB3800202A59 /* BlockedUsers.swift */; };
+		D09B51F62C7F30DD008D725B /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 26B2A4BA1B73061400272E63 /* Images.xcassets */; };
+		D0BEF5062EF1F5A800947F75 /* MLFiletransferInfo.m in Sources */ = {isa = PBXBuildFile; fileRef = D0BEF5052EF1F5A800947F75 /* MLFiletransferInfo.m */; };
+		D0BEF50A2EF1F5F400947F75 /* MLFiletransferInfo.h in Headers */ = {isa = PBXBuildFile; fileRef = D0BEF5092EF1F5F400947F75 /* MLFiletransferInfo.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		D0E0497A2DB3A7FA002783A3 /* ChatViewHelpers.m in Sources */ = {isa = PBXBuildFile; fileRef = D0E049792DB3A7FA002783A3 /* ChatViewHelpers.m */; };
+		D0FA79B12C7E5C7400216D2A /* ServerDetails.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0FA79B02C7E5C7400216D2A /* ServerDetails.swift */; };
+		D0FE3F542C5C56ED007AAD23 /* ChangePassword.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0FE3F532C5C56ED007AAD23 /* ChangePassword.swift */; };
 		D7E74AF213445E39318BC648 /* Pods_MonalUITests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 29250DA62DD2322383585B2B /* Pods_MonalUITests.framework */; };
 		E89DD32525C6626400925F62 /* MLFileTransferDataCell.m in Sources */ = {isa = PBXBuildFile; fileRef = E89DD32025C6626300925F62 /* MLFileTransferDataCell.m */; };
 		E89DD32625C6626400925F62 /* MLFileTransferVideoCell.m in Sources */ = {isa = PBXBuildFile; fileRef = E89DD32125C6626300925F62 /* MLFileTransferVideoCell.m */; };
@@ -313,6 +362,7 @@
 		1D3623250D0F684500981E51 /* MonalAppDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = MonalAppDelegate.m; path = Classes/MonalAppDelegate.m; sourceTree = "<group>"; };
 		1D46F251C198E3D8FA55692F /* Pods-Monal.appstore.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Monal.appstore.xcconfig"; path = "Target Support Files/Pods-Monal/Pods-Monal.appstore.xcconfig"; sourceTree = "<group>"; };
 		20D3611B2C10E12500E46587 /* BoardingCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardingCards.swift; sourceTree = "<group>"; };
+		20D8C65D2C3C37FE00E6BDA2 /* MediaGallery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaGallery.swift; sourceTree = "<group>"; };
 		20ED55842BADDA5C0005783E /* GeneralSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettings.swift; sourceTree = "<group>"; };
 		213F5BFD4599EC9317B99E97 /* Pods-Monal.appstore-quicksy.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Monal.appstore-quicksy.xcconfig"; path = "Target Support Files/Pods-Monal/Pods-Monal.appstore-quicksy.xcconfig"; sourceTree = "<group>"; };
 		21E99538324C14220843F325 /* Pods-shareSheet.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-shareSheet.debug.xcconfig"; path = "Target Support Files/Pods-shareSheet/Pods-shareSheet.debug.xcconfig"; sourceTree = "<group>"; };
@@ -335,8 +385,6 @@
 		26158AF01FFA6E4500E53BDC /* MLWebViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MLWebViewController.h; sourceTree = "<group>"; };
 		26158AF11FFA6E4500E53BDC /* MLWebViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MLWebViewController.m; sourceTree = "<group>"; };
 		26158AF31FFA8A6A00E53BDC /* opensource.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = opensource.html; sourceTree = "<group>"; };
-		261A627E176C055400059090 /* ContactsViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ContactsViewController.h; sourceTree = "<group>"; };
-		261A627F176C055400059090 /* ContactsViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ContactsViewController.m; sourceTree = "<group>"; };
 		261A6284176C156500059090 /* ActiveChatsViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ActiveChatsViewController.m; sourceTree = "<group>"; };
 		261A6289176C159000059090 /* AccountListController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AccountListController.h; sourceTree = "<group>"; };
 		261A628A176C159000059090 /* AccountListController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AccountListController.m; sourceTree = "<group>"; };
@@ -409,8 +457,6 @@
 		26AA70172146BBB900598605 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/iosShare.storyboard; sourceTree = "<group>"; };
 		26AA70192146BBB900598605 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		26AA70222146E2B900598605 /* shareSheet.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = shareSheet.entitlements; sourceTree = "<group>"; };
-		26AAAAD82295742400200433 /* MLPasswordChangeTableViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MLPasswordChangeTableViewController.h; sourceTree = "<group>"; };
-		26AAAAD92295742400200433 /* MLPasswordChangeTableViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MLPasswordChangeTableViewController.m; sourceTree = "<group>"; };
 		26AAE283179F7B0200271345 /* MLSettingCell.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MLSettingCell.h; sourceTree = "<group>"; };
 		26AAE284179F7B0200271345 /* MLSettingCell.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MLSettingCell.m; sourceTree = "<group>"; };
 		26ABE9FB494A9E7F3044C695 /* Pods-MonalUITests.appstore-quicksy.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MonalUITests.appstore-quicksy.xcconfig"; path = "Target Support Files/Pods-MonalUITests/Pods-MonalUITests.appstore-quicksy.xcconfig"; sourceTree = "<group>"; };
@@ -427,14 +473,10 @@
 		26CC579523A0867400ABB92A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		26CF3EA81780D6B7002B7085 /* XMPPIQ.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = XMPPIQ.h; sourceTree = "<group>"; };
 		26CF3EA91780D6B7002B7085 /* XMPPIQ.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = XMPPIQ.m; sourceTree = "<group>"; };
-		26D59D9120714F32006F1DEE /* UIColor+Theme.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "UIColor+Theme.h"; path = "Classes/UIColor+Theme.h"; sourceTree = "<group>"; };
-		26D59D9220714F32006F1DEE /* UIColor+Theme.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = "UIColor+Theme.m"; path = "Classes/UIColor+Theme.m"; sourceTree = "<group>"; };
 		26D7C05C23D6AFD800CA123C /* MLChatInputContainer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MLChatInputContainer.h; sourceTree = "<group>"; };
 		26D7C05D23D6AFD800CA123C /* MLChatInputContainer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MLChatInputContainer.m; sourceTree = "<group>"; };
 		26D89F041A890672009B147C /* MLSwitchCell.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MLSwitchCell.h; sourceTree = "<group>"; };
 		26D89F051A890672009B147C /* MLSwitchCell.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MLSwitchCell.m; sourceTree = "<group>"; };
-		26E3ED851FEC0CB7008ABDA5 /* MLServerDetails.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MLServerDetails.h; sourceTree = "<group>"; };
-		26E3ED861FEC0CB7008ABDA5 /* MLServerDetails.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MLServerDetails.m; sourceTree = "<group>"; };
 		26E8462324EABAD600ECE419 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Settings.storyboard; sourceTree = "<group>"; };
 		26E8462924EABAED00ECE419 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		26E8462B24EABBFC00ECE419 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = external/de.lproj/Main.strings; sourceTree = "<group>"; };
@@ -501,6 +543,10 @@
 		2C59BAF969550DFAC27E5F2B /* Pods_MonalXMPPUnitTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_MonalXMPPUnitTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		2E5021A8D40FCC591D952104 /* Pods-NotificaionService.alpha-ios.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-NotificaionService.alpha-ios.xcconfig"; path = "Target Support Files/Pods-NotificaionService/Pods-NotificaionService.alpha-ios.xcconfig"; sourceTree = "<group>"; };
 		32CA4F630368D1EE00C91783 /* MonalSourceCodePrefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MonalSourceCodePrefix.pch; sourceTree = "<group>"; };
+		341F44642CAF427500AA6C7D /* MLPromise.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MLPromise.h; sourceTree = "<group>"; };
+		341F44652CAF427500AA6C7D /* MLPromise.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MLPromise.m; sourceTree = "<group>"; };
+		34BC08112C5E9BE30099FB85 /* ContentUnavailableShimView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentUnavailableShimView.swift; sourceTree = "<group>"; };
+		34E58B4A2C68E7BC009A1634 /* ContactsView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ContactsView.swift; sourceTree = "<group>"; };
 		3872091F251EDE07001837EB /* MLXEPSlashMeHandler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MLXEPSlashMeHandler.h; sourceTree = "<group>"; };
 		38720921251EDE07001837EB /* MLXEPSlashMeHandler.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MLXEPSlashMeHandler.m; sourceTree = "<group>"; };
 		389E298925E901CA009A5268 /* MLAudioRecoderManager.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MLAudioRecoderManager.m; sourceTree = "<group>"; };
@@ -517,7 +563,7 @@
 		3D7D352228626CB80042C5E5 /* LoadingOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingOverlay.swift; sourceTree = "<group>"; };
 		3D85E586282AE523006F5B3A /* OmemoQrCodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmemoQrCodeView.swift; sourceTree = "<group>"; };
 		3D88BB76295BB6DC00FB30BA /* CreateGroupMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateGroupMenu.swift; sourceTree = "<group>"; };
-		3DC5035B2822F5220064C8A7 /* OmemoKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmemoKeys.swift; sourceTree = "<group>"; };
+		3DC5035B2822F5220064C8A7 /* OmemoKeysView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmemoKeysView.swift; sourceTree = "<group>"; };
 		3EB7A7084FA9A8F68A3D251C /* Pods-MonalXMPPUnitTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MonalXMPPUnitTests.debug.xcconfig"; path = "Target Support Files/Pods-MonalXMPPUnitTests/Pods-MonalXMPPUnitTests.debug.xcconfig"; sourceTree = "<group>"; };
 		4049F81F60EA5B7A57A4E9C6 /* Pods-NotificationService.beta.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-NotificationService.beta.xcconfig"; path = "Target Support Files/Pods-NotificationService/Pods-NotificationService.beta.xcconfig"; sourceTree = "<group>"; };
 		43FFAD161EF5A0B1CB149814 /* Pods-shareSheet.alpha-ios.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-shareSheet.alpha-ios.xcconfig"; path = "Target Support Files/Pods-shareSheet/Pods-shareSheet.alpha-ios.xcconfig"; sourceTree = "<group>"; };
@@ -573,6 +619,11 @@
 		840E23C928ADA56900A7FAC9 /* MLUploadQueueCell.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MLUploadQueueCell.h; sourceTree = "<group>"; };
 		8414ADFA2A7ABAC900EFFCCC /* LibMonalRustSwiftBridge */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = LibMonalRustSwiftBridge; path = ../rust/LibMonalRustSwiftBridge; sourceTree = "<group>"; };
 		841898AB2957DBAC00FEC77D /* RichAlert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichAlert.swift; sourceTree = "<group>"; };
+		8418B5582C7EBD39006FAF60 /* ActiveChatsViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ActiveChatsViewController.h; sourceTree = "<group>"; };
+		8418B55B2C7EC6B7006FAF60 /* Quicksy_Country.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Quicksy_Country.h; sourceTree = "<group>"; };
+		8418B55C2C7EC6B7006FAF60 /* Quicksy_Country.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Quicksy_Country.m; sourceTree = "<group>"; };
+		8418B5612C7ECFD6006FAF60 /* HelperTools+Quicksy_CountryCodes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "HelperTools+Quicksy_CountryCodes.h"; sourceTree = "<group>"; };
+		8418B5622C7ECFD6006FAF60 /* HelperTools+Quicksy_CountryCodes.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "HelperTools+Quicksy_CountryCodes.m"; sourceTree = "<group>"; };
 		841B6F19297B18720074F9B7 /* AccountPicker.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AccountPicker.swift; sourceTree = "<group>"; };
 		841B6F1B297B3CFC0074F9B7 /* AVCallUI.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AVCallUI.swift; sourceTree = "<group>"; };
 		841EE42F2A426F2300D3AF14 /* MLCrashReporter.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = MLCrashReporter.m; path = Classes/MLCrashReporter.m; sourceTree = "<group>"; };
@@ -584,11 +635,12 @@
 		8441EFF82921B53500E851E9 /* BackgroundSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundSettings.swift; sourceTree = "<group>"; };
 		844921E92C29F9A000B99A9C /* MLDelayableTimer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MLDelayableTimer.m; sourceTree = "<group>"; };
 		844921EB2C29F9BE00B99A9C /* MLDelayableTimer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MLDelayableTimer.h; sourceTree = "<group>"; };
+		84558DBE2DF04C3100F8357F /* OneClickRegistration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneClickRegistration.swift; sourceTree = "<group>"; };
 		845836B92C49F36300B11EC5 /* Quicksy Launch Screen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = "Quicksy Launch Screen.storyboard"; path = "Monal-iOS/Quicksy Launch Screen.storyboard"; sourceTree = "<group>"; };
-		845D636A2AD4AEDA0066EFFB /* ImageViewer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ImageViewer.swift; sourceTree = "<group>"; };
+		845D636A2AD4AEDA0066EFFB /* MediaViewer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MediaViewer.swift; sourceTree = "<group>"; };
 		846DF27B2937FAA600AAB9C0 /* ChatPlaceholder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatPlaceholder.swift; sourceTree = "<group>"; };
+		847311222C893D2600739CC6 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		848227902C4A6194003CCA33 /* MLPlaceholderViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MLPlaceholderViewController.m; sourceTree = "<group>"; };
-		848501332C4F2B6D00C1B693 /* CountryCodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountryCodes.swift; sourceTree = "<group>"; };
 		848717F1295ED64500B8D288 /* MLCall.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = MLCall.m; path = Classes/MLCall.m; sourceTree = SOURCE_ROOT; };
 		848717F2295ED64500B8D288 /* MLCall.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = MLCall.h; path = Classes/MLCall.h; sourceTree = SOURCE_ROOT; };
 		848904A8289C82C30097E19C /* SCRAM.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SCRAM.m; sourceTree = "<group>"; };
@@ -602,9 +654,16 @@
 		84C1CD512A8F617F007076ED /* MLStreamRedirect.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MLStreamRedirect.m; sourceTree = "<group>"; };
 		84C1CD532A8F6196007076ED /* MLStreamRedirect.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MLStreamRedirect.h; sourceTree = "<group>"; };
 		84C6F6022D597FB20015575E /* ParserTest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ParserTest.m; sourceTree = "<group>"; };
+		84C6F6042D597FD10015575E /* SDPTest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SDPTest.m; sourceTree = "<group>"; };
 		84C6F6062D597FF40015575E /* HandlerTest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = HandlerTest.m; sourceTree = "<group>"; };
 		84D31CE528653B83006D7926 /* WebRTCClient.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = WebRTCClient.swift; path = Classes/WebRTCClient.swift; sourceTree = SOURCE_ROOT; };
-		84E55E7F2964426D003E191A /* ActiveChatsViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ActiveChatsViewController.h; sourceTree = "<group>"; };
+		84DED8552EE0774600401D3A /* MLChannelContact.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MLChannelContact.m; sourceTree = "<group>"; };
+		84DED8572EE0776400401D3A /* MLChannelContact.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MLChannelContact.h; sourceTree = "<group>"; };
+		84DED8592EE0795200401D3A /* MLContactProtocol.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MLContactProtocol.h; sourceTree = "<group>"; };
+		84E5AF182EE63FBA00FF1E4A /* MLReactionsEntry.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MLReactionsEntry.m; sourceTree = "<group>"; };
+		84E5AF1A2EE63FCF00FF1E4A /* MLReactionsEntry.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MLReactionsEntry.h; sourceTree = "<group>"; };
+		84E8870A2EEADD34006A61FC /* HT.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HT.h; sourceTree = "<group>"; };
+		84E8870B2EEADD34006A61FC /* HT.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = HT.m; sourceTree = "<group>"; };
 		84F194C32C0FE70900F0A994 /* es-AR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "es-AR"; path = "external/es-AR.lproj/Main.strings"; sourceTree = "<group>"; };
 		84F194C42C0FE74500F0A994 /* es-AR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "es-AR"; path = "external/es-AR.lproj/Settings.strings"; sourceTree = "<group>"; };
 		84F194C52C0FE78B00F0A994 /* es-AR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "es-AR"; path = "external/es-AR.lproj/iosShare.strings"; sourceTree = "<group>"; };
@@ -617,6 +676,11 @@
 		8D1107310486CEB800E47090 /* Monal-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "Monal-Info.plist"; plistStructureDefinitionIdentifier = "com.apple.xcode.plist.structure-definition.iphone.info-plist"; sourceTree = "<group>"; };
 		8F1488206B764014DD7EC92A /* Pods_shareSheet.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_shareSheet.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		9162E3E9FCE2280BF75F5102 /* Pods-Monal.alpha-ios.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Monal.alpha-ios.xcconfig"; path = "Target Support Files/Pods-Monal/Pods-Monal.alpha-ios.xcconfig"; sourceTree = "<group>"; };
+		9341BC672F4FBA0C00FCD32B /* ActiveChatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveChatsView.swift; sourceTree = "<group>"; };
+		9341BC692F4FBEC100FCD32B /* ActiveChatsBridgeHelper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ActiveChatsBridgeHelper.h; sourceTree = "<group>"; };
+		9341BC6A2F4FBEE700FCD32B /* ActiveChatsBridgeHelper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ActiveChatsBridgeHelper.m; sourceTree = "<group>"; };
+		9371C49A2F4F3EF100668BA9 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		93D2AE3F2F55E8330074E42B /* NewChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewChatView.swift; sourceTree = "<group>"; };
 		952EBC7F2BAF72F300183DBF /* DebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugView.swift; sourceTree = "<group>"; };
 		9705AFFB59AF72A9B79C1D7B /* Pods-MonalXMPPUnitTests.adhoc.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MonalXMPPUnitTests.adhoc.xcconfig"; path = "Target Support Files/Pods-MonalXMPPUnitTests/Pods-MonalXMPPUnitTests.adhoc.xcconfig"; sourceTree = "<group>"; };
 		9760CF4718351300C4256921 /* Pods-shareSheet.appstore-quicksy.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-shareSheet.appstore-quicksy.xcconfig"; path = "Target Support Files/Pods-shareSheet/Pods-shareSheet.appstore-quicksy.xcconfig"; sourceTree = "<group>"; };
@@ -654,7 +718,6 @@
 		C1414E9B24312F0100948788 /* MLChatMapsCell.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MLChatMapsCell.h; sourceTree = "<group>"; };
 		C1414E9C24312F0100948788 /* MLChatMapsCell.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MLChatMapsCell.m; sourceTree = "<group>"; };
 		C15489B825680BBE00BBA2F0 /* MLQRCodeScanner.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MLQRCodeScanner.swift; sourceTree = "<group>"; };
-		C1567E3528255C64006E9637 /* Monal.macos.entitlements */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.entitlements; path = Monal.macos.entitlements; sourceTree = "<group>"; };
 		C1567E3628255C64006E9637 /* Monal.ios.entitlements */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.entitlements; path = Monal.ios.entitlements; sourceTree = "<group>"; };
 		C1567E3728255D02006E9637 /* NotificationService.ios.entitlements */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.entitlements; path = NotificationService.ios.entitlements; sourceTree = "<group>"; };
 		C1567E3828255D02006E9637 /* NotificationService.macos.entitlements */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.entitlements; path = NotificationService.macos.entitlements; sourceTree = "<group>"; };
@@ -685,8 +748,6 @@
 		C1A80DA324D9552400B99E01 /* MLChatViewHelper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MLChatViewHelper.m; sourceTree = "<group>"; };
 		C1AAC3E224B5EF4100BB15D6 /* HelperTools.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = HelperTools.h; sourceTree = "<group>"; };
 		C1AAC3E324B5EF4100BB15D6 /* HelperTools.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = HelperTools.m; sourceTree = "<group>"; };
-		C1B1982425AB31B800D5028E /* MLBlockedUsersTableViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MLBlockedUsersTableViewController.h; sourceTree = "<group>"; };
-		C1B1982525AB31B800D5028E /* MLBlockedUsersTableViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MLBlockedUsersTableViewController.m; sourceTree = "<group>"; };
 		C1B940E826144AF400E9D290 /* MonalXMPPUnitTests-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "MonalXMPPUnitTests-Bridging-Header.h"; sourceTree = "<group>"; };
 		C1B940E926144AF500E9D290 /* AESGCMTest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AESGCMTest.m; sourceTree = "<group>"; };
 		C1BEDB392EF9BFC800B84871 /* te */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = te; path = external/te.lproj/Main.strings; sourceTree = "<group>"; };
@@ -763,10 +824,16 @@
 		C1E856A828DECF5F00B104E9 /* eu */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = eu; path = external/eu.lproj/iosShare.strings; sourceTree = "<group>"; };
 		C1E856A928DECF5F00B104E9 /* eu */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = eu; path = external/eu.lproj/Localizable.strings; sourceTree = "<group>"; };
 		C1E8A7F62B8E47C300760220 /* EditGroupSubject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditGroupSubject.swift; sourceTree = "<group>"; };
-		C1F0AD15288BCE6F00BB0182 /* Monal.Alpha.ios.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Monal.Alpha.ios.entitlements; sourceTree = "<group>"; };
 		C1F5C7A72775DA000001F295 /* MLContactSoftwareVersionInfo.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MLContactSoftwareVersionInfo.h; sourceTree = "<group>"; };
 		C1F5C7A82775DA000001F295 /* MLContactSoftwareVersionInfo.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MLContactSoftwareVersionInfo.m; sourceTree = "<group>"; };
 		C1F5C7AB2777621B0001F295 /* ContactResources.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ContactResources.swift; sourceTree = "<group>"; };
+		D02192F22C89BB3800202A59 /* BlockedUsers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockedUsers.swift; sourceTree = "<group>"; };
+		D0BEF5052EF1F5A800947F75 /* MLFiletransferInfo.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MLFiletransferInfo.m; sourceTree = "<group>"; };
+		D0BEF5092EF1F5F400947F75 /* MLFiletransferInfo.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MLFiletransferInfo.h; sourceTree = "<group>"; };
+		D0E049792DB3A7FA002783A3 /* ChatViewHelpers.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChatViewHelpers.m; sourceTree = "<group>"; };
+		D0E0497C2DB3A862002783A3 /* ChatViewHelpers.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChatViewHelpers.h; sourceTree = "<group>"; };
+		D0FA79B02C7E5C7400216D2A /* ServerDetails.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerDetails.swift; sourceTree = "<group>"; };
+		D0FE3F532C5C56ED007AAD23 /* ChangePassword.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangePassword.swift; sourceTree = "<group>"; };
 		D310A8387B2EB10761312F77 /* Pods-NotificaionService.appstore.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-NotificaionService.appstore.xcconfig"; path = "Target Support Files/Pods-NotificaionService/Pods-NotificaionService.appstore.xcconfig"; sourceTree = "<group>"; };
 		D8D2595B2BE453296E59F1AF /* Pods-MonalUITests.appstore.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MonalUITests.appstore.xcconfig"; path = "Target Support Files/Pods-MonalUITests/Pods-MonalUITests.appstore.xcconfig"; sourceTree = "<group>"; };
 		DC5DA2C9782510B3433FD50D /* Pods-monalxmpp.beta.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-monalxmpp.beta.xcconfig"; path = "Target Support Files/Pods-monalxmpp/Pods-monalxmpp.beta.xcconfig"; sourceTree = "<group>"; };
@@ -793,11 +860,17 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				84774DF52D1A935000B15E51 /* ExyteChat in Frameworks */,
+				84A8340C2F1156F5004738AE /* WebRTC in Frameworks */,
+				843DC1B22C8E51E3002724FE /* ExyteChat in Frameworks */,
 				261E542523A0A1D300394F59 /* monalxmpp.framework in Frameworks */,
 				84F194D12C15197200F0A994 /* FrameUp in Frameworks */,
 				C176F1EC2AF11C31002034E5 /* UserNotifications.framework in Frameworks */,
+				84AF79C22DF3C0A900FE3818 /* CropViewController in Frameworks */,
+				84774DFB2D1A956400B15E51 /* ExyteChat in Frameworks */,
 				C1F5C7AF2777638B0001F295 /* OrderedCollections in Frameworks */,
 				841898AA2957712000FEC77D /* ViewExtractor in Frameworks */,
+				84AF79C42DF3C0A900FE3818 /* TOCropViewController in Frameworks */,
 				7D40218FEAB3BA882811A682 /* Pods_Monal.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -870,7 +943,6 @@
 				263AFDFB209B3B35007F9CEE /* MLSignalStore.m */,
 				C16D18332792A4AF00F869A0 /* DataLayerMigrations.h */,
 				C16D18342792A4AF00F869A0 /* DataLayerMigrations.m */,
-				84FC37542897521400634E3E /* snprintf.m */,
 			);
 			name = Shared;
 			path = Classes;
@@ -1014,6 +1086,9 @@
 				E89DD32425C6626400925F62 /* MLFileTransferTextCell.m */,
 				E89DD31F25C6626300925F62 /* MLFileTransferVideoCell.h */,
 				E89DD32125C6626300925F62 /* MLFileTransferVideoCell.m */,
+				847311222C893D2600739CC6 /* ChatView.swift */,
+				D0E049792DB3A7FA002783A3 /* ChatViewHelpers.m */,
+				D0E0497C2DB3A862002783A3 /* ChatViewHelpers.h */,
 			);
 			name = ChatViews;
 			sourceTree = "<group>";
@@ -1021,6 +1096,7 @@
 		2644D4961FF29E1900F46AB5 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				9371C49A2F4F3EF100668BA9 /* SettingsView.swift */,
 				2644D4971FF29E5600F46AB5 /* MLSettingsTableViewController.h */,
 				2644D4981FF29E5600F46AB5 /* MLSettingsTableViewController.m */,
 				26B0CA8721AE2E3C0080B133 /* MLSoundsTableViewController.h */,
@@ -1043,6 +1119,13 @@
 				26611025238F17B20030A4EE /* MLMessage.m */,
 				C1F5C7A72775DA000001F295 /* MLContactSoftwareVersionInfo.h */,
 				C1F5C7A82775DA000001F295 /* MLContactSoftwareVersionInfo.m */,
+				84DED8552EE0774600401D3A /* MLChannelContact.m */,
+				84DED8572EE0776400401D3A /* MLChannelContact.h */,
+				84DED8592EE0795200401D3A /* MLContactProtocol.h */,
+				84E5AF182EE63FBA00FF1E4A /* MLReactionsEntry.m */,
+				84E5AF1A2EE63FCF00FF1E4A /* MLReactionsEntry.h */,
+				D0BEF5052EF1F5A800947F75 /* MLFiletransferInfo.m */,
+				D0BEF5092EF1F5F400947F75 /* MLFiletransferInfo.h */,
 			);
 			name = Models;
 			sourceTree = "<group>";
@@ -1054,14 +1137,11 @@
 				261A628A176C159000059090 /* AccountListController.m */,
 				2636C43D177BD58C001CA71F /* XMPPEdit.h */,
 				2636C43E177BD58C001CA71F /* XMPPEdit.m */,
-				26E3ED851FEC0CB7008ABDA5 /* MLServerDetails.h */,
-				26E3ED861FEC0CB7008ABDA5 /* MLServerDetails.m */,
 				262AEFE620AE756800498F82 /* MLMAMPrefTableViewController.h */,
 				262AEFE720AE756800498F82 /* MLMAMPrefTableViewController.m */,
-				26AAAAD82295742400200433 /* MLPasswordChangeTableViewController.h */,
-				26AAAAD92295742400200433 /* MLPasswordChangeTableViewController.m */,
-				C1B1982425AB31B800D5028E /* MLBlockedUsersTableViewController.h */,
-				C1B1982525AB31B800D5028E /* MLBlockedUsersTableViewController.m */,
+				D0FA79B02C7E5C7400216D2A /* ServerDetails.swift */,
+				D02192F22C89BB3800202A59 /* BlockedUsers.swift */,
+				D0FE3F532C5C56ED007AAD23 /* ChangePassword.swift */,
 			);
 			name = Accounts;
 			sourceTree = "<group>";
@@ -1069,9 +1149,10 @@
 		26715E5E17650AF900684F3D /* View Controllers */ = {
 			isa = PBXGroup;
 			children = (
+				93D2AE3F2F55E8330074E42B /* NewChatView.swift */,
 				848227902C4A6194003CCA33 /* MLPlaceholderViewController.m */,
 				849248482AD4CEC400986C1A /* ZoomableContainer.swift */,
-				845D636A2AD4AEDA0066EFFB /* ImageViewer.swift */,
+				845D636A2AD4AEDA0066EFFB /* MediaViewer.swift */,
 				841B6F16297AFB340074F9B7 /* Calls */,
 				3D65B790272350F0005A30F4 /* SwiftuiHelpers.swift */,
 				C15489B825680BBE00BBA2F0 /* MLQRCodeScanner.swift */,
@@ -1081,6 +1162,7 @@
 				26158AF01FFA6E4500E53BDC /* MLWebViewController.h */,
 				26158AF11FFA6E4500E53BDC /* MLWebViewController.m */,
 				84FC375828981A5600634E3E /* PasswordMigration.swift */,
+				34E58B4A2C68E7BC009A1634 /* ContactsView.swift */,
 				3D631822294BAB1D00026BE7 /* ContactPicker.swift */,
 				3D27D955290B0BB60014748B /* AddContactMenu.swift */,
 				3D88BB76295BB6DC00FB30BA /* CreateGroupMenu.swift */,
@@ -1089,6 +1171,7 @@
 				841898AB2957DBAC00FEC77D /* RichAlert.swift */,
 				C114D13C2B15B903000FB99F /* ContactEntry.swift */,
 				952EBC7F2BAF72F300183DBF /* DebugView.swift */,
+				34BC08112C5E9BE30099FB85 /* ContentUnavailableShimView.swift */,
 			);
 			name = "View Controllers";
 			path = Classes;
@@ -1097,6 +1180,8 @@
 		267B671E226A2208003DB850 /* Crypto */ = {
 			isa = PBXGroup;
 			children = (
+				84E8870A2EEADD34006A61FC /* HT.h */,
+				84E8870B2EEADD34006A61FC /* HT.m */,
 				C1C839DA24F15DF800BBCF17 /* MLOMEMO.h */,
 				C1C839DC24F15DF800BBCF17 /* MLOMEMO.m */,
 				267B671A226A200D003DB850 /* AESGcm.h */,
@@ -1119,11 +1204,12 @@
 			children = (
 				C1F5C7AB2777621B0001F295 /* ContactResources.swift */,
 				3D85E586282AE523006F5B3A /* OmemoQrCodeView.swift */,
-				3DC5035B2822F5220064C8A7 /* OmemoKeys.swift */,
+				3DC5035B2822F5220064C8A7 /* OmemoKeysView.swift */,
 				3D65B78C27234B74005A30F4 /* ContactDetails.swift */,
 				3D5A91412842B4AE008CE57E /* MemberList.swift */,
 				C18967C62B81F61B0073C7C5 /* ChannelMemberList.swift */,
 				C1E8A7F62B8E47C300760220 /* EditGroupSubject.swift */,
+				20D8C65D2C3C37FE00E6BDA2 /* MediaGallery.swift */,
 			);
 			name = "Contact Details";
 			sourceTree = "<group>";
@@ -1155,8 +1241,6 @@
 				1D3623250D0F684500981E51 /* MonalAppDelegate.m */,
 				26715E5E17650AF900684F3D /* View Controllers */,
 				8D1107310486CEB800E47090 /* Monal-Info.plist */,
-				26D59D9120714F32006F1DEE /* UIColor+Theme.h */,
-				26D59D9220714F32006F1DEE /* UIColor+Theme.m */,
 			);
 			name = "Monal-iOS";
 			sourceTree = "<group>";
@@ -1219,14 +1303,13 @@
 		26DB52121777EA5100B50353 /* Tab views */ = {
 			isa = PBXGroup;
 			children = (
-				84E55E7F2964426D003E191A /* ActiveChatsViewController.h */,
+				9341BC5A2F4FA9E300FCD32B /* ChatList */,
+				8418B5582C7EBD39006FAF60 /* ActiveChatsViewController.h */,
 				2644D4961FF29E1900F46AB5 /* Settings */,
 				2644D48F1FF004B800F46AB5 /* ChatViews */,
 				268C1E471FDACDD300BD6921 /* Contact Details */,
 				2665C1191C4AA22700CC9A04 /* Accounts */,
 				262797AC178A573F00B85D94 /* Tableviewcells */,
-				261A627E176C055400059090 /* ContactsViewController.h */,
-				261A627F176C055400059090 /* ContactsViewController.m */,
 				261A6284176C156500059090 /* ActiveChatsViewController.m */,
 				2609B5271FD5B26800F09FA1 /* MLSplitViewDelegate.h */,
 				2609B5281FD5B26800F09FA1 /* MLSplitViewDelegate.m */,
@@ -1239,6 +1322,7 @@
 		26F396CE2196830E00EF5720 /* OnBoard */ = {
 			isa = PBXGroup;
 			children = (
+				84558DBE2DF04C3100F8357F /* OneClickRegistration.swift */,
 				54F0B81B282316F5003664BD /* RegisterAccount.swift */,
 				54F0B81828231690003664BD /* WelcomeLogIn.swift */,
 				C12436122434AB5D00B8F074 /* MLAttributedLabel.h */,
@@ -1252,6 +1336,10 @@
 		26F7BB3A1115F8A300712672 /* tools */ = {
 			isa = PBXGroup;
 			children = (
+				8418B5612C7ECFD6006FAF60 /* HelperTools+Quicksy_CountryCodes.h */,
+				8418B5622C7ECFD6006FAF60 /* HelperTools+Quicksy_CountryCodes.m */,
+				8418B55B2C7EC6B7006FAF60 /* Quicksy_Country.h */,
+				8418B55C2C7EC6B7006FAF60 /* Quicksy_Country.m */,
 				84FC37562897523500634E3E /* metamacros.h */,
 				54391BB9273499E80050DAFB /* UIColor+Extension.h */,
 				54391BBA273499E80050DAFB /* UIColor+Extension.m */,
@@ -1281,7 +1369,9 @@
 				84C1CD532A8F6196007076ED /* MLStreamRedirect.h */,
 				844921E92C29F9A000B99A9C /* MLDelayableTimer.m */,
 				844921EB2C29F9BE00B99A9C /* MLDelayableTimer.h */,
-				848501332C4F2B6D00C1B693 /* CountryCodes.swift */,
+				341F44652CAF427500AA6C7D /* MLPromise.m */,
+				341F44642CAF427500AA6C7D /* MLPromise.h */,
+				84FC37542897521400634E3E /* snprintf.m */,
 			);
 			name = tools;
 			sourceTree = "<group>";
@@ -1290,9 +1380,7 @@
 			isa = PBXGroup;
 			children = (
 				8414ADF92A7ABAC900EFFCCC /* Packages */,
-				C1F0AD15288BCE6F00BB0182 /* Monal.Alpha.ios.entitlements */,
 				C1567E3628255C64006E9637 /* Monal.ios.entitlements */,
-				C1567E3528255C64006E9637 /* Monal.macos.entitlements */,
 				26AA70222146E2B900598605 /* shareSheet.entitlements */,
 				29B97315FDCFA39411CA2CEA /* Root Sources */,
 				080E96DDFE201D6D7F000001 /* Shared */,
@@ -1433,6 +1521,16 @@
 			path = WebRTC;
 			sourceTree = "<group>";
 		};
+		9341BC5A2F4FA9E300FCD32B /* ChatList */ = {
+			isa = PBXGroup;
+			children = (
+				9341BC6A2F4FBEE700FCD32B /* ActiveChatsBridgeHelper.m */,
+				9341BC692F4FBEC100FCD32B /* ActiveChatsBridgeHelper.h */,
+				9341BC672F4FBA0C00FCD32B /* ActiveChatsView.swift */,
+			);
+			path = ChatList;
+			sourceTree = "<group>";
+		};
 		C1049187261301530054AC9E /* MonalXMPPUnitTests */ = {
 			isa = PBXGroup;
 			children = (
@@ -1442,6 +1540,7 @@
 				C104918A261301530054AC9E /* Info.plist */,
 				C1B940E826144AF400E9D290 /* MonalXMPPUnitTests-Bridging-Header.h */,
 				84C6F6022D597FB20015575E /* ParserTest.m */,
+				84C6F6042D597FD10015575E /* SDPTest.m */,
 				84C6F6062D597FF40015575E /* HandlerTest.m */,
 			);
 			path = MonalXMPPUnitTests;
@@ -1496,34 +1595,62 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				84CAED6D2ECAC5E500F4FCBF /* XMPPIQ.h in Headers */,
+				8420EA9B2915E4FE0038FF40 /* OmemoState.h in Headers */,
+				C1C839DD24F15DF800BBCF17 /* MLOMEMO.h in Headers */,
+				9341BC6C2F4FBF4700FCD32B /* ActiveChatsBridgeHelper.h in Headers */,
+				84E5AF1B2EE63FCF00FF1E4A /* MLReactionsEntry.h in Headers */,
+				340F0CA52D2425E1006224D0 /* MLLogFileManager.h in Headers */,
+				541E4CBE254AA0B600FD7B28 /* MLHandler.h in Headers */,
+				340F0CA42D2425D9006224D0 /* MLXMPPIdentity.h in Headers */,
+				340F0CA32D2425D2006224D0 /* MLXMPPServer.h in Headers */,
+				54179CC3251CBB2B008F398E /* XMPPStanza.h in Headers */,
+				C1F5C7A92775DA000001F295 /* MLContactSoftwareVersionInfo.h in Headers */,
+				340F0CA22D2425C4006224D0 /* XMPPPresence.h in Headers */,
+				84FC37572897523500634E3E /* metamacros.h in Headers */,
+				84E8870E2EEADD8F006A61FC /* SCRAM.h in Headers */,
+				340F0CA02D2425A4006224D0 /* MLMessage.h in Headers */,
+				340F0CA12D2425AA006224D0 /* MLXMPPConnection.h in Headers */,
+				26D4389123A5EB6C00242AAA /* MLConstants.h in Headers */,
+				3424B4E92D232BEB009F6503 /* xmpp.h in Headers */,
+				3424B4E82D232BE7009F6503 /* DataLayer.h in Headers */,
+				3424B4E72D232BE2009F6503 /* MLContact.h in Headers */,
+				84DED85A2EE0795200401D3A /* MLContactProtocol.h in Headers */,
+				3424B4ED2D232C07009F6503 /* MLVoIPProcessor.h in Headers */,
+				3424B4EC2D232BFF009F6503 /* MLImageManager.h in Headers */,
+				3424B4EB2D232BFA009F6503 /* MLXMPPManager.h in Headers */,
+				84DED8582EE0776400401D3A /* MLChannelContact.h in Headers */,
+				3424B4EA2D232BF5009F6503 /* MLSignalStore.h in Headers */,
+				C158D40025A0AB810005AA40 /* MLMucProcessor.h in Headers */,
+				3424B4EF2D232C14009F6503 /* HelperTools.h in Headers */,
+				3424B4EE2D232C0F009F6503 /* MLCall.h in Headers */,
+				8418B5632C7ECFD6006FAF60 /* HelperTools+Quicksy_CountryCodes.h in Headers */,
+				8418B55D2C7EC6B7006FAF60 /* Quicksy_Country.h in Headers */,
+				844921EC2C29F9BE00B99A9C /* MLDelayableTimer.h in Headers */,
 				C16D18352792A4AF00F869A0 /* DataLayerMigrations.h in Headers */,
-				26CC579623A0867400ABB92A /* monalxmpp.h in Headers */,
+				340F0CA62D24267B006224D0 /* MLXMLNode.h in Headers */,
+				540BD0D224D8D1F40087A743 /* IPC.h in Headers */,
+				54507CE8255D8C47007092F4 /* MLFiletransfer.h in Headers */,
+				84E8870D2EEADD34006A61FC /* HT.h in Headers */,
+				540E13A224CDCE3B0038FDA0 /* MLProcessLock.h in Headers */,
+				54A22D2D26185E7E00B56EAD /* MLNotificationQueue.h in Headers */,
+				849DFCFA2EEBC1ED008821AF /* MLNotificationManager.h in Headers */,
 				5427C94C276A6BC4003217D5 /* UIColor+Extension.h in Headers */,
 				C18E757A245E8AE900AE8FB7 /* MLPipe.h in Headers */,
-				54179CC3251CBB2B008F398E /* XMPPStanza.h in Headers */,
+				5455BC3424EB776F0024D80F /* MLUDPLogger.h in Headers */,
 				544656BD25349133006B2953 /* XMPPDataForm.h in Headers */,
-				54507CE8255D8C47007092F4 /* MLFiletransfer.h in Headers */,
 				541B6AB5262BC9040038B936 /* MLStream.h in Headers */,
-				540E13A224CDCE3B0038FDA0 /* MLProcessLock.h in Headers */,
 				541E4CBC254AA08700FD7B28 /* MLSQLite.h in Headers */,
-				8420EA9B2915E4FE0038FF40 /* OmemoState.h in Headers */,
 				C1613B5A2520723D0062C0C2 /* MLBasePaser.h in Headers */,
 				542CF4002763314F002C3710 /* hsluv.h in Headers */,
 				54E594BD2523C34B00E4172B /* MLPubSub.h in Headers */,
-				540BD0D224D8D1F40087A743 /* IPC.h in Headers */,
-				C1C839DD24F15DF800BBCF17 /* MLOMEMO.h in Headers */,
-				26D4389123A5EB6C00242AAA /* MLConstants.h in Headers */,
-				C158D40025A0AB810005AA40 /* MLMucProcessor.h in Headers */,
-				54A22D2D26185E7E00B56EAD /* MLNotificationQueue.h in Headers */,
-				84E55E8029644279003E191A /* ActiveChatsViewController.h in Headers */,
+				341F44662CAF427500AA6C7D /* MLPromise.h in Headers */,
+				D0BEF50A2EF1F5F400947F75 /* MLFiletransferInfo.h in Headers */,
 				541E4CC4254D369200FD7B28 /* MLPubSubProcessor.h in Headers */,
-				844921EC2C29F9BE00B99A9C /* MLDelayableTimer.h in Headers */,
 				84C1CD542A8F6196007076ED /* MLStreamRedirect.h in Headers */,
+				84CAED6E2ECAC5F700F4FCBF /* XMPPMessage.h in Headers */,
 				389E298D25E901CA009A5268 /* MLAudioRecoderManager.h in Headers */,
-				541E4CBE254AA0B600FD7B28 /* MLHandler.h in Headers */,
-				C1F5C7A92775DA000001F295 /* MLContactSoftwareVersionInfo.h in Headers */,
-				84FC37572897523500634E3E /* metamacros.h in Headers */,
-				5455BC3424EB776F0024D80F /* MLUDPLogger.h in Headers */,
+				26CC579623A0867400ABB92A /* monalxmpp.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1555,6 +1682,12 @@
 				C1F5C7AE2777638B0001F295 /* OrderedCollections */,
 				841898A92957712000FEC77D /* ViewExtractor */,
 				84F194D02C15197200F0A994 /* FrameUp */,
+				843DC1B12C8E51E3002724FE /* ExyteChat */,
+				84774DF42D1A935000B15E51 /* ExyteChat */,
+				84774DFA2D1A956400B15E51 /* ExyteChat */,
+				84AF79C12DF3C0A900FE3818 /* CropViewController */,
+				84AF79C32DF3C0A900FE3818 /* TOCropViewController */,
+				84A8340B2F1156F5004738AE /* WebRTC */,
 			);
 			productName = SworIM;
 			productReference = 26080210110ABA4E005E194D /* Monal.app */;
@@ -1773,6 +1906,9 @@
 				849ADF3D2BACF0360009BCD7 /* XCRemoteSwiftPackageReference "cocoalumberjack" */,
 				84F194CF2C15197200F0A994 /* XCRemoteSwiftPackageReference "FrameUp" */,
 				84E231F12C16A9CE00735FB7 /* XCRemoteSwiftPackageReference "SVGView" */,
+				84774DF92D1A956400B15E51 /* XCRemoteSwiftPackageReference "ExyteChat" */,
+				84AF79C02DF3C0A900FE3818 /* XCRemoteSwiftPackageReference "TOCropViewController" */,
+				84A8340A2F1156F5004738AE /* XCRemoteSwiftPackageReference "WebRTC" */,
 			);
 			productRefGroup = 19C28FACFE9D520D11CA2CBB /* Products */;
 			projectDirPath = "";
@@ -1828,6 +1964,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				848C73E12BDF2014007035C9 /* PrivacyInfo.xcprivacy in Resources */,
+				D09B51F62C7F30DD008D725B /* Images.xcassets in Resources */,
 				845EFFBE2918723D00C1E03E /* Localizable.strings in Resources */,
 				26AA70182146BBB900598605 /* iosShare.storyboard in Resources */,
 			);
@@ -1887,9 +2024,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-MonalUITests/Pods-MonalUITests-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-MonalUITests/Pods-MonalUITests-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -1948,9 +2089,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-MonalXMPPUnitTests/Pods-MonalXMPPUnitTests-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-MonalXMPPUnitTests/Pods-MonalXMPPUnitTests-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -2006,9 +2151,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Monal/Pods-Monal-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Monal/Pods-Monal-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -2066,10 +2215,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				20D8C65E2C3C37FE00E6BDA2 /* MediaGallery.swift in Sources */,
 				848717F3295ED64600B8D288 /* MLCall.m in Sources */,
 				26D89F061A890672009B147C /* MLSwitchCell.m in Sources */,
 				C18967C72B81F61B0073C7C5 /* ChannelMemberList.swift in Sources */,
 				C114D13D2B15B903000FB99F /* ContactEntry.swift in Sources */,
+				9371C49B2F4F3EF100668BA9 /* SettingsView.swift in Sources */,
 				841B6F1A297B18720074F9B7 /* AccountPicker.swift in Sources */,
 				3D65B791272350F0005A30F4 /* SwiftuiHelpers.swift in Sources */,
 				C1A80DA424D9552400B99E01 /* MLChatViewHelper.m in Sources */,
@@ -2083,38 +2234,45 @@
 				84E55E7D2964424E003E191A /* ActiveChatsViewController.m in Sources */,
 				C1E8A7F72B8E47C300760220 /* EditGroupSubject.swift in Sources */,
 				263DFAC32187D0E00038E716 /* MLLinkCell.m in Sources */,
+				D0FE3F542C5C56ED007AAD23 /* ChangePassword.swift in Sources */,
 				3D65B78D27234B74005A30F4 /* ContactDetails.swift in Sources */,
 				E89DD32525C6626400925F62 /* MLFileTransferDataCell.m in Sources */,
 				E89DD32825C6626400925F62 /* MLFileTransferTextCell.m in Sources */,
 				84BBAECA2C42D272009492E2 /* Quicksy_RegisterAccount.swift in Sources */,
-				261A6281176C055400059090 /* ContactsViewController.m in Sources */,
 				26B0CA8921AE2E3C0080B133 /* MLSoundsTableViewController.m in Sources */,
 				84D31CE628653B83006D7926 /* WebRTCClient.swift in Sources */,
 				54F0B81C282316F5003664BD /* RegisterAccount.swift in Sources */,
+				D0E0497A2DB3A7FA002783A3 /* ChatViewHelpers.m in Sources */,
 				841B6F1C297B3CFC0074F9B7 /* AVCallUI.swift in Sources */,
 				C15489B925680BBE00BBA2F0 /* MLQRCodeScanner.swift in Sources */,
 				2609B5291FD5B26800F09FA1 /* MLSplitViewDelegate.m in Sources */,
 				3D27D956290B0BB60014748B /* AddContactMenu.swift in Sources */,
+				9342E6B32F50EE670065EAE2 /* ActiveChatsBridgeHelper.m in Sources */,
 				261A628B176C159000059090 /* AccountListController.m in Sources */,
 				26FE3BCB1C61A6C3003CC230 /* MLResizingTextView.m in Sources */,
+				D02192F32C89BB3800202A59 /* BlockedUsers.swift in Sources */,
 				54F0B81928231691003664BD /* WelcomeLogIn.swift in Sources */,
 				E8CF9CC726249640001A1952 /* MLSettingsAboutViewController.m in Sources */,
 				C10490492612ED2F0054AC9E /* MLEmoji.swift in Sources */,
 				20D3611C2C10E12500E46587 /* BoardingCards.swift in Sources */,
+				84558DBF2DF04C3100F8357F /* OneClickRegistration.swift in Sources */,
+				847311232C893D2600739CC6 /* ChatView.swift in Sources */,
 				3D06A515281FFCC000DDAE90 /* NotificationDebugging.swift in Sources */,
-				845D636B2AD4AEDA0066EFFB /* ImageViewer.swift in Sources */,
+				93D2AE402F55E8330074E42B /* NewChatView.swift in Sources */,
+				845D636B2AD4AEDA0066EFFB /* MediaViewer.swift in Sources */,
 				2636C43F177BD58C001CA71F /* XMPPEdit.m in Sources */,
 				84FC375928981A5600634E3E /* PasswordMigration.swift in Sources */,
 				E89DD32625C6626400925F62 /* MLFileTransferVideoCell.m in Sources */,
-				26E3ED871FEC0CB7008ABDA5 /* MLServerDetails.m in Sources */,
-				3DC5035C2822F5220064C8A7 /* OmemoKeys.swift in Sources */,
+				3DC5035C2822F5220064C8A7 /* OmemoKeysView.swift in Sources */,
+				34E58B4B2C68E7BC009A1634 /* ContactsView.swift in Sources */,
 				262797AF178A577300B85D94 /* MLContactCell.m in Sources */,
+				9341BC682F4FBA0F00FCD32B /* ActiveChatsView.swift in Sources */,
+				D0FA79B12C7E5C7400216D2A /* ServerDetails.swift in Sources */,
 				2696EED21791245A00BC54B8 /* chatViewController.m in Sources */,
 				C12436142434AB5D00B8F074 /* MLAttributedLabel.m in Sources */,
 				3D85E587282AE523006F5B3A /* OmemoQrCodeView.swift in Sources */,
 				849A53E4287135B2007E941A /* MLVoIPProcessor.m in Sources */,
 				C117F7E12B086390001F2BC6 /* CreateGroupMenu.swift in Sources */,
-				26D59D9320714F32006F1DEE /* UIColor+Theme.m in Sources */,
 				952EBC802BAF72F300183DBF /* DebugView.swift in Sources */,
 				3D7D352328626CB80042C5E5 /* LoadingOverlay.swift in Sources */,
 				26D7C05E23D6AFD800CA123C /* MLChatInputContainer.m in Sources */,
@@ -2126,7 +2284,6 @@
 				3D5A91422842B4AE008CE57E /* MemberList.swift in Sources */,
 				849248492AD4CEC400986C1A /* ZoomableContainer.swift in Sources */,
 				2644D4921FF0064C00F46AB5 /* MLChatImageCell.m in Sources */,
-				26AAAADC2295742500200433 /* MLPasswordChangeTableViewController.m in Sources */,
 				8441EFF92921B53500E851E9 /* BackgroundSettings.swift in Sources */,
 				841898AC2957DBAD00FEC77D /* RichAlert.swift in Sources */,
 				840E23CA28ADA56900A7FAC9 /* MLUploadQueueCell.m in Sources */,
@@ -2138,10 +2295,10 @@
 				E89DD32725C6626400925F62 /* MLFileTransferFileViewController.m in Sources */,
 				C1414E9D24312F0100948788 /* MLChatMapsCell.m in Sources */,
 				54391BBB273499E80050DAFB /* UIColor+Extension.m in Sources */,
-				C1B1982625AB31B800D5028E /* MLBlockedUsersTableViewController.m in Sources */,
 				2644D4951FF046E800F46AB5 /* MLBaseCell.m in Sources */,
 				268DD58617C4541000C673A9 /* MLChatCell.m in Sources */,
 				2644D4991FF29E5600F46AB5 /* MLSettingsTableViewController.m in Sources */,
+				34BC08122C5E9BE30099FB85 /* ContentUnavailableShimView.swift in Sources */,
 				846DF27C2937FAA600AAB9C0 /* ChatPlaceholder.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -2158,7 +2315,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				844EEC6D28E718DB00CB5EF9 /* UIColor+Theme.m in Sources */,
 				26AA70152146BBB900598605 /* ShareViewController.m in Sources */,
 				263DFAC02183D7160038E716 /* MLSelectionController.m in Sources */,
 			);
@@ -2170,6 +2326,7 @@
 			files = (
 				5427C94E276A6BE1003217D5 /* UIColor+Extension.m in Sources */,
 				540E13A524CF6A8C0038FDA0 /* MLNotificationManager.m in Sources */,
+				341F44672CAF427500AA6C7D /* MLPromise.m in Sources */,
 				54D2308424CB10EE00638D65 /* MLLogFileManager.m in Sources */,
 				26CC57B323A086CC00ABB92A /* XMPPIQ.m in Sources */,
 				C1613B5B2520723D0062C0C2 /* MLBasePaser.m in Sources */,
@@ -2187,12 +2344,15 @@
 				540E13A024CDCDB30038FDA0 /* MLProcessLock.m in Sources */,
 				26CC57C823A0892100ABB92A /* MLMessage.m in Sources */,
 				848904A9289C82C30097E19C /* SCRAM.m in Sources */,
+				D0BEF5062EF1F5A800947F75 /* MLFiletransferInfo.m in Sources */,
 				26CC57A623A086AA00ABB92A /* MLXMPPConnection.m in Sources */,
 				540BD0D424D8D2000087A743 /* IPC.m in Sources */,
+				8418B55E2C7EC6B7006FAF60 /* Quicksy_Country.m in Sources */,
 				84C1CD502A8C764D007076ED /* SwiftHelpers.swift in Sources */,
 				541B6AB4262BC9040038B936 /* MLStream.m in Sources */,
 				84FC37552897521500634E3E /* snprintf.m in Sources */,
 				26CC57DA23A08DD800ABB92A /* MLXMPPManager.m in Sources */,
+				84DED8562EE0774700401D3A /* MLChannelContact.m in Sources */,
 				26CC57B823A0876300ABB92A /* MLHTTPRequest.m in Sources */,
 				26CC57A223A086AA00ABB92A /* xmpp.m in Sources */,
 				26CC57B423A086CC00ABB92A /* XMPPPresence.m in Sources */,
@@ -2203,10 +2363,10 @@
 				542CF3FF2763314F002C3710 /* hsluv.c in Sources */,
 				8420EA9D2915E5100038FF40 /* OmemoState.m in Sources */,
 				389E298C25E901CA009A5268 /* MLAudioRecoderManager.m in Sources */,
-				848501342C4F2B6D00C1B693 /* CountryCodes.swift in Sources */,
 				84C1CD522A8F617F007076ED /* MLStreamRedirect.m in Sources */,
 				26CC57C923A0892800ABB92A /* MLMessageProcessor.m in Sources */,
 				C18E757C245E8AE900AE8FB7 /* MLPipe.m in Sources */,
+				8418B5642C7ECFD6006FAF60 /* HelperTools+Quicksy_CountryCodes.m in Sources */,
 				26CC57D523A08D7100ABB92A /* MLSignalStore.m in Sources */,
 				C1C839DE24F15DF800BBCF17 /* MLOMEMO.m in Sources */,
 				26CC57B223A086CC00ABB92A /* MLXMLNode.m in Sources */,
@@ -2216,6 +2376,8 @@
 				26CC57B723A0876300ABB92A /* MLEncryptedPayload.m in Sources */,
 				26CC57B523A086CC00ABB92A /* XMPPMessage.m in Sources */,
 				26CC57B623A0876300ABB92A /* AESGcm.m in Sources */,
+				84E8870C2EEADD34006A61FC /* HT.m in Sources */,
+				84E5AF192EE63FBA00FF1E4A /* MLReactionsEntry.m in Sources */,
 				5455BC3324EB776F0024D80F /* MLUDPLogger.m in Sources */,
 				541E4CC7254D370200FD7B28 /* MLPubSubProcessor.m in Sources */,
 				26CC57C723A0892100ABB92A /* MLContact.m in Sources */,
@@ -2234,6 +2396,7 @@
 				84C6F6032D597FB20015575E /* ParserTest.m in Sources */,
 				C1049189261301530054AC9E /* MonalXMPPUnitTests.swift in Sources */,
 				C1B940EA26144AF500E9D290 /* AESGCMTest.m in Sources */,
+				84C6F6052D597FD10015575E /* SDPTest.m in Sources */,
 				C1049199261301710054AC9E /* MLCryptoTest.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -2473,6 +2636,7 @@
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_LINK_OBJC_RUNTIME = YES;
 				CLANG_WARN_ASSIGN_ENUM = YES;
 				CLANG_WARN_COMMA = YES_ERROR;
@@ -2490,9 +2654,12 @@
 				CODE_SIGN_ENTITLEMENTS = Monal.ios.entitlements;
 				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = Monal.ios.entitlements;
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = Monal.macos.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMPILER_INDEX_STORE_ENABLE = YES;
 				CURRENT_PROJECT_VERSION = 0;
 				DEAD_CODE_STRIPPING = NO;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_BITCODE = NO;
 				"ENABLE_HARDENED_RUNTIME[sdk=macosx*]" = YES;
 				ENABLE_PREVIEWS = YES;
@@ -2514,6 +2681,7 @@
 				GCC_WARN_STRICT_SELECTOR_MATCH = NO;
 				INFOPLIST_FILE = "Monal-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Monal;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					/usr/lib/swift,
 					"$(inherited)",
@@ -2522,24 +2690,26 @@
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				OTHER_LDFLAGS = "$(inherited)";
 				PRESERVE_DEAD_CODE_INITS_AND_TERMS = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = G7YU7X7KRJ.SworIM;
+				PRODUCT_BUNDLE_IDENTIFIER = nl.risker.atay;
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = "org.monal-im.prod.catalyst.monal";
 				PRODUCT_MODULE_NAME = Monal;
 				PRODUCT_NAME = Monal;
 				PROVISIONING_PROFILE = "";
 				"PROVISIONING_PROFILE[sdk=iphoneos*]" = "";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRIP_INSTALLED_PRODUCT = NO;
 				STRIP_STYLE = "non-global";
 				STRIP_SWIFT_SYMBOLS = NO;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "Classes/Monal-Bridging-Header.h";
 				SWIFT_OBJC_INTERFACE_HEADER_NAME = "Monal-Swift.h";
 				SWIFT_STRICT_CONCURRENCY = targeted;
-				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = NO;
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -2554,6 +2724,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 0;
 				DEAD_CODE_STRIPPING = NO;
+				DEVELOPMENT_TEAM = 8GQ6WC4Y93;
 				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
 				INFOPLIST_FILE = NotificationService/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2561,51 +2732,20 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = G7YU7X7KRJ.SworIM.notificationService;
+				PRODUCT_BUNDLE_IDENTIFIER = nl.risker.atay.NotificationServiceExtension;
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = "org.monal-im.prod.catalyst.monal.notificationService";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRIP_INSTALLED_PRODUCT = NO;
 				STRIP_SWIFT_SYMBOLS = NO;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
-		};
-		260773CA232FC4E800BFD50F /* Adhoc */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = B8155E63F8DE80FF36D0B3B7 /* Pods-NotificationService.adhoc.xcconfig */;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CODE_SIGN_ENTITLEMENTS = "";
-				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = NotificationService/NotificationService.ios.entitlements;
-				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = NotificationService/NotificationService.macos.entitlements;
-				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0;
-				DEAD_CODE_STRIPPING = NO;
-				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
-				INFOPLIST_FILE = NotificationService/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = G7YU7X7KRJ.SworIM.notificationService;
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = "org.monal-im.prod.catalyst.monal.notificationService";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_SWIFT_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Adhoc;
 		};
 		260773CB232FC4E800BFD50F /* AppStore */ = {
 			isa = XCBuildConfiguration;
@@ -2618,6 +2758,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 0;
 				DEAD_CODE_STRIPPING = NO;
+				DEVELOPMENT_TEAM = 8GQ6WC4Y93;
 				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
 				INFOPLIST_FILE = NotificationService/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2625,17 +2766,18 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = G7YU7X7KRJ.SworIM.notificationService;
+				PRODUCT_BUNDLE_IDENTIFIER = nl.risker.atay.NotificationServiceExtension;
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = "org.monal-im.prod.catalyst.monal.notificationService";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRIP_INSTALLED_PRODUCT = NO;
 				STRIP_SWIFT_SYMBOLS = NO;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = AppStore;
 		};
@@ -2643,6 +2785,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = monalGreen;
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
@@ -2703,7 +2846,7 @@
 				GCC_WARN_UNUSED_LABEL = YES;
 				GCC_WARN_UNUSED_PARAMETER = NO;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
 				LLVM_LTO = YES;
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				MARKETING_VERSION = 0.0.1;
@@ -2712,7 +2855,7 @@
 				STRIP_INSTALLED_PRODUCT = NO;
 				STRIP_STYLE = "non-global";
 				STRIP_SWIFT_SYMBOLS = NO;
-				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALIDATE_PRODUCT = YES;
@@ -2725,6 +2868,7 @@
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_LINK_OBJC_RUNTIME = YES;
 				CLANG_WARN_ASSIGN_ENUM = YES;
 				CLANG_WARN_COMMA = YES_ERROR;
@@ -2742,9 +2886,12 @@
 				CODE_SIGN_ENTITLEMENTS = Monal.ios.entitlements;
 				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = Monal.ios.entitlements;
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = Monal.macos.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMPILER_INDEX_STORE_ENABLE = YES;
 				CURRENT_PROJECT_VERSION = 0;
 				DEAD_CODE_STRIPPING = NO;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_BITCODE = NO;
 				"ENABLE_HARDENED_RUNTIME[sdk=macosx*]" = YES;
 				ENABLE_PREVIEWS = YES;
@@ -2766,6 +2913,7 @@
 				GCC_WARN_STRICT_SELECTOR_MATCH = NO;
 				INFOPLIST_FILE = "Monal-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Monal;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					/usr/lib/swift,
 					"$(inherited)",
@@ -2774,24 +2922,26 @@
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				OTHER_LDFLAGS = "$(inherited)";
 				PRESERVE_DEAD_CODE_INITS_AND_TERMS = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = G7YU7X7KRJ.SworIM;
+				PRODUCT_BUNDLE_IDENTIFIER = nl.risker.atay;
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = "org.monal-im.prod.catalyst.monal";
 				PRODUCT_MODULE_NAME = Monal;
 				PRODUCT_NAME = Monal;
 				PROVISIONING_PROFILE = "";
 				"PROVISIONING_PROFILE[sdk=iphoneos*]" = "";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRIP_INSTALLED_PRODUCT = NO;
 				STRIP_STYLE = "non-global";
 				STRIP_SWIFT_SYMBOLS = NO;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "Classes/Monal-Bridging-Header.h";
 				SWIFT_OBJC_INTERFACE_HEADER_NAME = "Monal-Swift.h";
 				SWIFT_STRICT_CONCURRENCY = targeted;
-				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = NO;
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = AppStore;
 		};
@@ -2802,6 +2952,7 @@
 				CODE_SIGN_ENTITLEMENTS = shareSheet.entitlements;
 				CURRENT_PROJECT_VERSION = 0;
 				DEAD_CODE_STRIPPING = NO;
+				DEVELOPMENT_TEAM = 8GQ6WC4Y93;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
 				INFOPLIST_FILE = "$(SRCROOT)/shareSheet-iOS/Info.plist";
@@ -2810,46 +2961,19 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = G7YU7X7KRJ.SworIM.shareSheet;
+				PRODUCT_BUNDLE_IDENTIFIER = nl.risker.atay.shareSheet;
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = "org.monal-im.prod.catalyst.monal.shareSheet";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRIP_INSTALLED_PRODUCT = NO;
 				STRIP_SWIFT_SYMBOLS = NO;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
-		};
-		26AA701E2146BBB900598605 /* Adhoc */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 0EC0A5305E72C0F7F9E1CDEF /* Pods-shareSheet.adhoc.xcconfig */;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = shareSheet.entitlements;
-				CURRENT_PROJECT_VERSION = 0;
-				DEAD_CODE_STRIPPING = NO;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
-				INFOPLIST_FILE = "$(SRCROOT)/shareSheet-iOS/Info.plist";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = G7YU7X7KRJ.SworIM.shareSheet;
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = "org.monal-im.prod.catalyst.monal.shareSheet";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_SWIFT_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Adhoc;
 		};
 		26AA701F2146BBB900598605 /* AppStore */ = {
 			isa = XCBuildConfiguration;
@@ -2858,6 +2982,7 @@
 				CODE_SIGN_ENTITLEMENTS = shareSheet.entitlements;
 				CURRENT_PROJECT_VERSION = 0;
 				DEAD_CODE_STRIPPING = NO;
+				DEVELOPMENT_TEAM = "";
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
 				INFOPLIST_FILE = "$(SRCROOT)/shareSheet-iOS/Info.plist";
@@ -2866,16 +2991,17 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = G7YU7X7KRJ.SworIM.shareSheet;
+				PRODUCT_BUNDLE_IDENTIFIER = nl.risker.atay.shareSheet;
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = "org.monal-im.prod.catalyst.monal.shareSheet";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRIP_INSTALLED_PRODUCT = NO;
 				STRIP_SWIFT_SYMBOLS = NO;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = AppStore;
 		};
@@ -2885,10 +3011,13 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
 				CURRENT_PROJECT_VERSION = 0;
 				DEAD_CODE_STRIPPING = NO;
 				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = "";
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
@@ -2903,64 +3032,23 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = im.Monal.monalxmpp;
+				PRODUCT_BUNDLE_IDENTIFIER = nl.risker.atay.monalxmpp;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SKIP_INSTALL = YES;
 				STRIP_INSTALLED_PRODUCT = NO;
 				STRIP_STYLE = "non-global";
 				STRIP_SWIFT_SYMBOLS = NO;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_INCLUDE_PATHS = monalxmpp/;
 				SWIFT_OBJC_BRIDGING_HEADER = "";
 				SWIFT_OBJC_INTERFACE_HEADER_NAME = "monalxmpp-Swift.h";
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				VERSION_INFO_PREFIX = "";
 			};
 			name = Debug;
-		};
-		26CC579D23A0867400ABB92A /* Adhoc */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = E06DB4446BAE2F9C0192D055 /* Pods-monalxmpp.adhoc.xcconfig */;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CURRENT_PROJECT_VERSION = 0;
-				DEAD_CODE_STRIPPING = NO;
-				DEFINES_MODULE = YES;
-				DEVELOPMENT_TEAM = "";
-				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_INPUT_FILETYPE = automatic;
-				GCC_NO_COMMON_BLOCKS = YES;
-				INFOPLIST_FILE = monalxmpp/Info.plist;
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = im.Monal.monalxmpp;
-				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
-				SKIP_INSTALL = YES;
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_STYLE = "non-global";
-				STRIP_SWIFT_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_INCLUDE_PATHS = monalxmpp/;
-				SWIFT_OBJC_BRIDGING_HEADER = "";
-				SWIFT_OBJC_INTERFACE_HEADER_NAME = "monalxmpp-Swift.h";
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VERSION_INFO_PREFIX = "";
-			};
-			name = Adhoc;
 		};
 		26CC579E23A0867400ABB92A /* AppStore */ = {
 			isa = XCBuildConfiguration;
@@ -2968,10 +3056,13 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
 				CURRENT_PROJECT_VERSION = 0;
 				DEAD_CODE_STRIPPING = NO;
 				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = "";
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
@@ -2985,188 +3076,29 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = im.Monal.monalxmpp;
+				PRODUCT_BUNDLE_IDENTIFIER = nl.risker.atay.monalxmpp;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SKIP_INSTALL = YES;
 				STRIP_INSTALLED_PRODUCT = NO;
 				STRIP_STYLE = "non-global";
 				STRIP_SWIFT_SYMBOLS = NO;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_INCLUDE_PATHS = monalxmpp/;
 				SWIFT_OBJC_BRIDGING_HEADER = "";
 				SWIFT_OBJC_INTERFACE_HEADER_NAME = "monalxmpp-Swift.h";
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				VERSION_INFO_PREFIX = "";
 			};
 			name = AppStore;
-		};
-		26E74FBD17B06D2200FD91AE /* Adhoc */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_STATIC_ANALYZER_MODE_ON_ANALYZE_ACTION = shallow;
-				CLANG_WARN_ATOMIC_IMPLICIT_SEQ_CST = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_COMPLETION_HANDLER_MISUSE = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_CXX0X_EXTENSIONS = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_FLOAT_CONVERSION = NO;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_REPEATED_USE_OF_WEAK = NO;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = NO;
-				CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION = YES_ERROR;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0;
-				DEAD_CODE_STRIPPING = NO;
-				DEVELOPMENT_TEAM = S8D843U34Y;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_TESTABILITY = YES;
-				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"$(inherited)",
-					"DEBUG=1",
-				);
-				GCC_TREAT_IMPLICIT_FUNCTION_DECLARATIONS_AS_ERRORS = NO;
-				GCC_TREAT_INCOMPATIBLE_POINTER_TYPE_WARNINGS_AS_ERRORS = YES;
-				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_INVALID_OFFSETOF_MACRO = NO;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_HIDDEN_VIRTUAL_FUNCTIONS = YES;
-				GCC_WARN_SIGN_COMPARE = YES;
-				GCC_WARN_STRICT_SELECTOR_MATCH = NO;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNKNOWN_PRAGMAS = YES;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_LABEL = YES;
-				GCC_WARN_UNUSED_PARAMETER = NO;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
-				LLVM_LTO = YES;
-				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				MARKETING_VERSION = 0.0.1;
-				PRESERVE_DEAD_CODE_INITS_AND_TERMS = NO;
-				SDKROOT = iphoneos;
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_STYLE = "non-global";
-				STRIP_SWIFT_SYMBOLS = NO;
-				SUPPORTS_MACCATALYST = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Adhoc;
-		};
-		26E74FBE17B06D2200FD91AE /* Adhoc */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = AD0E234056402EE91A36D628 /* Pods-Monal.adhoc.xcconfig */;
-			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CLANG_LINK_OBJC_RUNTIME = YES;
-				CLANG_WARN_ASSIGN_ENUM = YES;
-				CLANG_WARN_COMMA = YES_ERROR;
-				CLANG_WARN_DELETE_NON_VIRTUAL_DTOR = YES_ERROR;
-				CLANG_WARN_FLOAT_CONVERSION = YES;
-				CLANG_WARN_FRAMEWORK_INCLUDE_PRIVATE_FROM_PUBLIC = YES;
-				CLANG_WARN_IMPLICIT_SIGN_CONVERSION = NO;
-				CLANG_WARN_OBJC_IMPLICIT_ATOMIC_PROPERTIES = YES;
-				CLANG_WARN_PRAGMA_PACK = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES_ERROR;
-				CLANG_WARN_SEMICOLON_BEFORE_METHOD_BODY = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES_ERROR;
-				CLANG_WARN_VEXING_PARSE = YES_ERROR;
-				CLANG_WARN__EXIT_TIME_DESTRUCTORS = YES;
-				CODE_SIGN_ENTITLEMENTS = Monal.ios.entitlements;
-				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = Monal.ios.entitlements;
-				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = Monal.macos.entitlements;
-				COMPILER_INDEX_STORE_ENABLE = YES;
-				CURRENT_PROJECT_VERSION = 0;
-				DEAD_CODE_STRIPPING = NO;
-				ENABLE_BITCODE = NO;
-				"ENABLE_HARDENED_RUNTIME[sdk=macosx*]" = YES;
-				ENABLE_PREVIEWS = YES;
-				ENABLE_TESTABILITY = YES;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SRCROOT)",
-				);
-				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = MonalSourceCodePrefix.pch;
-				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
-				GCC_THREADSAFE_STATICS = NO;
-				GCC_TREAT_IMPLICIT_FUNCTION_DECLARATIONS_AS_ERRORS = YES;
-				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
-				GCC_WARN_ABOUT_INVALID_OFFSETOF_MACRO = YES;
-				GCC_WARN_INITIALIZER_NOT_FULLY_BRACKETED = YES;
-				GCC_WARN_NON_VIRTUAL_DESTRUCTOR = YES;
-				GCC_WARN_PEDANTIC = NO;
-				GCC_WARN_STRICT_SELECTOR_MATCH = NO;
-				INFOPLIST_FILE = "Monal-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = Monal;
-				LD_RUNPATH_SEARCH_PATHS = (
-					/usr/lib/swift,
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				LIBRARY_SEARCH_PATHS = "$(inherited)";
-				OTHER_LDFLAGS = "$(inherited)";
-				PRESERVE_DEAD_CODE_INITS_AND_TERMS = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = G7YU7X7KRJ.SworIM;
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = "org.monal-im.prod.catalyst.monal";
-				PRODUCT_MODULE_NAME = Monal;
-				PRODUCT_NAME = Monal;
-				PROVISIONING_PROFILE = "";
-				"PROVISIONING_PROFILE[sdk=iphoneos*]" = "";
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_STYLE = "non-global";
-				STRIP_SWIFT_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "Classes/Monal-Bridging-Header.h";
-				SWIFT_OBJC_INTERFACE_HEADER_NAME = "Monal-Swift.h";
-				SWIFT_STRICT_CONCURRENCY = targeted;
-				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Adhoc;
 		};
 		C01FCF4F08A954540054247B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = monalGreen;
 				CLANG_ADDRESS_SANITIZER_CONTAINER_OVERFLOW = YES;
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -3232,7 +3164,7 @@
 				GCC_WARN_UNUSED_LABEL = YES;
 				GCC_WARN_UNUSED_PARAMETER = NO;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
 				LLVM_LTO = YES;
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				MARKETING_VERSION = 0.0.1;
@@ -3243,7 +3175,7 @@
 				STRIP_INSTALLED_PRODUCT = NO;
 				STRIP_STYLE = "non-global";
 				STRIP_SWIFT_SYMBOLS = NO;
-				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -3268,16 +3200,18 @@
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				INFOPLIST_FILE = MonalXMPPUnitTests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -3285,89 +3219,22 @@
 				);
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = G7YU7X7KRJ.SworIM.MonalXMPPUnitTests;
+				PRODUCT_BUNDLE_IDENTIFIER = nl.risker.atay.MonalXMPPUnitTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRIP_INSTALLED_PRODUCT = NO;
 				STRIP_SWIFT_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited)";
 				SWIFT_OBJC_BRIDGING_HEADER = "MonalXMPPUnitTests/MonalXMPPUnitTests-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
-		};
-		C1049190261301530054AC9E /* Adhoc */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9705AFFB59AF72A9B79C1D7B /* Pods-MonalXMPPUnitTests.adhoc.xcconfig */;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
-				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				DEAD_CODE_STRIPPING = NO;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				INFOPLIST_FILE = MonalXMPPUnitTests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.4;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				MTL_ENABLE_DEBUG_INFO = NO;
-				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = G7YU7X7KRJ.SworIM.MonalXMPPUnitTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_SWIFT_SYMBOLS = NO;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited)";
-				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_OBJC_BRIDGING_HEADER = "MonalXMPPUnitTests/MonalXMPPUnitTests-Bridging-Header.h";
-				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Adhoc;
 		};
 		C1049191261301530054AC9E /* AppStore */ = {
 			isa = XCBuildConfiguration;
@@ -3403,9 +3270,11 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -3418,7 +3287,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				INFOPLIST_FILE = MonalXMPPUnitTests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -3426,738 +3295,34 @@
 				);
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = G7YU7X7KRJ.SworIM.MonalXMPPUnitTests;
+				PRODUCT_BUNDLE_IDENTIFIER = nl.risker.atay.MonalXMPPUnitTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				STRIP_INSTALLED_PRODUCT = NO;
 				STRIP_SWIFT_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited)";
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OBJC_BRIDGING_HEADER = "MonalXMPPUnitTests/MonalXMPPUnitTests-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = AppStore;
-		};
-		C11C870B26A83C1D00B8DEA5 /* Beta */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_STATIC_ANALYZER_MODE_ON_ANALYZE_ACTION = shallow;
-				CLANG_WARN_ATOMIC_IMPLICIT_SEQ_CST = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_COMPLETION_HANDLER_MISUSE = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_CXX0X_EXTENSIONS = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_FLOAT_CONVERSION = NO;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_REPEATED_USE_OF_WEAK = NO;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = NO;
-				CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION = YES_ERROR;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0;
-				DEAD_CODE_STRIPPING = NO;
-				DEVELOPMENT_TEAM = S8D843U34Y;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_TESTABILITY = YES;
-				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"$(inherited)",
-					"DEBUG=1",
-				);
-				GCC_TREAT_IMPLICIT_FUNCTION_DECLARATIONS_AS_ERRORS = NO;
-				GCC_TREAT_INCOMPATIBLE_POINTER_TYPE_WARNINGS_AS_ERRORS = YES;
-				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_INVALID_OFFSETOF_MACRO = NO;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_HIDDEN_VIRTUAL_FUNCTIONS = YES;
-				GCC_WARN_SIGN_COMPARE = YES;
-				GCC_WARN_STRICT_SELECTOR_MATCH = NO;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNKNOWN_PRAGMAS = YES;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_LABEL = YES;
-				GCC_WARN_UNUSED_PARAMETER = NO;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
-				LLVM_LTO = YES;
-				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				MARKETING_VERSION = 0.0.1;
-				PRESERVE_DEAD_CODE_INITS_AND_TERMS = NO;
-				RUN_CLANG_STATIC_ANALYZER = YES;
-				SDKROOT = iphoneos;
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_STYLE = "non-global";
-				STRIP_SWIFT_SYMBOLS = NO;
-				SUPPORTS_MACCATALYST = YES;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Beta;
-		};
-		C11C870D26A83C1D00B8DEA5 /* Beta */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = FCADB10208409DD462AC921F /* Pods-Monal.beta.xcconfig */;
-			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CLANG_LINK_OBJC_RUNTIME = YES;
-				CLANG_WARN_ASSIGN_ENUM = YES;
-				CLANG_WARN_COMMA = YES_ERROR;
-				CLANG_WARN_DELETE_NON_VIRTUAL_DTOR = YES_ERROR;
-				CLANG_WARN_FLOAT_CONVERSION = YES;
-				CLANG_WARN_FRAMEWORK_INCLUDE_PRIVATE_FROM_PUBLIC = YES;
-				CLANG_WARN_IMPLICIT_SIGN_CONVERSION = NO;
-				CLANG_WARN_OBJC_IMPLICIT_ATOMIC_PROPERTIES = YES;
-				CLANG_WARN_PRAGMA_PACK = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES_ERROR;
-				CLANG_WARN_SEMICOLON_BEFORE_METHOD_BODY = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES_ERROR;
-				CLANG_WARN_VEXING_PARSE = YES_ERROR;
-				CLANG_WARN__EXIT_TIME_DESTRUCTORS = YES;
-				CODE_SIGN_ENTITLEMENTS = Monal.ios.entitlements;
-				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = Monal.ios.entitlements;
-				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = Monal.macos.entitlements;
-				COMPILER_INDEX_STORE_ENABLE = YES;
-				CURRENT_PROJECT_VERSION = 0;
-				DEAD_CODE_STRIPPING = NO;
-				ENABLE_BITCODE = NO;
-				"ENABLE_HARDENED_RUNTIME[sdk=macosx*]" = YES;
-				ENABLE_PREVIEWS = YES;
-				ENABLE_TESTABILITY = YES;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SRCROOT)",
-				);
-				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = MonalSourceCodePrefix.pch;
-				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
-				GCC_THREADSAFE_STATICS = NO;
-				GCC_TREAT_IMPLICIT_FUNCTION_DECLARATIONS_AS_ERRORS = YES;
-				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
-				GCC_WARN_ABOUT_INVALID_OFFSETOF_MACRO = YES;
-				GCC_WARN_INITIALIZER_NOT_FULLY_BRACKETED = YES;
-				GCC_WARN_NON_VIRTUAL_DESTRUCTOR = YES;
-				GCC_WARN_PEDANTIC = NO;
-				GCC_WARN_STRICT_SELECTOR_MATCH = NO;
-				INFOPLIST_FILE = "Monal-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = Monal;
-				LD_RUNPATH_SEARCH_PATHS = (
-					/usr/lib/swift,
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				LIBRARY_SEARCH_PATHS = "$(inherited)";
-				OTHER_LDFLAGS = "$(inherited)";
-				PRESERVE_DEAD_CODE_INITS_AND_TERMS = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = G7YU7X7KRJ.SworIM;
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = "org.monal-im.prod.catalyst.monal";
-				PRODUCT_MODULE_NAME = Monal;
-				PRODUCT_NAME = Monal;
-				PROVISIONING_PROFILE = "";
-				"PROVISIONING_PROFILE[sdk=iphoneos*]" = "";
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_STYLE = "non-global";
-				STRIP_SWIFT_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "Classes/Monal-Bridging-Header.h";
-				SWIFT_OBJC_INTERFACE_HEADER_NAME = "Monal-Swift.h";
-				SWIFT_STRICT_CONCURRENCY = targeted;
-				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Beta;
-		};
-		C11C870E26A83C1D00B8DEA5 /* Beta */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 6BCB9FB4EBEA3735D24A44DF /* Pods-shareSheet.beta.xcconfig */;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = shareSheet.entitlements;
-				CURRENT_PROJECT_VERSION = 0;
-				DEAD_CODE_STRIPPING = NO;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
-				INFOPLIST_FILE = "$(SRCROOT)/shareSheet-iOS/Info.plist";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = G7YU7X7KRJ.SworIM.shareSheet;
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = "org.monal-im.prod.catalyst.monal.shareSheet";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_SWIFT_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Beta;
-		};
-		C11C870F26A83C1D00B8DEA5 /* Beta */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 4049F81F60EA5B7A57A4E9C6 /* Pods-NotificationService.beta.xcconfig */;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CODE_SIGN_ENTITLEMENTS = "";
-				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = NotificationService/NotificationService.ios.entitlements;
-				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = NotificationService/NotificationService.macos.entitlements;
-				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0;
-				DEAD_CODE_STRIPPING = NO;
-				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
-				INFOPLIST_FILE = NotificationService/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = G7YU7X7KRJ.SworIM.notificationService;
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = "org.monal-im.prod.catalyst.monal.notificationService";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_SWIFT_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Beta;
-		};
-		C11C871026A83C1D00B8DEA5 /* Beta */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = DC5DA2C9782510B3433FD50D /* Pods-monalxmpp.beta.xcconfig */;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CURRENT_PROJECT_VERSION = 0;
-				DEAD_CODE_STRIPPING = NO;
-				DEFINES_MODULE = YES;
-				DEVELOPMENT_TEAM = "";
-				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_INPUT_FILETYPE = automatic;
-				GCC_NO_COMMON_BLOCKS = YES;
-				INFOPLIST_FILE = monalxmpp/Info.plist;
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = im.Monal.monalxmpp;
-				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
-				SKIP_INSTALL = YES;
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_STYLE = "non-global";
-				STRIP_SWIFT_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_INCLUDE_PATHS = monalxmpp/;
-				SWIFT_OBJC_BRIDGING_HEADER = "";
-				SWIFT_OBJC_INTERFACE_HEADER_NAME = "monalxmpp-Swift.h";
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VERSION_INFO_PREFIX = "";
-			};
-			name = Beta;
-		};
-		C11C871126A83C1D00B8DEA5 /* Beta */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 7D6715099247A9CCC180EE30 /* Pods-MonalUITests.beta.xcconfig */;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				DEAD_CODE_STRIPPING = NO;
-				INFOPLIST_FILE = MonalUITests/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				PRODUCT_NAME = MonalUITests;
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_SWIFT_SYMBOLS = NO;
-				TEST_TARGET_NAME = Monal;
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Beta;
-		};
-		C11C871226A83C1D00B8DEA5 /* Beta */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 4862C3A0242FB4F709B8F3FF /* Pods-MonalXMPPUnitTests.beta.xcconfig */;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
-				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				DEAD_CODE_STRIPPING = NO;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				INFOPLIST_FILE = MonalXMPPUnitTests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.4;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				MTL_ENABLE_DEBUG_INFO = NO;
-				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = G7YU7X7KRJ.SworIM.MonalXMPPUnitTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_SWIFT_SYMBOLS = NO;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited)";
-				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_OBJC_BRIDGING_HEADER = "MonalXMPPUnitTests/MonalXMPPUnitTests-Bridging-Header.h";
-				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Beta;
-		};
-		C15D0B0D2B3EF70E00845061 /* AppStore-Quicksy */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_STATIC_ANALYZER_MODE_ON_ANALYZE_ACTION = shallow;
-				CLANG_WARN_ATOMIC_IMPLICIT_SEQ_CST = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_COMPLETION_HANDLER_MISUSE = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_CXX0X_EXTENSIONS = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_FLOAT_CONVERSION = NO;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_REPEATED_USE_OF_WEAK = NO;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = NO;
-				CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION = YES_ERROR;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0;
-				DEAD_CODE_STRIPPING = NO;
-				DEVELOPMENT_TEAM = S8D843U34Y;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_TESTABILITY = YES;
-				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"$(inherited)",
-					"IS_QUICKSY=1",
-				);
-				GCC_TREAT_IMPLICIT_FUNCTION_DECLARATIONS_AS_ERRORS = NO;
-				GCC_TREAT_INCOMPATIBLE_POINTER_TYPE_WARNINGS_AS_ERRORS = YES;
-				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_INVALID_OFFSETOF_MACRO = NO;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_HIDDEN_VIRTUAL_FUNCTIONS = YES;
-				GCC_WARN_SIGN_COMPARE = YES;
-				GCC_WARN_STRICT_SELECTOR_MATCH = NO;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNKNOWN_PRAGMAS = YES;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_LABEL = YES;
-				GCC_WARN_UNUSED_PARAMETER = NO;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
-				LLVM_LTO = YES;
-				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				MARKETING_VERSION = 0.0.1;
-				PRESERVE_DEAD_CODE_INITS_AND_TERMS = NO;
-				SDKROOT = iphoneos;
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_STYLE = "non-global";
-				STRIP_SWIFT_SYMBOLS = NO;
-				SUPPORTS_MACCATALYST = YES;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = IS_QUICKSY;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = "AppStore-Quicksy";
-		};
-		C15D0B0E2B3EF70E00845061 /* AppStore-Quicksy */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 213F5BFD4599EC9317B99E97 /* Pods-Monal.appstore-quicksy.xcconfig */;
-			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				ASSETCATALOG_COMPILER_APPICON_NAME = QuicksyAppIcon;
-				CLANG_LINK_OBJC_RUNTIME = YES;
-				CLANG_WARN_ASSIGN_ENUM = YES;
-				CLANG_WARN_COMMA = YES_ERROR;
-				CLANG_WARN_DELETE_NON_VIRTUAL_DTOR = YES_ERROR;
-				CLANG_WARN_FLOAT_CONVERSION = YES;
-				CLANG_WARN_FRAMEWORK_INCLUDE_PRIVATE_FROM_PUBLIC = YES;
-				CLANG_WARN_IMPLICIT_SIGN_CONVERSION = NO;
-				CLANG_WARN_OBJC_IMPLICIT_ATOMIC_PROPERTIES = YES;
-				CLANG_WARN_PRAGMA_PACK = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES_ERROR;
-				CLANG_WARN_SEMICOLON_BEFORE_METHOD_BODY = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES_ERROR;
-				CLANG_WARN_VEXING_PARSE = YES_ERROR;
-				CLANG_WARN__EXIT_TIME_DESTRUCTORS = YES;
-				CODE_SIGN_ENTITLEMENTS = Quicksy.ios.entitlements;
-				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = Quicksy.ios.entitlements;
-				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = Quicksy.macos.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				COMPILER_INDEX_STORE_ENABLE = YES;
-				CURRENT_PROJECT_VERSION = 0;
-				DEAD_CODE_STRIPPING = NO;
-				DEVELOPMENT_TEAM = S8D843U34Y;
-				ENABLE_BITCODE = NO;
-				"ENABLE_HARDENED_RUNTIME[sdk=macosx*]" = YES;
-				ENABLE_PREVIEWS = YES;
-				ENABLE_TESTABILITY = YES;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SRCROOT)",
-				);
-				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = MonalSourceCodePrefix.pch;
-				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
-				GCC_THREADSAFE_STATICS = NO;
-				GCC_TREAT_IMPLICIT_FUNCTION_DECLARATIONS_AS_ERRORS = YES;
-				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
-				GCC_WARN_ABOUT_INVALID_OFFSETOF_MACRO = YES;
-				GCC_WARN_INITIALIZER_NOT_FULLY_BRACKETED = YES;
-				GCC_WARN_NON_VIRTUAL_DESTRUCTOR = YES;
-				GCC_WARN_PEDANTIC = NO;
-				GCC_WARN_STRICT_SELECTOR_MATCH = NO;
-				INFOPLIST_FILE = "Quicksy-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = Quicksy;
-				LD_RUNPATH_SEARCH_PATHS = (
-					/usr/lib/swift,
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				LIBRARY_SEARCH_PATHS = "$(inherited)";
-				OTHER_LDFLAGS = "$(inherited)";
-				PRESERVE_DEAD_CODE_INITS_AND_TERMS = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = "org.monal-im.prod.ios.quicksy";
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = "org.monal-im.prod.catalyst.quicksy";
-				PRODUCT_MODULE_NAME = Monal;
-				PRODUCT_NAME = Quicksy;
-				PROVISIONING_PROFILE = "";
-				"PROVISIONING_PROFILE[sdk=iphoneos*]" = "";
-				PROVISIONING_PROFILE_SPECIFIER = "";
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_STYLE = "non-global";
-				STRIP_SWIFT_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "Classes/Monal-Bridging-Header.h";
-				SWIFT_OBJC_INTERFACE_HEADER_NAME = "Monal-Swift.h";
-				SWIFT_STRICT_CONCURRENCY = targeted;
-				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = "AppStore-Quicksy";
-		};
-		C15D0B0F2B3EF70E00845061 /* AppStore-Quicksy */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9760CF4718351300C4256921 /* Pods-shareSheet.appstore-quicksy.xcconfig */;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = Quicksy.sharesheet.entitlements;
-				CURRENT_PROJECT_VERSION = 0;
-				DEAD_CODE_STRIPPING = NO;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
-				INFOPLIST_FILE = "$(SRCROOT)/shareSheet-iOS/Info.plist";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = "org.monal-im.prod.ios.quicksy.shareSheet";
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = "org.monal-im.prod.catalyst.quicksy.shareSheet";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_SWIFT_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = "AppStore-Quicksy";
-		};
-		C15D0B102B3EF70E00845061 /* AppStore-Quicksy */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = AA697C1F9B9637B86665DFF1 /* Pods-NotificationService.appstore-quicksy.xcconfig */;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CODE_SIGN_ENTITLEMENTS = "";
-				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = NotificationService/Quicksy.NotificationService.ios.entitlements;
-				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = NotificationService/Quicksy.NotificationService.macos.entitlements;
-				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0;
-				DEAD_CODE_STRIPPING = NO;
-				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
-				INFOPLIST_FILE = NotificationService/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = "org.monal-im.prod.ios.quicksy.notificationService";
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = "org.monal-im.prod.catalyst.quicksy.notificationService";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_SWIFT_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = "AppStore-Quicksy";
-		};
-		C15D0B112B3EF70E00845061 /* AppStore-Quicksy */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9899D670570190DCBE9EEDDB /* Pods-monalxmpp.appstore-quicksy.xcconfig */;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CURRENT_PROJECT_VERSION = 0;
-				DEAD_CODE_STRIPPING = NO;
-				DEFINES_MODULE = YES;
-				DEVELOPMENT_TEAM = "";
-				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_INPUT_FILETYPE = automatic;
-				GCC_NO_COMMON_BLOCKS = YES;
-				INFOPLIST_FILE = monalxmpp/Info.plist;
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = im.Monal.monalxmpp;
-				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
-				SKIP_INSTALL = YES;
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_STYLE = "non-global";
-				STRIP_SWIFT_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_INCLUDE_PATHS = monalxmpp/;
-				SWIFT_OBJC_BRIDGING_HEADER = "";
-				SWIFT_OBJC_INTERFACE_HEADER_NAME = "monalxmpp-Swift.h";
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VERSION_INFO_PREFIX = "";
-			};
-			name = "AppStore-Quicksy";
-		};
-		C15D0B122B3EF70E00845061 /* AppStore-Quicksy */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 26ABE9FB494A9E7F3044C695 /* Pods-MonalUITests.appstore-quicksy.xcconfig */;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				DEAD_CODE_STRIPPING = NO;
-				INFOPLIST_FILE = MonalUITests/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				PRODUCT_NAME = MonalUITests;
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_SWIFT_SYMBOLS = NO;
-				TEST_TARGET_NAME = Monal;
-				VALIDATE_PRODUCT = YES;
-			};
-			name = "AppStore-Quicksy";
-		};
-		C15D0B132B3EF70E00845061 /* AppStore-Quicksy */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = B58835E4BBDCCB6BE1E8F0AE /* Pods-MonalXMPPUnitTests.appstore-quicksy.xcconfig */;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
-				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				DEAD_CODE_STRIPPING = NO;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				INFOPLIST_FILE = MonalXMPPUnitTests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.4;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				MTL_ENABLE_DEBUG_INFO = NO;
-				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = G7YU7X7KRJ.SworIM.MonalXMPPUnitTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_SWIFT_SYMBOLS = NO;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited)";
-				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_OBJC_BRIDGING_HEADER = "MonalXMPPUnitTests/MonalXMPPUnitTests-Bridging-Header.h";
-				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = "AppStore-Quicksy";
 		};
 		C1850EBD25F38A2D003D506A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = F7506FDE7A78EB0CAB14FF60 /* Pods-MonalUITests.debug.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				CODE_SIGN_STYLE = Manual;
 				DEAD_CODE_STRIPPING = NO;
+				DEVELOPMENT_TEAM = "";
 				INFOPLIST_FILE = MonalUITests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -4165,38 +3330,26 @@
 					"@loader_path/Frameworks",
 				);
 				PRODUCT_NAME = MonalUITests;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRIP_INSTALLED_PRODUCT = NO;
 				STRIP_SWIFT_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_TARGET_NAME = Monal;
 			};
 			name = Debug;
-		};
-		C1850EBE25F38A2D003D506A /* Adhoc */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 39B989B9775C0725A810D271 /* Pods-MonalUITests.adhoc.xcconfig */;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				DEAD_CODE_STRIPPING = NO;
-				INFOPLIST_FILE = MonalUITests/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				PRODUCT_NAME = MonalUITests;
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_SWIFT_SYMBOLS = NO;
-				TEST_TARGET_NAME = Monal;
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Adhoc;
 		};
 		C1850EBF25F38A2D003D506A /* AppStore */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = D8D2595B2BE453296E59F1AF /* Pods-MonalUITests.appstore.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				CODE_SIGN_STYLE = Manual;
 				DEAD_CODE_STRIPPING = NO;
+				DEVELOPMENT_TEAM = "";
 				INFOPLIST_FILE = MonalUITests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -4204,368 +3357,18 @@
 					"@loader_path/Frameworks",
 				);
 				PRODUCT_NAME = MonalUITests;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRIP_INSTALLED_PRODUCT = NO;
 				STRIP_SWIFT_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_TARGET_NAME = Monal;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = AppStore;
-		};
-		C1E1BCAE288BBAB00046AB47 /* Alpha */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_STATIC_ANALYZER_MODE_ON_ANALYZE_ACTION = shallow;
-				CLANG_WARN_ATOMIC_IMPLICIT_SEQ_CST = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_COMPLETION_HANDLER_MISUSE = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_CXX0X_EXTENSIONS = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_FLOAT_CONVERSION = NO;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_REPEATED_USE_OF_WEAK = NO;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = NO;
-				CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION = YES_ERROR;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0;
-				DEAD_CODE_STRIPPING = NO;
-				DEVELOPMENT_TEAM = S8D843U34Y;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_TESTABILITY = YES;
-				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"$(inherited)",
-					"IS_ALPHA=1",
-					"DEBUG=1",
-				);
-				GCC_TREAT_IMPLICIT_FUNCTION_DECLARATIONS_AS_ERRORS = NO;
-				GCC_TREAT_INCOMPATIBLE_POINTER_TYPE_WARNINGS_AS_ERRORS = YES;
-				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_INVALID_OFFSETOF_MACRO = NO;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_HIDDEN_VIRTUAL_FUNCTIONS = YES;
-				GCC_WARN_SIGN_COMPARE = YES;
-				GCC_WARN_STRICT_SELECTOR_MATCH = NO;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNKNOWN_PRAGMAS = YES;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_LABEL = YES;
-				GCC_WARN_UNUSED_PARAMETER = NO;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
-				LLVM_LTO = NO;
-				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				MARKETING_VERSION = 0.0.1;
-				PRESERVE_DEAD_CODE_INITS_AND_TERMS = NO;
-				RUN_CLANG_STATIC_ANALYZER = YES;
-				SDKROOT = iphoneos;
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_STYLE = "non-global";
-				STRIP_SWIFT_SYMBOLS = NO;
-				SUPPORTS_MACCATALYST = YES;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "IS_ALPHA DEBUG";
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Alpha;
-		};
-		C1E1BCAF288BBAB00046AB47 /* Alpha */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BFA9EFD7A8064201C81F52CF /* Pods-Monal.alpha.xcconfig */;
-			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AlphaAppIcon;
-				CLANG_LINK_OBJC_RUNTIME = YES;
-				CLANG_WARN_ASSIGN_ENUM = YES;
-				CLANG_WARN_COMMA = YES_ERROR;
-				CLANG_WARN_DELETE_NON_VIRTUAL_DTOR = YES_ERROR;
-				CLANG_WARN_FLOAT_CONVERSION = YES;
-				CLANG_WARN_FRAMEWORK_INCLUDE_PRIVATE_FROM_PUBLIC = YES;
-				CLANG_WARN_IMPLICIT_SIGN_CONVERSION = NO;
-				CLANG_WARN_OBJC_IMPLICIT_ATOMIC_PROPERTIES = YES;
-				CLANG_WARN_PRAGMA_PACK = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES_ERROR;
-				CLANG_WARN_SEMICOLON_BEFORE_METHOD_BODY = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES_ERROR;
-				CLANG_WARN_VEXING_PARSE = YES_ERROR;
-				CLANG_WARN__EXIT_TIME_DESTRUCTORS = YES;
-				CODE_SIGN_ENTITLEMENTS = Monal.Alpha.ios.entitlements;
-				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = Monal.Alpha.ios.entitlements;
-				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = Monal.Alpha.macos.entitlements;
-				COMPILER_INDEX_STORE_ENABLE = YES;
-				CURRENT_PROJECT_VERSION = 0;
-				DEAD_CODE_STRIPPING = NO;
-				ENABLE_BITCODE = NO;
-				"ENABLE_HARDENED_RUNTIME[sdk=macosx*]" = YES;
-				ENABLE_PREVIEWS = YES;
-				ENABLE_TESTABILITY = YES;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SRCROOT)",
-				);
-				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = MonalSourceCodePrefix.pch;
-				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
-				GCC_THREADSAFE_STATICS = NO;
-				GCC_TREAT_IMPLICIT_FUNCTION_DECLARATIONS_AS_ERRORS = YES;
-				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
-				GCC_WARN_ABOUT_INVALID_OFFSETOF_MACRO = YES;
-				GCC_WARN_INITIALIZER_NOT_FULLY_BRACKETED = YES;
-				GCC_WARN_NON_VIRTUAL_DESTRUCTOR = YES;
-				GCC_WARN_PEDANTIC = NO;
-				GCC_WARN_STRICT_SELECTOR_MATCH = NO;
-				INFOPLIST_FILE = "Monal.Alpha-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = Monal.alpha;
-				LD_RUNPATH_SEARCH_PATHS = (
-					/usr/lib/swift,
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				LIBRARY_SEARCH_PATHS = "$(inherited)";
-				OTHER_LDFLAGS = "$(inherited)";
-				PRESERVE_DEAD_CODE_INITS_AND_TERMS = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = monal.alpha;
-				PRODUCT_MODULE_NAME = Monal;
-				PRODUCT_NAME = Monal.alpha;
-				PROVISIONING_PROFILE = "";
-				"PROVISIONING_PROFILE[sdk=iphoneos*]" = "";
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_STYLE = "non-global";
-				STRIP_SWIFT_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "Classes/Monal-Bridging-Header.h";
-				SWIFT_OBJC_INTERFACE_HEADER_NAME = "Monal-Swift.h";
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_STRICT_CONCURRENCY = targeted;
-				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Alpha;
-		};
-		C1E1BCB0288BBAB00046AB47 /* Alpha */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 6015D382ABCE0D788029D7A3 /* Pods-shareSheet.alpha.xcconfig */;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = Alpha.shareSheet.entitlements;
-				CURRENT_PROJECT_VERSION = 0;
-				DEAD_CODE_STRIPPING = NO;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
-				INFOPLIST_FILE = "$(SRCROOT)/shareSheet-iOS/Info.plist";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = monal.alpha.shareSheet;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_SWIFT_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Alpha;
-		};
-		C1E1BCB1288BBAB00046AB47 /* Alpha */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 671D139EE64DB6AD9E1D8108 /* Pods-NotificationService.alpha.xcconfig */;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CODE_SIGN_ENTITLEMENTS = "";
-				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = NotificationService/Alpha.NotificationService.ios.entitlements;
-				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = NotificationService/Alpha.NotificationService.macos.entitlements;
-				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0;
-				DEAD_CODE_STRIPPING = NO;
-				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
-				INFOPLIST_FILE = NotificationService/Alpha.Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = monal.alpha.NotificaionService;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_SWIFT_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Alpha;
-		};
-		C1E1BCB2288BBAB00046AB47 /* Alpha */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 39DB4C9159DA578D1A34990D /* Pods-monalxmpp.alpha.xcconfig */;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CURRENT_PROJECT_VERSION = 0;
-				DEAD_CODE_STRIPPING = NO;
-				DEFINES_MODULE = YES;
-				DEVELOPMENT_TEAM = "";
-				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_INPUT_FILETYPE = automatic;
-				GCC_NO_COMMON_BLOCKS = YES;
-				INFOPLIST_FILE = monalxmpp/Info.plist;
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = im.Monal.monalxmpp;
-				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
-				SKIP_INSTALL = YES;
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_STYLE = "non-global";
-				STRIP_SWIFT_SYMBOLS = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_INCLUDE_PATHS = monalxmpp/;
-				SWIFT_OBJC_BRIDGING_HEADER = "";
-				SWIFT_OBJC_INTERFACE_HEADER_NAME = "monalxmpp-Swift.h";
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VERSION_INFO_PREFIX = "";
-			};
-			name = Alpha;
-		};
-		C1E1BCB3288BBAB00046AB47 /* Alpha */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 5BACDACCFE405FE0C903C897 /* Pods-MonalUITests.alpha.xcconfig */;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				DEAD_CODE_STRIPPING = NO;
-				INFOPLIST_FILE = MonalUITests/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				PRODUCT_NAME = MonalUITests;
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_SWIFT_SYMBOLS = NO;
-				TEST_TARGET_NAME = Monal;
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Alpha;
-		};
-		C1E1BCB4288BBAB00046AB47 /* Alpha */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 4E53581DEF864B229A09FA61 /* Pods-MonalXMPPUnitTests.alpha.xcconfig */;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
-				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				DEAD_CODE_STRIPPING = NO;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				INFOPLIST_FILE = MonalXMPPUnitTests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.4;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				MTL_ENABLE_DEBUG_INFO = NO;
-				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = G7YU7X7KRJ.SworIM.MonalXMPPUnitTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				STRIP_INSTALLED_PRODUCT = NO;
-				STRIP_SWIFT_SYMBOLS = NO;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited)";
-				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_OBJC_BRIDGING_HEADER = "MonalXMPPUnitTests/MonalXMPPUnitTests-Bridging-Header.h";
-				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Alpha;
 		};
 /* End XCBuildConfiguration section */
 
@@ -4574,11 +3377,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				1D6058940D05DD3E006BFB54 /* Debug */,
-				26E74FBE17B06D2200FD91AE /* Adhoc */,
-				C1E1BCAF288BBAB00046AB47 /* Alpha */,
 				2675EF5A18B98C2D0059C5C3 /* AppStore */,
-				C15D0B0E2B3EF70E00845061 /* AppStore-Quicksy */,
-				C11C870D26A83C1D00B8DEA5 /* Beta */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -4587,11 +3386,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				260773C9232FC4E800BFD50F /* Debug */,
-				260773CA232FC4E800BFD50F /* Adhoc */,
-				C1E1BCB1288BBAB00046AB47 /* Alpha */,
 				260773CB232FC4E800BFD50F /* AppStore */,
-				C15D0B102B3EF70E00845061 /* AppStore-Quicksy */,
-				C11C870F26A83C1D00B8DEA5 /* Beta */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -4600,11 +3395,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				26AA701D2146BBB900598605 /* Debug */,
-				26AA701E2146BBB900598605 /* Adhoc */,
-				C1E1BCB0288BBAB00046AB47 /* Alpha */,
 				26AA701F2146BBB900598605 /* AppStore */,
-				C15D0B0F2B3EF70E00845061 /* AppStore-Quicksy */,
-				C11C870E26A83C1D00B8DEA5 /* Beta */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -4613,11 +3404,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				26CC579C23A0867400ABB92A /* Debug */,
-				26CC579D23A0867400ABB92A /* Adhoc */,
-				C1E1BCB2288BBAB00046AB47 /* Alpha */,
 				26CC579E23A0867400ABB92A /* AppStore */,
-				C15D0B112B3EF70E00845061 /* AppStore-Quicksy */,
-				C11C871026A83C1D00B8DEA5 /* Beta */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -4626,11 +3413,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C01FCF4F08A954540054247B /* Debug */,
-				26E74FBD17B06D2200FD91AE /* Adhoc */,
-				C1E1BCAE288BBAB00046AB47 /* Alpha */,
 				2675EF5918B98C2D0059C5C3 /* AppStore */,
-				C15D0B0D2B3EF70E00845061 /* AppStore-Quicksy */,
-				C11C870B26A83C1D00B8DEA5 /* Beta */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -4639,11 +3422,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C104918F261301530054AC9E /* Debug */,
-				C1049190261301530054AC9E /* Adhoc */,
-				C1E1BCB4288BBAB00046AB47 /* Alpha */,
 				C1049191261301530054AC9E /* AppStore */,
-				C15D0B132B3EF70E00845061 /* AppStore-Quicksy */,
-				C11C871226A83C1D00B8DEA5 /* Beta */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -4652,11 +3431,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C1850EBD25F38A2D003D506A /* Debug */,
-				C1850EBE25F38A2D003D506A /* Adhoc */,
-				C1E1BCB3288BBAB00046AB47 /* Alpha */,
 				C1850EBF25F38A2D003D506A /* AppStore */,
-				C15D0B122B3EF70E00845061 /* AppStore-Quicksy */,
-				C11C871126A83C1D00B8DEA5 /* Beta */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -4672,12 +3447,36 @@
 				minimumVersion = 2.0.0;
 			};
 		};
+		84774DF92D1A956400B15E51 /* XCRemoteSwiftPackageReference "ExyteChat" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/monal-im/ExyteChat";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
 		849ADF3D2BACF0360009BCD7 /* XCRemoteSwiftPackageReference "cocoalumberjack" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/cocoalumberjack/cocoalumberjack";
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 3.8.5;
+			};
+		};
+		84A8340A2F1156F5004738AE /* XCRemoteSwiftPackageReference "WebRTC" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Stasel/WebRTC";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 140.0.0;
+			};
+		};
+		84AF79C02DF3C0A900FE3818 /* XCRemoteSwiftPackageReference "TOCropViewController" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/TimOliver/TOCropViewController";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.7.4;
 			};
 		};
 		84E231F12C16A9CE00735FB7 /* XCRemoteSwiftPackageReference "SVGView" */ = {
@@ -4692,8 +3491,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/ryanlintott/FrameUp";
 			requirement = {
-				kind = exactVersion;
-				version = 0.8.0;
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.7;
 			};
 		};
 		C1F5C7AD2777638B0001F295 /* XCRemoteSwiftPackageReference "swift-collections" */ = {
@@ -4701,7 +3500,7 @@
 			repositoryURL = "https://github.com/apple/swift-collections.git";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.5;
+				minimumVersion = 1.1.3;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -4715,6 +3514,19 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 841898A82957712000FEC77D /* XCRemoteSwiftPackageReference "ViewExtractor" */;
 			productName = ViewExtractor;
+		};
+		843DC1B12C8E51E3002724FE /* ExyteChat */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ExyteChat;
+		};
+		84774DF42D1A935000B15E51 /* ExyteChat */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ExyteChat;
+		};
+		84774DFA2D1A956400B15E51 /* ExyteChat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 84774DF92D1A956400B15E51 /* XCRemoteSwiftPackageReference "ExyteChat" */;
+			productName = ExyteChat;
 		};
 		849ADF3E2BACF0360009BCD7 /* CocoaLumberjack */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -4730,6 +3542,21 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 849ADF3D2BACF0360009BCD7 /* XCRemoteSwiftPackageReference "cocoalumberjack" */;
 			productName = CocoaLumberjackSwiftLogBackend;
+		};
+		84A8340B2F1156F5004738AE /* WebRTC */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 84A8340A2F1156F5004738AE /* XCRemoteSwiftPackageReference "WebRTC" */;
+			productName = WebRTC;
+		};
+		84AF79C12DF3C0A900FE3818 /* CropViewController */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 84AF79C02DF3C0A900FE3818 /* XCRemoteSwiftPackageReference "TOCropViewController" */;
+			productName = CropViewController;
+		};
+		84AF79C32DF3C0A900FE3818 /* TOCropViewController */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 84AF79C02DF3C0A900FE3818 /* XCRemoteSwiftPackageReference "TOCropViewController" */;
+			productName = TOCropViewController;
 		};
 		84E231F22C16A9CE00735FB7 /* SVGView */ = {
 			isa = XCSwiftPackageProductDependency;

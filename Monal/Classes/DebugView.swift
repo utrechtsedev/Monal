@@ -21,6 +21,15 @@ class DebugDefaultDB: ObservableObject {
     
     @defaultsDB("hasCompletedOnboarding")
     var hasCompletedOnboarding: Bool
+    
+    @defaultsDB("showNewChatView")
+    var showNewChatView: Bool
+    
+    @defaultsDB("debugDtmfSending")
+    var debugDtmfSending: Bool
+    
+    @defaultsDB("debugNSNotifications")
+    var debugNSNotifications: Bool
 }
 
 struct LogFilesView: View {
@@ -40,46 +49,36 @@ struct LogFilesView: View {
     
     var body: some View {
         VStack(alignment: .leading) {
-            if #available(iOS 15, *) {
-                Text("This can be used to export logfiles.\n[Learn how to read them](https://github.com/monal-im/Monal/wiki/Introduction-to-Monal-Logging#view-the-log).")
-            }
+            Text("This can be used to export logfiles.\n[Learn how to read them](https://github.com/monal-im/Monal/wiki/Introduction-to-Monal-Logging#view-the-log).")
             List {
                 Section(header: Text("Logfiles")) {
                     ForEach(sortedLogFileInfos, id: \.self) { logFileInfo in
                         Button(logFileInfo.fileName) {
-                            fileURL = URL(fileURLWithPath: logFileInfo.filePath)
-                        }.foregroundColor(monalDarkGreen)
+                            self.fileURL = HelperTools.compressFile(atPath:logFileInfo.filePath, withLevel:9)
+                        }
                     }
                 }
                 Section(header: Text("Database Files")) {
                     Button("Main Database") {
                         if let dbFile = DataLayer.sharedInstance().exportDB() {
-                            self.fileURL = URL(fileURLWithPath: dbFile)
+                            self.fileURL = HelperTools.compressFile(atPath:dbFile, withLevel:4)
                         } else {
                             showingDBExportFailedAlert = true
                         }
-                    }.foregroundColor(monalDarkGreen)
+                    }
                     Button("IPC Database") {
                         if let dbFile = HelperTools.exportIPCDatabase() {
-                            self.fileURL = URL(fileURLWithPath: dbFile)
+                            self.fileURL = HelperTools.compressFile(atPath:dbFile, withLevel:4)
                         } else {
                             showingDBExportFailedAlert = true
                         }
-                    }.foregroundColor(monalDarkGreen)
+                    }
                 }
             }
-            .applyClosure { view in
-                if #available(iOS 15, *) {
-                    view.listStyle(.grouped)
-                }
-            }
+            .listStyle(.grouped)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .applyClosure { view in
-            if #available(iOS 15, *) {
-                view.background(.interpolatedWindowBackground)
-            }
-        }
+        .background(.interpolatedWindowBackground)
         .alert(isPresented: $showingDBExportFailedAlert) {
             Alert(title: Text("Database Export Failed"), message: Text("Failed to export the database, please check the logfile for errors and try again."), dismissButton: .default(Text("Close")))
         }
@@ -99,95 +98,105 @@ struct UDPConfigView: View {
     
     var body: some View {
         VStack(alignment: .leading) {
-            if #available(iOS 16, *) {
-                Text("The UDP logger allows you to livestream the log to the configured IP. Please use a secure key when streaming over the internet!\n[Learn how to receive the log stream](https://github.com/monal-im/Monal/wiki/Introduction-to-Monal-Logging#stream-the-log).")
-                Form {
-                    Section(header: Text("UDP Logger Configuration")) {
-                        Toggle(isOn: $defaultDB.udpLoggerEnabled) {
-                            Text("Enable")
-                        }
-                        LabeledContent("Logserver IP:") {
-                            TextField("Logserver IP", text: $defaultDB.udpLoggerHostname, prompt: Text("Required"))
-                        }
-                        LabeledContent("Logserver Port:") {
-                            TextField("Logserver Port", text: $defaultDB.udpLoggerPort, prompt: Text("Required"))
-                        }.keyboardType(.numberPad)
-                        LabeledContent("AES Encryption Key:") {
-                            TextField("AES Encryption Key", text: $defaultDB.udpLoggerKey, prompt: Text("Required"))
-                        }
+            Text("The UDP logger allows you to livestream the log to the configured IP. Please use a secure key when streaming over the internet!\n[Learn how to receive the log stream](https://github.com/monal-im/Monal/wiki/Introduction-to-Monal-Logging#stream-the-log).")
+            Form {
+                Section(header: Text("UDP Logger Configuration")) {
+                    Toggle(isOn: $defaultDB.udpLoggerEnabled) {
+                        Text("Enable")
+                    }
+                    LabeledContent("Logserver IP:") {
+                        TextField("Logserver IP", text: $defaultDB.udpLoggerHostname, prompt: Text("Required"))
+                    }
+                    LabeledContent("Logserver Port:") {
+                        TextField("Logserver Port", text: $defaultDB.udpLoggerPort, prompt: Text("Required"))
+                    }.keyboardType(.numberPad)
+                    LabeledContent("AES Encryption Key:") {
+                        TextField("AES Encryption Key", text: $defaultDB.udpLoggerKey, prompt: Text("Required"))
                     }
                 }
-                .padding(0)
-                .textFieldStyle(.roundedBorder)
-            } else {
-                Text("The UDP logger allows you to livestream the log to the configured IP.")
-                Link("Learn more", destination: URL(string: "https://github.com/monal-im/Monal/wiki/Introduction-to-Monal-Logging#stream-the-log")!)
-                Spacer().frame(height: 32)
-                Text("UDP Logging UI not supported on iOS < 16").foregroundColor(.red)
             }
+            .padding(0)
+            .textFieldStyle(.roundedBorder)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .applyClosure { view in
-            if #available(iOS 15, *) {
-                view.background(.interpolatedWindowBackground)
-            }
-        }
+        .background(.interpolatedWindowBackground)
     }
 }
 
 struct CrashTestingView: View {
-    @ObservedObject var defaultDB = DebugDefaultDB()
-    
     var body: some View {
-            VStack(alignment:.leading, spacing: 25) {
-                Section(header: Text("Some debug settings.")) {
-                    Toggle(isOn: $defaultDB.hasCompletedOnboarding) {
-                        Text("Don't show onboarding")
-                    }
+        VStack(alignment: .leading) {
+            Text("The following buttons allow you to forcefully crash the app using several different methods to test the crash handling.")
+            List {
+                Button("Try to call unknown handler method") {
+                    DispatchQueue.global(qos: .default).async(execute: {
+                        let handler = MLHandler(delegate: self, handlerName: "IDontKnowThis", andBoundArguments: [:])
+                        handler.call(withArguments: nil)
+                    })
+                }
+                Button("Bad Access Crash") {
+                    let delegate: AnyClass? = NSClassFromString("MonalAppDelegate")
+                    print(delegate.unsafelyUnwrapped.audiovisualTypes())
+                }
+                Button("MLAssert Crash") {
+                    HelperTools.flushLogs(withTimeout: 0.100)
+                    MLAssert(false, "MLAssert_example")
+                }
+                Button("Assertion Crash") {
+                    assert(false)
+                }
+                Button("Fatal Error Crash") {
+                    fatalError("fatalError_example")
+                }
+                Button("Nil Crash") {
+                    let crasher:Int? = nil
+                    print(crasher!)
+                }
+            }
+            .foregroundColor(.red)
+            .listStyle(.grouped)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(.interpolatedWindowBackground)
+    }
+}
 
-                    Button("Reset the state of all accounts") {
-                        MLXMPPManager.sharedInstance().resetAllAccountStates()
-                    }
+struct ExtraSettingsView: View {
+    @ObservedObject var defaultDB = DebugDefaultDB()
+
+    var body: some View {
+        List {
+            Section(header: Text("Some debug settings:")) {
+                Toggle(isOn: $defaultDB.hasCompletedOnboarding) {
+                    Text("Don't show onboarding")
                 }
-                
-                Text("The following buttons allow you to forcefully crash the app using several different methods to test the crash handling.")
-                
-                Group {
-                    Button("Try to call unknown handler method") {
-                        DispatchQueue.global(qos: .default).async(execute: {
-                            HelperTools.flushLogs(withTimeout: 0.100)
-                            let handler = MLHandler(delegate: self, handlerName: "IDontKnowThis", andBoundArguments: [:])
-                            handler.call(withArguments: nil)
-                        })
-                    }
-                    Button("Bad Access Crash") {
-                        HelperTools.flushLogs(withTimeout: 0.100)
-                        let delegate: AnyClass? = NSClassFromString("MonalAppDelegate")
-                        print(delegate.unsafelyUnwrapped.audiovisualTypes())
-                        
-                    }
-                    Button("Assertion Crash") {
-                        HelperTools.flushLogs(withTimeout: 0.100)
-                        assert(false)
-                    }
-                    Button("Fatal Error Crash") {
-                        HelperTools.flushLogs(withTimeout: 0.100)
-                        fatalError("fatalError_example")
-                    }
-                    Button("Nil Crash") {
-                        HelperTools.flushLogs(withTimeout: 0.100)
-                        let crasher:Int? = nil
-                        print(crasher!)
-                    }
-                }.foregroundColor(.red)
-                Spacer()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .applyClosure { view in
-                if #available(iOS 15, *) {
-                    view.background(.interpolatedWindowBackground)
+
+                Toggle(isOn: $defaultDB.showNewChatView) {
+                    Text("Show new SwiftUI ChatView")
+                }
+
+                Toggle(isOn: $defaultDB.debugDtmfSending) {
+                    Text("Automatically play DTMF tones in all calls")
+                }
+
+                Toggle(isOn: $defaultDB.debugNSNotifications) {
+                    Text("Log *all* NSNotifications")
+                }
+
+                Button("Reset the state of all accounts") {
+                    MLXMPPManager.sharedInstance().resetAllAccountStates()
+                }
+
+                Button("Change app icon to christmas") {
+                    UIApplication.shared.setAlternateIconName("AlphaAppIcon-Christmas")
+                }
+
+                Button("Change app icon to default") {
+                    UIApplication.shared.setAlternateIconName(nil)
                 }
             }
+        }
+        .listStyle(.grouped)
     }
 }
 
@@ -211,12 +220,17 @@ struct DebugView: View {
                     Image(systemName: "bolt.fill")
                     Text("Crash Testing")
                 }
+            ExtraSettingsView()
+                .tabItem {
+                    Image(systemName: "gearshape")
+                    Text("Extra Settings")
+                }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
         .addLoadingOverlay(overlay)
         .navigationBarItems(trailing:Button("Reconnect All") {
-            showLoadingOverlay(overlay, headline: "Reconnecting", description: "Will log out and reconnect all (connected) accounts.") {
+            showLoadingOverlay(overlay, headline: "Reconnecting", description: "Will log out and reconnect all (enabled) accounts.") {
                 MLXMPPManager.sharedInstance().reconnectAll()
                 return after(seconds:3.0)
             }
@@ -225,7 +239,7 @@ struct DebugView: View {
 }
 
 #Preview {
-    NavigationView {
+    NavigationStack {
         DebugView()
     }
 }

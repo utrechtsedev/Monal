@@ -7,14 +7,14 @@
 //
 
 #import <Foundation/Foundation.h>
-#import "MLConstants.h"
+#import <monalxmpp/MLConstants.h>
 
-#import "HelperTools.h"
+#import <monalxmpp/HelperTools.h>
 
-#import "MLMessage.h"
-#import "MLContact.h"
+#import <monalxmpp/MLMessage.h>
+#import <monalxmpp/MLContact.h>
 
-#import "MLXMPPConnection.h"
+#import <monalxmpp/MLXMPPConnection.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -73,18 +73,19 @@ typedef void (^monal_iq_handler_t)(XMPPIQ* _Nullable);
 @property (nonatomic, readonly) BOOL parseQueueFrozen;
 
 @property (nonatomic, strong) MLXMPPConnection* connectionProperties;
+@property (nonatomic, readonly) MLContact* contact;
 
 //reg
-@property (nonatomic, strong) NSString *regUser;
-@property (nonatomic, strong) NSString *regPass;
-@property (nonatomic, strong) NSString *regCode;
-@property (nonatomic, strong) NSDictionary *regHidden;
+@property (nonatomic, strong) NSString* regUser;
+@property (nonatomic, strong) NSString* regPass;
+@property (nonatomic, strong) NSString* regCode;
+@property (nonatomic, strong) NSDictionary* regHidden;
 
 // state attributes
 @property (nonatomic, strong) NSString* statusMessage;
 
 // DB info
-@property (nonatomic, strong) NSNumber* accountNo;
+@property (nonatomic, strong) NSNumber* accountID;
 
 @property (nonatomic, readonly) xmppState accountState;
 @property (nonatomic, readonly) BOOL reconnectInProgress;
@@ -106,7 +107,7 @@ typedef void (^monal_iq_handler_t)(XMPPIQ* _Nullable);
 @property (nonatomic, strong, readonly) NSString* capsHash;
 @property (nullable, nonatomic, strong, readonly) NSArray* supportedChannelBindingTypes;
 
--(id) initWithServer:(nonnull MLXMPPServer*) server andIdentity:(nonnull MLXMPPIdentity*) identity andAccountNo:(NSNumber*) accountNo;
+-(id) initWithServer:(nonnull MLXMPPServer*) server andIdentity:(nonnull MLXMPPIdentity*) identity andAccountID:(NSNumber*) accountID;
 
 -(void) freezeParseQueue;
 -(void) unfreezeParseQueue;
@@ -132,6 +133,7 @@ typedef void (^monal_iq_handler_t)(XMPPIQ* _Nullable);
 -(void) sendMessage:(NSString*) message toContact:(MLContact*) contact isEncrypted:(BOOL) encrypt isUpload:(BOOL) isUpload andMessageId:(NSString*) messageId;
 -(void) sendMessage:(NSString*) message toContact:(MLContact*) contact isEncrypted:(BOOL) encrypt isUpload:(BOOL) isUpload andMessageId:(NSString*) messageId withLMCId:(NSString* _Nullable) LMCId;
 -(void) sendChatState:(BOOL) isTyping toContact:(nonnull MLContact*) contact;
+-(void) sendReactions:(NSOrderedSet*) reactions forMessage:(MLMessage*) message;
 
 /**
  crafts a  ping and sends it
@@ -148,6 +150,7 @@ typedef void (^monal_iq_handler_t)(XMPPIQ* _Nullable);
  Adds the stanza to the output Queue
  */
 -(void) send:(MLXMLNode*) stanza;
+-(AnyPromise*) sendIq:(XMPPIQ*) iq;
 -(void) sendIq:(XMPPIQ*) iq withResponseHandler:(monal_iq_handler_t) resultHandler andErrorHandler:(monal_iq_handler_t) errorHandler;
 -(void) sendIq:(XMPPIQ*) iq withHandler:(MLHandler* _Nullable) handler;
 
@@ -192,7 +195,8 @@ typedef void (^monal_iq_handler_t)(XMPPIQ* _Nullable);
  -(void) requestHTTPSlotWithParams:(NSDictionary *)params andCompletion:(void(^)(NSString *url,  NSError *error)) completion;
 
 
--(void) setMAMQueryMostRecentForContact:(MLContact*) contact before:(NSString* _Nullable) uid withCompletion:(void (^)(NSArray* _Nullable, NSString* _Nullable error)) completion;
+-(XMPPIQ*) prepareIQForMAMQueryMostRecentForContact:(MLContact*) contact before:(NSString*) before;
+-(AnyPromise*) setMAMQueryMostRecentForContact:(MLContact*) contact before:(NSString* _Nullable) before;
 -(void) setMAMPrefs:(NSString*) preference;
 -(void) getMAMPrefs;
 
@@ -201,6 +205,7 @@ typedef void (^monal_iq_handler_t)(XMPPIQ* _Nullable);
  */
 -(void) enablePush;
 -(void) disablePush;
+-(AnyPromise*) pingPushserver;
 
 -(void) mamFinishedFor:(NSString*) archiveJid;
 
@@ -219,7 +224,7 @@ typedef void (^monal_iq_handler_t)(XMPPIQ* _Nullable);
 
 #pragma mark - account management
 
--(void) changePassword:(NSString*) newPass withCompletion:(xmppCompletion _Nullable) completion;
+-(AnyPromise*) changePassword:(NSString*) newPass;
 
 -(void) requestRegFormWithToken:(NSString* _Nullable) token andCompletion:(xmppDataCompletion) completion andErrorCompletion:(xmppCompletion) errorCompletion;
 -(void) registerUser:(NSString*) username withPassword:(NSString*) password captcha:(NSString* _Nullable) captcha andHiddenFields:(NSDictionary* _Nullable) hiddenFields withCompletion:(xmppCompletion _Nullable) completion;

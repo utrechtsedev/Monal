@@ -7,9 +7,9 @@
 //
 
 #import "AccountListController.h"
-#import "DataLayer.h"
-#import "MLXMPPManager.h"
-#import "HelperTools.h"
+#import <monalxmpp/DataLayer.h>
+#import <monalxmpp/MLXMPPManager.h>
+#import <monalxmpp/HelperTools.h>
 
 @interface AccountListController ()
 @property (nonatomic, strong) NSDateFormatter* uptimeFormatter;
@@ -58,10 +58,10 @@
     return self.accountList.count;
 }
 
--(NSNumber*) getAccountNoByIndex:(NSUInteger) index
+-(NSNumber*) getAccountIDByIndex:(NSUInteger) index
 {
     NSNumber* result = [[self.accountList objectAtIndex: index] objectForKey:@"account_id"];
-    MLAssert(result != nil, @"getAccountNoByIndex, result should not be nil");
+    MLAssert(result != nil, @"getAccountIDByIndex, result should not be nil");
     return result;
 }
 

@@ -10,19 +10,29 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+@protocol MLContactProtocol;
+@class xmpp;
 @class MLContact;
+@class MLReactionsEntry;
+@class MLFiletransferInfo;
 
 /**
  message object intended to be passed around and eventually used to render
  */
 @interface MLMessage : NSObject <NSSecureCoding>
 
++(MLMessage*) createMessageFromHistoryID:(NSNumber*) historyID;
++(NSArray<MLMessage*>*) createMessagesFromHistoryIDs:(NSArray<NSNumber*>*) historyIDs;
++(MLMessage*) createNewStatusMessageForContact:(MLContact*) contact withText:(NSString*) text;
+
 +(BOOL) supportsSecureCoding;
+
+@property (readonly) NSString* id;     //for Identifiable protocol
 
 /**
  account number in the database should be an integer
  */
-@property (nonatomic, copy) NSNumber* accountId;
+@property (nonatomic, copy) NSNumber* accountID;
 
 /**
   jid of the contact that this msg corresponds to
@@ -42,7 +52,7 @@ NS_ASSUME_NONNULL_BEGIN
 /**
  The id for the message as provided by the xmpp server
  */
-@property (nonatomic, copy) NSString* stanzaId;
+@property (nonatomic, copy) NSString* _Nullable stanzaId;
 
 /**
 The of the message in the DB , should be int
@@ -53,35 +63,31 @@ The of the message in the DB , should be int
  Actual sender will differ from the "from" when in a group chat
  */
 @property (nonatomic, copy) NSString* actualFrom;
-@property (nonatomic, assign) BOOL isMuc;
+@property (nonatomic, readonly) BOOL isMuc;
 @property (nonatomic, readonly) NSString* contactDisplayName;
 
 @property (nonatomic, copy) NSString* messageType;
-@property (nonatomic, copy) NSString* mucType;
-@property (nonatomic, copy) NSString* participantJid;
+@property (nonatomic, readonly) NSString* mucType;
+@property (nonatomic, copy) NSString* _Nullable participantJid;
+@property (nonatomic, copy) NSString* _Nullable occupantId;
 
-@property (nonatomic, copy) NSString* filetransferMimeType;
-@property (nonatomic, copy) NSNumber* filetransferSize;
+@property (nonatomic, readonly) MLFiletransferInfo* fileInfo;
 
 @property (nonatomic, copy) NSString* messageText;
 
+@property (nonatomic, copy) NSArray<MLReactionsEntry*>* reactions;
+
 @property (nonatomic, assign) BOOL retracted;
 
-/**
- If the text was parsed into a URL. For message type url
- */
+//TODO: remove, once our old chatview gets removed
 @property (nonatomic, copy) NSURL* url;
 
 /**
  path to preview image for image type
  */
-@property (nonatomic, copy) NSURL* previewImage;
-@property (nonatomic, copy) NSString* previewText;
+@property (nonatomic, copy) NSURL* _Nullable previewImage;
+@property (nonatomic, copy) NSString* _Nullable previewText;
 
-/**
- for message type status. The MUC subeject
- */
-@property (nonatomic, copy) NSString* groupSubject;
 @property (nonatomic, copy) NSDate* timestamp;
 
 /*
@@ -104,8 +110,8 @@ The of the message in the DB , should be int
  values only set if in a response the message was marked as error.
  if hasBeenReceived is true, these should be ignored
  */
-@property (nonatomic, copy) NSString* errorType;
-@property (nonatomic, copy) NSString* errorReason;
+@property (nonatomic, copy) NSString* _Nullable errorType;
+@property (nonatomic, copy) NSString* _Nullable errorReason;
 
 /*
  the message has not been marked as read in the db
@@ -113,15 +119,11 @@ The of the message in the DB , should be int
 @property (nonatomic, assign) BOOL unread;
 @property (nonatomic, assign) BOOL displayMarkerWanted;
 
-/**
- Converts a dictonary to a message object Provide a formatter for the format the dates will be in
- */
-+(MLMessage*) messageFromDictionary:(NSDictionary*) dic;
+@property (nonatomic, readonly) xmpp* _Nullable account;
+@property (nonatomic, readonly) id<MLContactProtocol> contact;
+@property (nonatomic, readonly) MLContact* chatContact;
 
--(void) updateWithMessage:(MLMessage*) msg;
-@property (nonatomic, readonly) MLContact* contact;
-
--(BOOL) isEqualToContact:(MLContact*) contact;
+-(BOOL) isEqualToContact:(id<MLContactProtocol>) contact;
 -(BOOL) isEqualToMessage:(MLMessage*) message;
 -(BOOL) isEqual:(id _Nullable) object;
 

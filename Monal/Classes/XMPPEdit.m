@@ -7,16 +7,15 @@
 //
 
 #import "XMPPEdit.h"
-#import "xmpp.h"
+#import <monalxmpp/xmpp.h>
 #import "MBProgressHUD.h"
-#import "MLBlockedUsersTableViewController.h"
 #import "MLButtonCell.h"
-#import "MLImageManager.h"
-#import "MLPasswordChangeTableViewController.h"
-#import "MLServerDetails.h"
+#import <monalxmpp/MLImageManager.h>
 #import "MLSwitchCell.h"
-#import "MLOMEMO.h"
-#import "MLNotificationQueue.h"
+#import <monalxmpp/MLOMEMO.h>
+#import <monalxmpp/MLNotificationQueue.h>
+#import "MonalAppDelegate.h"
+#import "MLNotificationManager.h"
 #import "Monal-Swift.h"
 
 @import MobileCoreServices;
@@ -110,6 +109,7 @@ enum DummySettingsRows {
 @property (nonatomic) BOOL avatarChanged;
 @property (nonatomic) BOOL rosterNameChanged;
 @property (nonatomic) BOOL statusMessageChanged;
+@property (nonatomic) BOOL passwordChanged;
 @property (nonatomic) BOOL detailsChanged;
 
 @property (nonatomic) BOOL plainActivated;
@@ -142,10 +142,10 @@ enum DummySettingsRows {
     
     _db = [DataLayer sharedInstance];
     
-    if(self.accountNo.intValue != -1)
+    if(self.accountID.intValue != -1)
         self.editMode = YES;
     
-    DDLogVerbose(@"got account number %@", self.accountNo);
+    DDLogVerbose(@"got account number %@", self.accountID);
     
     UITapGestureRecognizer* gestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(hideKeyboard)]; // hides the kkyeboard when you tap outside the editing area
     gestureRecognizer.cancelsTouchesInView = false; //this prevents it from blocking the button
@@ -181,12 +181,12 @@ enum DummySettingsRows {
     if(self.originIndex && self.originIndex.section == 0)
     {
         //edit
-        DDLogVerbose(@"reading account number %@", self.accountNo);
-        NSDictionary* settings = [_db detailsForAccount:self.accountNo];
+        DDLogVerbose(@"reading account number %@", self.accountID);
+        NSDictionary* settings = [_db detailsForAccount:self.accountID];
         MLAssert(settings != nil, @"Settings dict should never be nil here!");
 
         self.jid = [NSString stringWithFormat:@"%@@%@", [settings objectForKey:@"username"], [settings objectForKey:@"domain"]];
-        NSString* pass = [SAMKeychain passwordForService:kMonalKeychainName account:self.accountNo.stringValue];
+        NSString* pass = [SAMKeychain passwordForService:kMonalKeychainName account:self.accountID.stringValue];
 
         if(pass)
             self.password = pass;
@@ -222,11 +222,6 @@ enum DummySettingsRows {
         //overwrite account section heading in new mode
         self.sectionDictionary[@(kSettingSectionAccount)] = NSLocalizedString(@"Account (new)", @"");
     }
-#if TARGET_OS_MACCATALYST
-    self.imagePicker = [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:@[UTTypeImage]];
-    self.imagePicker.allowsMultipleSelection = NO;
-    self.imagePicker.delegate = self;
-#endif
 }
 
 -(void) viewWillAppear:(BOOL) animated
@@ -292,7 +287,7 @@ enum DummySettingsRows {
     //check if our keychain contains a password
     if(self.enabled && self.password.length == 0)
     {
-        [SAMKeychain passwordForService:kMonalKeychainName account:self.accountNo.stringValue error:&error];
+        [SAMKeychain passwordForService:kMonalKeychainName account:self.accountID.stringValue error:&error];
         if(error != nil)
         {
             DDLogError(@"Keychain error: %@", error);
@@ -333,7 +328,7 @@ enum DummySettingsRows {
     [dic setObject:self.resource forKey:kResource];
     [dic setObject:[NSNumber numberWithBool:self.enabled] forKey:kEnabled];
     [dic setObject:[NSNumber numberWithBool:self.directTLS] forKey:kDirectTLS];
-    [dic setObject:self.accountNo forKey:kAccountID];
+    [dic setObject:self.accountID forKey:kAccountID];
     if(self.rosterName)
         [dic setObject:[self.rosterName stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]] forKey:kRosterName];
     if(self.statusMessage)
@@ -360,23 +355,22 @@ enum DummySettingsRows {
                 NSNumber* accountID = [[DataLayer sharedInstance] addAccountWithDictionary:dic];
                 if(accountID != nil)
                 {
-                    self.accountNo = accountID;
-                    [SAMKeychain setAccessibilityType:kSecAttrAccessibleAfterFirstUnlock];
-                    [SAMKeychain setPassword:self.password forService:kMonalKeychainName account:self.accountNo.stringValue];
+                    self.accountID = accountID;
+                    [SAMKeychain setPassword:self.password forService:kMonalKeychainName account:self.accountID.stringValue];
                     if(self.enabled)
                     {
-                        DDLogVerbose(@"Now connecting newly created account: %@", self.accountNo);
-                        [[MLXMPPManager sharedInstance] connectAccount:self.accountNo];
-                        xmpp* account = [[MLXMPPManager sharedInstance] getConnectedAccountForID:self.accountNo];
+                        DDLogVerbose(@"Now connecting newly created account: %@", self.accountID);
+                        [[MLXMPPManager sharedInstance] connectAccount:self.accountID];
+                        xmpp* account = [[MLXMPPManager sharedInstance] getEnabledAccountForID:self.accountID];
                         [account publishStatusMessage:self.statusMessage];
                         [account publishRosterName:self.rosterName];
                         [account publishAvatar:self.selectedAvatarImage];
                     }
                     else
                     {
-                        DDLogVerbose(@"Making sure newly created account is not connected and deleting all SiriKit interactions: %@", self.accountNo);
-                        [[MLXMPPManager sharedInstance] disconnectAccount:self.accountNo withExplicitLogout:YES];
-                        [HelperTools removeAllShareInteractionsForAccountNo:self.accountNo];
+                        DDLogVerbose(@"Making sure newly created account is not connected and deleting all SiriKit interactions: %@", self.accountID);
+                        [[MLXMPPManager sharedInstance] disconnectAccount:self.accountID withExplicitLogout:YES];
+                        [HelperTools removeAllShareInteractionsForAccountID:self.accountID];
                     }
                     //trigger view updates to make sure enabled/disabled account state propagates to all ui elements
                     [[MLNotificationQueue currentQueue] postNotificationName:kMonalRefresh object:nil userInfo:nil];
@@ -395,26 +389,28 @@ enum DummySettingsRows {
         //for the disabled account (for notifications etc.)
         if(!self.enabled)
         {
-            DDLogVerbose(@"Account is not enabled anymore, deleting all SiriKit interactions and making sure it's disconnected: %@", self.accountNo);
-            [[MLXMPPManager sharedInstance] disconnectAccount:self.accountNo withExplicitLogout:YES];
-            [HelperTools removeAllShareInteractionsForAccountNo:self.accountNo];
+            DDLogVerbose(@"Account is not enabled anymore, deleting all SiriKit interactions and making sure it's disconnected: %@", self.accountID);
+            [[MLXMPPManager sharedInstance] disconnectAccount:self.accountID withExplicitLogout:YES];
+            [HelperTools removeAllShareInteractionsForAccountID:self.accountID];
         }
         //this case makes sure we recreate a completely new account instance below (using our new settings) if the account details changed
         else if(self.detailsChanged)
-            [[MLXMPPManager sharedInstance] disconnectAccount:self.accountNo withExplicitLogout:NO];
+            [[MLXMPPManager sharedInstance] disconnectAccount:self.accountID withExplicitLogout:NO];
         
         DDLogVerbose(@"Now updating DB with account dict...");
         [[DataLayer sharedInstance] updateAccounWithDictionary:dic];
         if(self.password.length)
         {
-            DDLogVerbose(@"Now setting password for account %@ in SAMKeychain...", self.accountNo);
-            [[MLXMPPManager sharedInstance] updatePassword:self.password forAccount:self.accountNo];
+            DDLogVerbose(@"Now setting password for account %@ in SAMKeychain...", self.accountID);
+            [[MLXMPPManager sharedInstance] updatePassword:self.password forAccount:self.accountID];
+            if (self.passwordChanged)
+                [[HelperTools defaultsDB] setBool:NO forKey:@"autogeneratedPassword"];
         }
         if(self.enabled)
         {
-            DDLogVerbose(@"Account is (still) enabled, connecting it: %@", self.accountNo);
-            [[MLXMPPManager sharedInstance] connectAccount:self.accountNo];
-            xmpp* account = [[MLXMPPManager sharedInstance] getConnectedAccountForID:self.accountNo];
+            DDLogVerbose(@"Account is (still) enabled, connecting it: %@", self.accountID);
+            [[MLXMPPManager sharedInstance] connectAccount:self.accountID];
+            xmpp* account = [[MLXMPPManager sharedInstance] getEnabledAccountForID:self.accountID];
             if(self.statusMessageChanged)
                 [account publishStatusMessage:self.statusMessage];
             if(self.rosterNameChanged)
@@ -453,9 +449,9 @@ enum DummySettingsRows {
         //do nothing when "no" was pressed
     }];
     UIAlertAction* yesAction = [UIAlertAction actionWithTitle:NSLocalizedString(@"Yes", @"") style:UIAlertActionStyleDefault handler:^(UIAlertAction* action __unused) {
-        DDLogVerbose(@"Removing accountNo %@", self.accountNo);
+        DDLogVerbose(@"Removing accountID %@", self.accountID);
         self.deactivateSave = YES;
-        [[MLXMPPManager sharedInstance] removeAccountForAccountNo:self.accountNo];
+        [[MLXMPPManager sharedInstance] removeAccountForAccountID:self.accountID];
 
         MBProgressHUD* hud = [MBProgressHUD showHUDAddedTo:self.view animated:YES];
         hud.mode = MBProgressHUDModeCustomView;
@@ -467,7 +463,14 @@ enum DummySettingsRows {
         [hud hideAnimated:YES afterDelay:1.0f];
         
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            [self dismissViewControllerAnimated:YES completion:nil];
+            [self dismissViewControllerAnimated:YES completion:^{
+                //we want to start fresh instead of doing a "password migration"-restore directly triggering an sms
+                [[HelperTools defaultsDB] removeObjectForKey:@"Quicksy_phoneNumber"];
+                [[HelperTools defaultsDB] removeObjectForKey:@"Quicksy_country"];
+                //make sure we show account creation view etc. after removing the last account
+                MonalAppDelegate* appDelegate = (MonalAppDelegate *)[[UIApplication sharedApplication] delegate];
+                [appDelegate.activeChats segueToIntroScreensIfNeeded];
+            }];
         });
     }];
     [questionAlert addAction:noAction];
@@ -481,7 +484,7 @@ enum DummySettingsRows {
 
 -(IBAction) deleteAccountClicked:(id) sender
 {
-    xmpp* xmppAccount = [[MLXMPPManager sharedInstance] getConnectedAccountForID:self.accountNo];
+    xmpp* xmppAccount = [[MLXMPPManager sharedInstance] getEnabledAccountForID:self.accountID];
     if(xmppAccount.accountState < kStateInitStarted)
     {
         UIAlertController* alert = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Error Removing Account", @"")
@@ -523,7 +526,14 @@ enum DummySettingsRows {
                     [hud hideAnimated:YES afterDelay:1.0f];
                     
                     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                        [self dismissViewControllerAnimated:YES completion:nil];
+                        [self dismissViewControllerAnimated:YES completion:^{
+                            //we want to start fresh instead of doing a "password migration"-restore directly triggering an sms
+                            [[HelperTools defaultsDB] removeObjectForKey:@"Quicksy_phoneNumber"];
+                            [[HelperTools defaultsDB] removeObjectForKey:@"Quicksy_country"];
+                            //make sure we show account creation view etc. after removing the last account
+                            MonalAppDelegate* appDelegate = (MonalAppDelegate *)[[UIApplication sharedApplication] delegate];
+                            [appDelegate.activeChats segueToIntroScreensIfNeeded];
+                        }];
                     });
                 }
             });
@@ -548,7 +558,14 @@ enum DummySettingsRows {
     }];
     UIAlertAction *yesAction = [UIAlertAction actionWithTitle:NSLocalizedString(@"Yes", @"") style:UIAlertActionStyleDefault handler:^(UIAlertAction* action __unused) {
 
-        [self.db clearMessages:self.accountNo];
+        [self.db clearMessages:self.accountID];
+
+        // Clear current contact if the currently displayed chat belongs to this account
+        MLContact* currentContact = [MLNotificationManager sharedInstance].currentContact;
+        if (currentContact && currentContact.accountID == self.accountID)
+            [MLNotificationManager sharedInstance].currentContact = nil;
+
+         // clearing the history of an account deletes entries from ActiveChats
         [[MLNotificationQueue currentQueue] postNotificationName:kMonalRefresh object:nil userInfo:nil];
 
         MBProgressHUD *hud = [MBProgressHUD showHUDAddedTo:self.view animated:YES];
@@ -625,8 +642,10 @@ enum DummySettingsRows {
         switch (indexPath.row)
         {
             case SettingsChangePasswordRow: {
-                [thecell initTapCell:NSLocalizedString(@"Change Password", @"")];
-                thecell.cellLabel.text = NSLocalizedString(@"Change Password", @"");
+                if([[HelperTools defaultsDB] boolForKey:@"autogeneratedPassword"])
+                    [thecell initTapCell:NSLocalizedString(@"Change/View Password", @"")];
+                else
+                    [thecell initTapCell:NSLocalizedString(@"Change Password", @"")];
                 break;
             }
             case SettingsOmemoKeysRow: {
@@ -748,8 +767,8 @@ enum DummySettingsRows {
         UITapGestureRecognizer* touchUserAvatarRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(getPhotoAction:)];
         [self.userAvatarImageView addGestureRecognizer:touchUserAvatarRecognizer];
         
-        if(self.editMode == YES && self.jid != nil && self.accountNo.intValue >= 0)
-            [[MLImageManager sharedInstance] getIconForContact:[MLContact createContactFromJid:self.jid andAccountNo:self.accountNo] withCompletion:^(UIImage *image) {
+        if(self.editMode == YES && self.jid != nil && self.accountID.intValue >= 0)
+            [[MLImageManager sharedInstance] getIconForContact:[MLContact createContactFromJid:self.jid andAccountID:self.accountID] withCompletion:^(UIImage *image) {
                 [self.userAvatarImageView setImage:image];
             }];
         else
@@ -798,33 +817,45 @@ enum DummySettingsRows {
     {
         switch(newIndexPath.row)
         {
-            case SettingsServerDetailsRow:
-                [self performSegueWithIdentifier:@"showServerDetails" sender:self];
+            case SettingsServerDetailsRow: {
+                xmpp* xmppAccount = [[MLXMPPManager sharedInstance] getEnabledAccountForID:self.accountID];
+                UIViewController* serverDetailsView = [[SwiftuiInterface new] makeServerDetailsViewFor:xmppAccount];
+                [self showDetailViewController:serverDetailsView sender:self];
                 break;
+            }
         }
     }
     else if(newIndexPath.section == kSettingSectionGeneral)
     {
         switch(newIndexPath.row)
         {
-            case SettingsChangePasswordRow:
-                [self performSegueWithIdentifier:@"showPassChange" sender:self];
+            case SettingsChangePasswordRow: {
+                UIViewController* changePasswordView = [[SwiftuiInterface new] makeChangePasswordViewFor:self.accountID];
+                [self showDetailViewController:changePasswordView sender:self];
                 break;
+            }
             case SettingsOmemoKeysRow: {
                 UIViewController* ownOmemoKeysView;
-                if(self.jid == nil || self.accountNo == nil)
+                xmpp* xmppAccount = [[MLXMPPManager sharedInstance] getEnabledAccountForID:self.accountID];
+                if(self.jid == nil || self.accountID == nil || xmppAccount == nil)
                 {
                     ownOmemoKeysView = [[SwiftuiInterface new] makeOwnOmemoKeyView:nil];
                 } else {
-                    MLContact* ownContact = [MLContact createContactFromJid:self.jid andAccountNo:self.accountNo];
+                    MLContact* ownContact = [MLContact createContactFromJid:self.jid andAccountID:self.accountID];
                     ownOmemoKeysView = [[SwiftuiInterface new] makeOwnOmemoKeyView:ownContact];
                 }
                 [self showDetailViewController:ownOmemoKeysView sender:self];
                 break;
             }
-            case SettingsBlockedUsersRow:
-                [self performSegueWithIdentifier:@"showBlockedUsers" sender:self];
+            case SettingsBlockedUsersRow: {
+                xmpp* xmppAccount = [[MLXMPPManager sharedInstance] getEnabledAccountForID:self.accountID];
+                if(xmppAccount != nil)
+                {
+                    UIViewController* blockedUsersView = [[SwiftuiInterface new] makeBlockedUsersViewFor:xmppAccount];
+                    [self showDetailViewController:blockedUsersView sender:self];
+                }
                 break;
+            }
         }
     }
     else if(newIndexPath.section == kSettingSectionAdvanced)
@@ -854,40 +885,16 @@ enum DummySettingsRows {
     {
         switch(indexPath.row)
         {
-            case SettingsServerDetailsRow:
-                [self performSegueWithIdentifier:@"showServerDetails" sender:self];
+            case SettingsServerDetailsRow: {
+                xmpp* xmppAccount = [[MLXMPPManager sharedInstance] getEnabledAccountForID:self.accountID];
+                UIViewController* serverDetailsView = [[SwiftuiInterface new] makeServerDetailsViewFor:xmppAccount];
+                [self showDetailViewController:serverDetailsView sender:self];
                 break;
+            }
         }
     }
 }
 
-
-#pragma mark - segeue
-
--(void) prepareForSegue:(UIStoryboardSegue*) segue sender:(id) sender
-{
-    if([segue.identifier isEqualToString:@"showServerDetails"])
-    {
-        MLServerDetails* server= (MLServerDetails*)segue.destinationViewController;
-        server.xmppAccount = [[MLXMPPManager sharedInstance] getConnectedAccountForID:self.accountNo];
-    }
-    else if([segue.identifier isEqualToString:@"showBlockedUsers"])
-    {
-        xmpp* xmppAccount = [[MLXMPPManager sharedInstance] getConnectedAccountForID:self.accountNo];
-        // force blocklist update
-        [xmppAccount fetchBlocklist];
-        MLBlockedUsersTableViewController* blockedUsers = (MLBlockedUsersTableViewController*)segue.destinationViewController;
-        blockedUsers.xmppAccount = xmppAccount;
-    }
-    else if([segue.identifier isEqualToString:@"showPassChange"])
-    {
-        if(self.jid && self.accountNo)
-        {
-            MLPasswordChangeTableViewController* pwchange = (MLPasswordChangeTableViewController*)segue.destinationViewController;
-            pwchange.xmppAccount = [[MLXMPPManager sharedInstance] getConnectedAccountForID:self.accountNo];
-        }
-    }
-}
 
 #pragma mark -  text input  fielddelegate
 
@@ -922,6 +929,7 @@ enum DummySettingsRows {
         case 3: {
             self.password = textField.text;
             self.detailsChanged = YES;
+            self.passwordChanged = YES;
             break;
         }
         case 4: {
@@ -1001,15 +1009,12 @@ enum DummySettingsRows {
 
 -(void) getPhotoAction:(UIGestureRecognizer*) recognizer
 {
-    xmpp* account = [[MLXMPPManager sharedInstance] getConnectedAccountForID:self.accountNo];
+    xmpp* account = [[MLXMPPManager sharedInstance] getEnabledAccountForID:self.accountID];
     if (!account)
         return;
     UIAlertController* actionControll = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"Select Action", @"")
                                                                             message:nil preferredStyle:UIAlertControllerStyleActionSheet];
 
-#if TARGET_OS_MACCATALYST
-    [self pickImgFile:nil];
-#else
     UIImagePickerController* imagePicker = [UIImagePickerController new];
     imagePicker.delegate = self;
 
@@ -1035,7 +1040,6 @@ enum DummySettingsRows {
     [photosAction setValue:[[UIImage systemImageNamed:@"photo"] imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal] forKey:@"image"];
     [actionControll addAction:cameraAction];
     [actionControll addAction:photosAction];
-#endif
     
     // Set image
     [actionControll addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Cancel", @"") style:UIAlertActionStyleCancel handler:^(UIAlertAction* action __unused) {

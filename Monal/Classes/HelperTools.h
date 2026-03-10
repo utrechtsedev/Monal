@@ -7,10 +7,10 @@
 //
 
 #import <Foundation/Foundation.h>
-#import "MLConstants.h"
-#import "MLDelayableTimer.h"
+#import <monalxmpp/MLConstants.h>
+#import <monalxmpp/MLDelayableTimer.h>
 
-#include "metamacros.h"
+#include <monalxmpp/metamacros.h>
 
 #define createDelayableTimer(timeout, handler, ...)                                     createDelayableQueuedTimer(timeout, nil, handler, __VA_ARGS__)
 #define createDelayableQueuedTimer(timeout, queue, handler, ...)                        metamacro_if_eq(0, metamacro_argcount(__VA_ARGS__))([HelperTools startDelayableQueuedTimer:timeout withHandler:handler andCancelHandler:nil andFile:(char*)__FILE__ andLine:__LINE__ andFunc:(char*)__func__ onQueue:queue])(_createDelayableQueuedTimer(timeout, queue, handler, __VA_ARGS__))
@@ -26,6 +26,8 @@
 #define showErrorOnAlpha(account, description, ...)                         do { [HelperTools showErrorOnAlpha:[NSString stringWithFormat:description, ##__VA_ARGS__] withNode:nil andAccount:account andFile:(char*)__FILE__ andLine:__LINE__ andFunc:(char*)__func__]; } while(0)
 #define showXMLErrorOnAlpha(account, node, description, ...)                do { [HelperTools showErrorOnAlpha:[NSString stringWithFormat:description, ##__VA_ARGS__] withNode:node andAccount:account andFile:(char*)__FILE__ andLine:__LINE__ andFunc:(char*)__func__]; } while(0)
 
+#define errorString(error, ...)                                             metamacro_if_eq(0, metamacro_argcount(__VA_ARGS__))( emptyDefault(((NSError*)error).userInfo[NSLocalizedDescriptionKey], @"", NSLocalizedString(@"Unknown error!", @"")) )( emptyDefault(((NSError*)error).userInfo[NSLocalizedDescriptionKey], @"", NSLocalizedString(metamacro_head(__VA_ARGS__), @"")) )
+
 NS_ASSUME_NONNULL_BEGIN
 
 @class AnyPromise;
@@ -37,22 +39,12 @@ NS_ASSUME_NONNULL_BEGIN
 @class DDFileLogger;
 @class UIView;
 @class UITapGestureRecognizer;
+@class AVURLAsset;
 
 typedef NS_ENUM(NSUInteger, MLVersionType) {
     MLVersionTypeIQ,
     MLVersionTypeLog,
-};
-
-typedef NS_ENUM(NSUInteger, MLDefinedIdentifier) {
-    MLDefinedIdentifier_kAppGroup,
-    MLDefinedIdentifier_kMonalOpenURL,
-    MLDefinedIdentifier_kBackgroundProcessingTask,
-    MLDefinedIdentifier_kBackgroundRefreshingTask,
-    MLDefinedIdentifier_kMonalKeychainName,
-    MLDefinedIdentifier_SHORT_PING,
-    MLDefinedIdentifier_LONG_PING,
-    MLDefinedIdentifier_MUC_PING,
-    MLDefinedIdentifier_BGFETCH_DEFAULT_INTERVAL,
+    MLVersionTypeUserAgent,
 };
 
 typedef NS_ENUM(NSUInteger, MLRunLoopIdentifier) {
@@ -73,6 +65,14 @@ void swizzle(Class c, SEL orig, SEL new);
 @property (nonatomic) BOOL ml_isDirect;
 @end
 
+//copy of private definition at https://github.com/mxcl/PromiseKit/blob/master/Sources/PMKCallVariadicBlock.m
+//please keep in sync manually!
+@interface PMKArray : NSObject {
+@public
+    id objs[3];
+    NSUInteger count;
+} @end
+
 @interface HelperTools : NSObject
 
 @property (class, nonatomic, strong, nullable) DDFileLogger* fileLogger;
@@ -92,6 +92,7 @@ void swizzle(Class c, SEL orig, SEL new);
 +(void) postError:(NSString*) description withNode:(XMPPStanza* _Nullable) node andAccount:(xmpp*) account andIsSevere:(BOOL) isSevere andDisableAccount:(BOOL) disableAccount;
 +(void) postError:(NSString*) description withNode:(XMPPStanza* _Nullable) node andAccount:(xmpp*) account andIsSevere:(BOOL) isSevere;
 +(NSString*) extractXMPPError:(XMPPStanza*) stanza withDescription:(NSString* _Nullable) description;
++(NSError*) getNSErrorFrom:(XMPPStanza*) stanza withDescription:(NSString*) description;
 +(void) showErrorOnAlpha:(NSString*) description withNode:(XMPPStanza* _Nullable) node andAccount:(xmpp* _Nullable) account andFile:(char*) file andLine:(int) line andFunc:(char*) func;
 
 +(NSDictionary<NSString*, NSString*>*) getInvalidPushServers;
@@ -107,10 +108,9 @@ void swizzle(Class c, SEL orig, SEL new);
 +(MLXMLNode* _Nullable) candidate2xml:(NSString*) candidate withMid:(NSString*) mid pwd:(NSString* _Nullable) pwd ufrag:(NSString* _Nullable) ufrag andInitiator:(BOOL) initiator;
 +(NSString* _Nullable) xml2candidate:(MLXMLNode*) xml withInitiator:(BOOL) initiator;
 
-+(UIImage* _Nullable) renderUIImageFromSVGURL:(NSURL* _Nullable) url    API_AVAILABLE(ios(16.0), macosx(13.0));  //means: API_AVAILABLE(ios(16.0), maccatalyst(16.0))
-+(UIImage* _Nullable) renderUIImageFromSVGData:(NSData* _Nullable) data    API_AVAILABLE(ios(16.0), macosx(13.0));  //means: API_AVAILABLE(ios(16.0), maccatalyst(16.0))
++(AnyPromise*) renderUIImageFromSVGURL:(NSURL* _Nullable) url;
++(AnyPromise*) renderUIImageFromSVGData:(NSData* _Nullable) data;
 +(void) busyWaitForOperationQueue:(NSOperationQueue*) queue;
-+(id) getObjcDefinedValue:(MLDefinedIdentifier) identifier;
 +(NSRunLoop*) getExtraRunloopWithIdentifier:(MLRunLoopIdentifier) identifier;
 +(NSError* _Nullable) hardLinkOrCopyFile:(NSString*) from to:(NSString*) to;
 +(NSString*) getQueueThreadLabelFor:(DDLogMessage*) logMessage;
@@ -122,8 +122,11 @@ void swizzle(Class c, SEL orig, SEL new);
 +(NSData*) serializeObject:(id) obj;
 +(id) unserializeData:(NSData*) data;
 +(NSError* _Nullable) postUserNotificationRequest:(UNNotificationRequest*) request;
-+(void) addUploadItemPreviewForItem:(NSURL* _Nullable) url provider:(NSItemProvider* _Nullable) provider andPayload:(NSMutableDictionary*) payload withCompletionHandler:(void(^)(NSMutableDictionary* _Nullable)) completion;
-+(void) handleUploadItemProvider:(NSItemProvider*) provider withCompletionHandler:(void (^)(NSMutableDictionary* _Nullable)) completion;
++(void) createAVURLAssetFromFile:(NSString*) file havingMimeType:(NSString*) mimeType andFileExtension:(NSString* _Nullable) fileExtension withCompletionHandler:(void(^)(AVURLAsset* _Nullable)) completion;
++(AnyPromise*) computeMediaDurationFromFile:(NSString*) file havingMimeType:(NSString*) mimeType andFileExtension:(NSString* _Nullable) fileExtension;
++(AnyPromise*) generateVideoThumbnailFromFile:(NSString*) file havingMimeType:(NSString*) mimeType andFileExtension:(NSString* _Nullable) fileExtension;
++(AnyPromise*) addUploadItemPreviewForItem:(NSURL* _Nullable) url provider:(NSItemProvider* _Nullable) provider andPayload:(NSMutableDictionary*) payload;
++(AnyPromise*) handleUploadItemProvider:(NSItemProvider*) provider;
 +(UIImage* _Nullable) rotateImage:(UIImage* _Nullable) image byRadians:(CGFloat) rotation;
 +(UIImage* _Nullable) mirrorImageOnXAxis:(UIImage* _Nullable) image;
 +(UIImage* _Nullable) mirrorImageOnYAxis:(UIImage* _Nullable) image;
@@ -137,8 +140,8 @@ void swizzle(Class c, SEL orig, SEL new);
 +(NSString* _Nullable) exportIPCDatabase;
 +(void) configureFileProtection:(NSString*) protectionLevel forFile:(NSString*) file;
 +(void) configureFileProtectionFor:(NSString*) file;
-+(BOOL) isContactBlacklistedForEncryption:(MLContact*) contact;
-+(void) removeAllShareInteractionsForAccountNo:(NSNumber*) accountNo;
++(BOOL) isContactBlacklistedForEncryption:(MLContact*) contact NS_SWIFT_NAME(isContactBlacklistedForEncryption(_:));
++(void) removeAllShareInteractionsForAccountID:(NSNumber*) accountID;
 +(NSDictionary<NSString*, NSString*>*) splitJid:(NSString*) jid;
 
 +(void) scheduleBackgroundTask:(BOOL) force;
@@ -155,7 +158,7 @@ void swizzle(Class c, SEL orig, SEL new);
 +(NSString*) generateStringOfFeatureSet:(NSSet*) features;
 +(NSSet*) getOwnFeatureSet;
 +(NSString*) getEntityCapsHashForIdentities:(NSArray*) identities andFeatures:(NSSet*) features andForms:(NSArray*) forms;
-+(NSString* _Nullable) formatLastInteraction:(NSDate*) lastInteraction;
++(NSString*) formatLastInteraction:(NSDate*) lastInteraction;
 +(NSString*) stringFromTimeInterval:(NSUInteger) interval;
 +(NSDate*) parseDateTimeString:(NSString*) datetime;
 +(NSString*) generateDateTimeString:(NSDate*) datetime;
@@ -177,7 +180,7 @@ void swizzle(Class c, SEL orig, SEL new);
 +(NSString* _Nullable) stringSha512HmacForKey:(NSString* _Nullable) key andData:(NSString* _Nullable) data;
 
 +(NSUUID*) dataToUUID:(NSData*) data;
-+(NSUUID*) stringToUUID:(NSString*) data;
++(NSUUID*) stringToUUID:(NSString*) data NS_SWIFT_NAME(stringToUUID(_:));
 
 +(NSString*) encodeBase64WithString:(NSString*) strData;
 +(NSString*) encodeBase64WithData:(NSData*) objData;
@@ -205,11 +208,19 @@ void swizzle(Class c, SEL orig, SEL new);
 +(NSNumber*) dateToNSNumberSeconds:(NSDate*) date;
 
 +(NSString*) removeInvalidXMLCharactersFromString:(NSString*) inputString;
++(BOOL) constantTimeCompareAttackerPointer:(void*) p1 withLength:(NSUInteger) p1Length andKnownPointer:(void*) p2 withLength:(NSUInteger) p2Length;
 +(BOOL) constantTimeCompareAttackerString:(NSString* _Nonnull) str1 withKnownString:(NSString* _Nonnull) str2;
++(BOOL) constantTimeCompareAttackerData:(NSData* _Nonnull) data1 withKnownData:(NSData* _Nonnull) data2;
 
 +(BOOL) isIP:(NSString*) host;
 
 +(NSURLSession*) createEphemeralURLSession;
+
++(void) updateCurrentLogfilePath:(NSString*) logfilePath;
+
++(NSURL* _Nullable) compressFileAtPath:(NSString*) path withLevel:(NSInteger) level;
+
++(NSOrderedSet*) createReactionsSetFromString:(NSString*) reactions;
 
 @end
 

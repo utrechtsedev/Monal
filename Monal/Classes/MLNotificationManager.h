@@ -8,8 +8,8 @@
 
 #import <Foundation/Foundation.h>
 #import <UserNotifications/UserNotifications.h>
-#import "MLConstants.h"
-#import "DataLayer.h"
+#import <monalxmpp/MLConstants.h>
+#import <monalxmpp/DataLayer.h>
 
 /**
  Singleton object that will handle all sliders, alerts and sounds. listens for new message notification. 
@@ -19,6 +19,6 @@
 +(MLNotificationManager*) sharedInstance;
 
 @property (nonatomic, strong) MLContact* currentContact;
--(void) donateInteractionForOutgoingDBId:(NSNumber*) messageDBId    API_AVAILABLE(ios(15.0), macosx(12.0));  //means: API_AVAILABLE(ios(15.0),
+-(void) donateInteractionForOutgoingDBId:(NSNumber*) messageDBId;
 
 @end

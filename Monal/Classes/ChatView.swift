@@ -1,0 +1,1013 @@
+//
+//  ChatView.swift
+//  Monal
+//
+//  Created by Thilo Molitor on 05.09.24.
+//  Copyright © 2024 monal-im.org. All rights reserved.
+//
+
+import FrameUp
+import ExyteChat
+typealias ExyteChatView = ExyteChat.ChatView
+
+
+/*
+struct MonalViewDefaults: ViewModifier {
+    @Binding public var alertPrompt: AlertPrompt?
+    
+    public func body(content: Content) -> some View {
+        content
+            //TODO: modernize alert prompt usage in all other swiftui files to be in line with this implementation here
+            //TODO: e.g. non-hardcoded dismiss button text and usage of optionalMappedToBool and dismissCallback
+            .alert(isPresented: $alertPrompt.optionalMappedToBool()) {
+                let callback = alertPrompt!.dismissCallback
+                return Alert(title: alertPrompt!.title, message: alertPrompt!.message, dismissButton:.default(alertPrompt!.dismissLabel, action: {
+                    if let callback = callback {
+                        callback()
+                    }
+                }))
+            }
+    }
+}
+
+private struct AssociatedMonalViewKeys {
+    static var AlertPromptKey = "ml_alertPromptKey"
+}
+
+extension View {
+    func addMonalViewDefaults() -> some View {
+        //see https://medium.com/@marcosantadev/stored-properties-in-swift-extensions-615d4c5a9a58
+        modifier(MonalViewDefaults(alertPrompt:Binding(
+            get: {
+                print("Getter called...")
+                return AlertPrompt(
+                    title: Text("No OMEMO keys found"),
+                    message: Text("This contact may not support OMEMO encrypted messages. Please try to enable encryption again in a few seconds, if you think this is wrong."),
+                    dismissLabel: Text("Disable Encryption")
+                )
+//                 guard let value = objc_getAssociatedObject(self, &AssociatedMonalViewKeys.AlertPromptKey) as? AlertPrompt else {
+//                     return nil
+//                 }
+//                 return value
+            },
+            set: {
+                print("Setting: \(String(describing:$0))")
+                if let value = $0 {
+                    objc_setAssociatedObject(self, &AssociatedMonalViewKeys.AlertPromptKey, value, objc_AssociationPolicy.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+                } else {
+                    objc_setAssociatedObject(self, &AssociatedMonalViewKeys.AlertPromptKey, nil, objc_AssociationPolicy.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+                }
+            }
+        )))
+    }
+}
+
+protocol MonalView: View {
+    associatedtype Content: View
+    @ViewBuilder var content: Self.Content { get }
+}
+
+extension MonalView {
+    var body: some View {
+        content
+            .addMonalViewDefaults()
+    }
+    
+    func showAlert(_ prompt: AlertPrompt) {
+        objc_setAssociatedObject(self, &AssociatedMonalViewKeys.AlertPromptKey, prompt, objc_AssociationPolicy.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        content.id(UUID())
+    }
+}
+*/
+
+
+struct ChatView: View {
+    @Environment(\.presentationMode) private var presentationMode
+    @Environment(\.colorScheme) var colorScheme
+
+    private var account: xmpp
+    @StateObject var voipProcessor: ObservableKVOWrapper<MLVoIPProcessor>
+    @StateObject var contact: ObservableKVOWrapper<MLContact>
+    @State private var selectedContactForContactDetails: ObservableKVOWrapper<MLContact>?
+    @State private var alertPrompt: AlertPrompt?
+    @State private var confirmationPrompt: ConfirmationPrompt?
+    @State private var showCallTypePicker = false
+    @StateObject private var overlay = LoadingOverlayState()
+    @State private var moderationReason = "Spam"
+    @State private var isEditingReason = false
+    @State private var blockOnModeration = true
+    @State private var messageToModerate: MLMessage?
+    @State var messages: [ChatViewMessage] = []
+    @State var queuedNewMessages: [ChatViewMessage] = []
+    @State private var voiceRequests: [[String: AnyObject]] = []
+    @State private var isLoadingMamHistory = false
+    @State private var isUploadingFile = false
+    @State private var messageInsertionTimer: Timer?
+    @State private var ownRole = kMucRoleNone
+    
+    init(contact: ObservableKVOWrapper<MLContact>) {
+        _contact = StateObject(wrappedValue:contact)
+        _voipProcessor = StateObject(wrappedValue:ObservableKVOWrapper((UIApplication.shared.delegate as! MonalAppDelegate).voipProcessor!))
+        account = contact.obj.account!
+    }
+
+    enum MessageAction: MessageMenuAction {
+        case copy, edit, retract, moderate, delete, resend
+
+        func title() -> String {
+            switch self {
+                case .copy:
+                    "Copy"
+                case .edit:
+                    "Edit"
+                case .retract:
+                    "Retract"
+                case .moderate:
+                    "Moderate"
+                case .delete:
+                    "Delete Locally"
+                case .resend:
+                    "Resend"
+            }
+        }
+
+        func icon() -> Image {
+            switch self {
+                case .copy:
+                    Image(systemName: "doc.on.doc")
+                case .edit:
+                    if #available(iOS 18.0, *) {
+                        Image(systemName: "bubble.and.pencil")
+                    } else {
+                        Image(systemName: "square.and.pencil")
+                    }
+                case .retract, .moderate:
+                    Image(systemName: "arrow.uturn.backward.circle")
+                case .delete:
+                    Image(systemName: "trash")
+                case .resend:
+                    Image(systemName: "paperplane")
+            }
+        }
+
+        static func menuItems(for message: ExyteChat.Message) -> [MessageAction] {
+            let mlMessage = (message as! ChatViewMessage).innerMessage.obj
+            let contact = mlMessage.chatContact
+            let account = contact.account!
+            if mlMessage.retracted {
+                return [.delete]
+            }
+            if case .error = message.status {
+                return [.resend, .delete]
+            }
+            var availableActions: [MessageAction] = []
+            if !message.text.isEmpty {
+                availableActions.append(.copy)
+            }
+
+            if !mlMessage.inbound && DataLayer.sharedInstance().checkLMCEligible(mlMessage.messageDBId, encrypted: mlMessage.encrypted || contact.isEncrypted, historyBaseID: nil) {
+                availableActions.append(.edit)
+            }
+
+            if !mlMessage.inbound && (!mlMessage.isMuc || mlMessage.stanzaId != nil) {
+                availableActions.append(.retract)
+            }
+            else if mlMessage.isMuc && mlMessage.stanzaId != nil && kMucRoleModerator.isEqual(DataLayer.sharedInstance().getOwnRole(inGroupOrChannel: contact)) && account.mucProcessor.getRoomFeatures(forMuc: contact.contactJid).contains("urn:xmpp:message-moderate:1") {
+                availableActions.append(.moderate)
+            } else {
+                availableActions.append(.delete)
+            }
+
+            return availableActions
+        }
+    }
+
+    private func checkOmemoSupport(withAlert showWarning: Bool) {
+#if !DISABLE_OMEMO
+        if DataLayer.sharedInstance().isAccountEnabled(contact.accountID) {
+            var omemoDeviceForContactFound = false
+            if !contact.isMuc {
+                omemoDeviceForContactFound = account.omemo.knownDevices(forAddressName:contact.contactJid).count > 0
+            } else {
+                omemoDeviceForContactFound = false
+                for participant in DataLayer.sharedInstance().getMembersAndParticipants(ofMuc:contact.contactJid, forAccountID:contact.accountID) {
+                    if let participant_jid = participant["participant_jid"] as? String {
+                        omemoDeviceForContactFound = omemoDeviceForContactFound || account.omemo.knownDevices(forAddressName:participant_jid).count > 0
+                    } else if let participant_jid = participant["member_jid"] as? String {
+                        omemoDeviceForContactFound = omemoDeviceForContactFound || account.omemo.knownDevices(forAddressName:participant_jid).count > 0
+                    }
+                    if omemoDeviceForContactFound {
+                        break
+                    }
+                }
+            }
+            hideLoadingOverlay(overlay)
+            if !omemoDeviceForContactFound && contact.isEncrypted {
+                if HelperTools.isContactBlacklistedForEncryption(contact.obj) {
+                    // this contact was blacklisted for encryption
+                    // --> disable it
+                    contact.obj.toggleEncryption(false)
+                } else if contact.isMuc && contact.mucType != kMucTypeGroup {
+                    // a channel type muc has OMEMO encryption enabled, but channels don't support encryption
+                    // --> warn user about this
+                    DDLogWarn("Showing alert because omemo is suddenly impossible since group changed to channel: \(self.contact)");
+                    confirmationPrompt = ConfirmationPrompt(
+                        title: Text("Group suddenly changed to public channel!"),
+                        message: Text("This chat suddenly changed from an encrypted private group to an unencrypted public channel! Please contact the administrator of that group/channel if you think this is wrong."),
+                        buttons: [
+                            .init(
+                                label: Text("Keep encryption enabled"),
+                                //don't change anything, just close the alert
+                                action: { }
+                            ),
+                            .init(
+                                label: Text("Disable encryption. This is dangerous!"),
+                                role: .destructive,
+                                action: {
+                                    contact.obj.toggleEncryption(false)
+                                }
+                            )
+                        ]
+                    )
+                } else if !contact.isMuc || (contact.isMuc && contact.mucType == kMucTypeGroup) {
+                    if showWarning {
+                        DDLogWarn("Showing omemo not supported alert for: \(self.contact)")
+                        alertPrompt = AlertPrompt(
+                            title: Text("No OMEMO keys found"),
+                            message: Text("This contact may not support OMEMO encrypted messages. Please try to enable encryption again in a few seconds, if you think this is wrong."),
+                            dismissLabel: Text("Disable Encryption")
+                        ) {
+                            contact.obj.toggleEncryption(false)
+                        }
+                    } else {
+                        DDLogInfo("Trying to fetch omemo keys for: \(self.contact)")
+
+                        // we won't do this twice, because the user won't be able to change isEncrypted to YES,
+                        // unless we have omemo devices for that contact
+                        showPromisingLoadingOverlay(overlay, headlineView:Text("Loading OMEMO keys"), descriptionView:Text("")).done {
+                            // request omemo devicelist
+                            account.omemo.subscribeAndFetchDevicelistIfNoSessionExists(forJid:contact.contactJid)
+                        }
+                    }
+                }
+            }
+        }
+#endif
+    }
+
+    private func findOldestStanzaId() -> String? {
+        //not all messages in history db have a stanzaId (messages sent by this monal instance won't have one for example)
+        //--> search for the oldest message having a stanzaId and use that one
+        for msg in self.messages {
+            if msg.innerMessage.obj.stanzaId != nil {
+                DDLogVerbose("Found oldest stanzaId in currently displayed messages: \(String(describing:msg.innerMessage.obj.stanzaId))")
+                return msg.innerMessage.stanzaId
+            }
+        }
+
+        //history database for this contact is completely empty, use global last stanza id for this mam archive
+        if self.contact.isMuc {
+            return DataLayer.sharedInstance().lastStanzaId(forMuc:self.contact.contactJid, andAccount:self.account.accountID)
+        }
+        else {
+            return DataLayer.sharedInstance().lastStanzaId(forAccount:self.account.accountID);
+        }
+    }
+
+    private func loadHistory() {
+        guard !self.isLoadingMamHistory else {
+            DDLogDebug("Not going to load more history because a backscrolling mam query is ongoing for this chat")
+            // Don't allow concurrent backscrolling mam fetches.
+            // And don't allow loading history from the DB while an mam query is ongoing;
+            // this prevents potential message duplication: if a DB history fetch is triggered after the mam query
+            // has written some messages to the DB but before it has returned the results, those messages will be
+            // inserted twice in the ChatView.
+            return
+        }
+        var beforeId: NSNumber? = nil
+        if !messages.isEmpty {
+            beforeId = messages[0].innerMessage.messageDBId
+        }
+        let oldMessages: [ChatViewMessage] = (DataLayer.sharedInstance().messages(forContact:contact.contactJid, forAccount:contact.accountID, beforeMsgHistoryID:beforeId) as! [MLMessage]).map {ChatViewMessage($0)}
+        //insert what we got from the db
+        if !oldMessages.isEmpty {
+            messages.insert(contentsOf: oldMessages, at:0)
+        }
+
+        // if we didn't get enough (or any) messages from the DB, try to get some from MAM
+        if oldMessages.count < kMonalBackscrollingMsgCount && !contact.hasReachedMamArchiveTop {
+            self.isLoadingMamHistory = true
+
+            guard let oldestStanzaId = self.findOldestStanzaId() else {
+                DDLogError("Couldn't find a stanzaId to perform a mam query with! (oldestStanzaId is nil)")
+                return
+            }
+            // now try to load more (older) messages from mam
+            DDLogVerbose("Loading more messages from mam before stanzaId \(oldestStanzaId)")
+            firstly {
+                self.account.setMAMQueryMostRecentFor(self.contact.obj, before: oldestStanzaId)
+            }
+            .done { returnedMessages in
+                let returnedMessages = returnedMessages as! [MLMessage]
+                if returnedMessages.isEmpty {
+                    DDLogVerbose("Reached the top of the mam archive for \(self.contact.obj.contactJid)")
+                    // Don't block the main thread while writing to the db
+                    DispatchQueue.global(qos: .default).async {
+                        contact.obj.markReachedMamArchiveTop()
+                    }
+                } else {
+                    DDLogVerbose("Got backscrolling mam response: \(returnedMessages.count) messages: \(String(describing:returnedMessages))")
+                    self.messages.insert(contentsOf: returnedMessages.map {ChatViewMessage($0)}, at: 0)
+                }
+            }
+            .catch { error in
+                alertPrompt = AlertPrompt(
+                    title: Text("Could not fetch messages"),
+                    message: Text(error.localizedDescription),
+                    dismissLabel: Text("Close")
+                )
+            }
+            .finally {
+                self.isLoadingMamHistory = false
+            }
+        }
+    }
+
+    private func uploadAndSendFile(_ localFileURL: URL?) async {
+        guard let localFileURL = localFileURL else {
+            DDLogError("Couldn't get file location in order to upload it!")
+            return
+        }
+        self.isUploadingFile = true
+        do {
+            let (url, mimeType, size) = try await MLFiletransfer.uploadFile(localFileURL, onAccount: self.account, withEncryption: self.contact.isEncrypted)
+            await MainActor.run {
+                guard let newMLMessage = MLXMPPManager.sharedInstance().sendMessageAndAddToHistory(message: url, havingType: kMessageTypeFiletransfer, toContact: self.contact.obj, isEncrypted: self.contact.isEncrypted, uploadInfo: ["mimeType": mimeType, "size": size]) else {
+                    self.isUploadingFile = false
+                    return
+                }
+                messages.append(ChatViewMessage(newMLMessage))
+            }
+        } catch {
+            DDLogError("Couldn't upload file! error:  \(error.localizedDescription)")
+            alertPrompt = AlertPrompt(
+                title: Text("Could not upload file"),
+                message: Text(error.localizedDescription),
+                dismissLabel: Text("Close")
+            )
+        }
+        self.isUploadingFile = false
+    }
+
+    var body: some View {
+        ExyteChatView(messages: messages, chatType: .conversation, replyMode: .quote) { draft in
+            if !draft.medias.isEmpty || draft.recording != nil {
+                Task {
+                    if draft.recording != nil {
+                        await uploadAndSendFile(draft.recording!.url)
+                    }
+                    for media in draft.medias {
+                        let localFileURL = await media.getURL()
+                        await uploadAndSendFile(localFileURL)
+                    }
+                }
+            }
+            if !draft.text.isEmpty {
+                guard let newMLMessage = MLXMPPManager.sharedInstance().sendMessageAndAddToHistory(message: draft.text, havingType: kMessageTypeText, toContact: self.contact.obj, isEncrypted: self.contact.isEncrypted, uploadInfo: nil) else {
+                    return
+                }
+                messages.append(ChatViewMessage(newMLMessage))
+            }
+        } messageBuilder: { message, viewModel, positionInUserGroup, positionInMessagesSection, positionInCommentsGroup, showContextMenuClosure, messageActionClosure, showAttachmentClosure in
+            MessageView(message: (message as! ChatViewMessage), viewModel: viewModel, positionInUserGroup: positionInUserGroup, positionInMessagesSection: positionInMessagesSection)
+        } messageMenuAction: { (action: MessageAction, defaultActionClosure, message) in
+            let mlMessage = (message as! ChatViewMessage).innerMessage.obj
+            let messageDBId = mlMessage.messageDBId
+            switch action {
+                case .copy:
+                    defaultActionClosure(message, .copy)
+                case .edit:
+                    defaultActionClosure(message, .edit { editedText in
+                        Task { @MainActor in
+                            self.account.sendMessage(editedText,
+                                                     to: self.contact.obj,
+                                                     isEncrypted: self.contact.isEncrypted || mlMessage.encrypted,
+                                                     isUpload: false,
+                                                     andMessageId: UUID().uuidString,
+                                                     withLMCId: mlMessage.messageId)
+
+                            // Don't block the main thread while writing to the DB
+                            await Task.detached(priority: .userInitiated) {
+                                DataLayer.sharedInstance().updateMessageHistory(messageDBId, withText: editedText)
+                            }.value
+
+                            MLNotificationQueue.current().post(
+                                name: Notification.Name(kMonalUpdatedMessageNotice),
+                                object: self.account,
+                                userInfo: [
+                                    "message": mlMessage,
+                                    "contact": self.contact.obj,
+                                    "LMCReplaced": true,
+                                    "correctedText": editedText,
+                                    "reactionsUpdate": false
+                                ]
+                            )
+                        }
+                    })
+                case .retract:
+                    self.account.retractMessage(mlMessage)
+                case .moderate:
+                    messageToModerate = mlMessage
+                case .delete:
+                    Task { @MainActor in
+                        await Task.detached(priority: .userInitiated) {
+                            DataLayer.sharedInstance().deleteMessageHistoryLocally(mlMessage.messageDBId)
+                        }.value
+
+                        self.messages.removeAll(where: {$0.id == message.id})
+                        // Update active chats if necessary
+                        MLNotificationQueue.current().post(
+                            name: Notification.Name(kMonalContactRefresh),
+                            object: self.account,
+                            userInfo: ["contact": self.contact.obj]
+                        )
+                    }
+                case .resend:
+                    // Explicitly schedule this on the main thread, to ensure the update to confirmationPrompt happens.
+                    // This is needed for some reason, despite this code being already on the main thread.
+                    Task { @MainActor in
+                        self.confirmationPrompt = ConfirmationPrompt(
+                            title: Text("Retry sending message?"),
+                            message: Text("This message failed to send (\(mlMessage.errorType ?? "unknown error")): \(mlMessage.errorReason ?? "unknown reason")"),
+                            buttons: [
+                                .init(
+                                    label: Text("Retry"),
+                                    action: {
+                                        Task { @MainActor in
+                                            await Task.detached(priority: .userInitiated) {
+                                                DataLayer.sharedInstance().clearError(ofMessageId: mlMessage.messageId)
+                                            }.value
+
+                                            mlMessage.errorType = ""
+                                            mlMessage.errorReason = ""
+                                            let isUpload = mlMessage.messageType == kMessageTypeFiletransfer
+                                            let isEncrypted = mlMessage.encrypted || self.contact.isEncrypted
+                                            self.account.sendMessage(mlMessage.messageText,
+                                                                     to: self.contact.obj,
+                                                                     isEncrypted: isEncrypted,
+                                                                     isUpload: isUpload,
+                                                                     andMessageId: mlMessage.messageId)
+                                            MLNotificationQueue.current().post(
+                                                name: Notification.Name(kMLMessageSentToContact),
+                                                object: self.account,
+                                                userInfo: ["contact": self.contact.obj]
+                                            )
+                                        }
+                                    }
+                                ),
+                                .init(
+                                    label: Text("Cancel"),
+                                    role: .cancel,
+                                    action: { }
+                                )
+                            ]
+                        )
+                    }
+            }
+        }
+        /*
+        .swipeActions(edge: .leading, performsFirstActionWithFullSwipe: true, items: [
+            SwipeAction(action: { (message, defaultActionClosure) in
+                defaultActions(message, .reply)
+            }, activeFor: { !$0.user.isCurrentUser }, background: .blue) {
+                VStack {
+                    Image(systemName: "arrowshape.turn.up.left")
+                        .imageScale(.large)
+                        .foregroundStyle(.white)
+                        .frame(height: 30)
+                    Text("Reply")
+                        .foregroundStyle(.white)
+                        .font(.footnote)
+                }
+            }
+        ])
+        */
+        .onMessageReaction(didReactTo: { message, reaction in
+            let mlMessage = (message as! ChatViewMessage).innerMessage.obj
+            switch reaction.type {
+                case .emoji(let emoji):
+                    var currentReactions: NSMutableOrderedSet = []
+                    for reactionsInfo in mlMessage.reactions {
+                        if reactionsInfo.contact.isSelf {
+                            currentReactions = NSMutableOrderedSet(orderedSet: reactionsInfo.reactions)
+                        }
+                    }
+                    if currentReactions.contains(emoji) {
+                        currentReactions.remove(emoji)
+                    } else {
+                        currentReactions.add(emoji)
+                    }
+                    self.account.sendReactions(currentReactions, for:mlMessage)
+            }
+        }, canReactTo: { message in
+            //don't allow reactions in mucs without occupant-id support
+            let mlMessage = (message as! ChatViewMessage).innerMessage.obj
+            let retval = !mlMessage.isMuc || 
+                (mlMessage.stanzaId != nil && self.account.mucProcessor.getRoomFeatures(forMuc:mlMessage.chatContact.contactJid).contains("urn:xmpp:occupant-id:0"))
+            DDLogDebug("Checking if we can react to: \(String(describing:mlMessage)) --> \(String(describing:retval))")
+            return retval
+        })
+        // For some reason, the ExyteChat audio recorder works only if the codec is set to FLAC, ALAC, or LinearPCM
+        .setRecorderSettings(RecorderSettings(audioFormatID: kAudioFormatFLAC))
+        .showNetworkConnectionProblem(false)
+        .enableLoadMore(pageSize: 10) { message in
+            await MainActor.run {
+                loadHistory()
+            }
+        }
+//         .messageUseMarkdown(messageUseMarkdown: true)
+        .sheet(item: $selectedContactForContactDetails) { selectedContact in
+            AnyView(AddTopLevelNavigation(withDelegate:nil, to:ContactDetails(delegate:nil, contact:selectedContact)))
+        }
+        .confirmationDialog(confirmationPrompt?.title ?? Text(""), isPresented: $confirmationPrompt.optionalMappedToBool(), titleVisibility: .visible) {
+            if let buttons = confirmationPrompt?.buttons {
+                ForEach(buttons) { button in
+                    Button(role: button.role, action: button.action) {
+                        button.label
+                    }
+                }
+            }
+        } message: {
+            confirmationPrompt?.message
+        }
+        //TODO: modernize alert prompt usage in all other swiftui files to be in line with this implementation here
+        //TODO: e.g. non-hardcoded dismiss button text and usage of optionalMappedToBool and dismissCallback
+        //somehow the order of alert modifiers is important: they have to come after all sheet modifiers
+        .alert(isPresented: $alertPrompt.optionalMappedToBool()) {
+            let callback = alertPrompt!.dismissCallback
+            return Alert(title: alertPrompt!.title, message: alertPrompt!.message, dismissButton:.default(alertPrompt!.dismissLabel, action: {
+                if let callback = callback {
+                    callback()
+                }
+            }))
+        }
+        .richAlert(isPresented: $messageToModerate, title:Text("Moderating message")) { mlMessage in
+            VStack(alignment: .leading) {
+                Text("Enter the moderation reason:")
+                TextField(NSLocalizedString("Spam", comment: "placeholder when adding account"), text: $moderationReason, onEditingChanged: { isEditingReason = $0 })
+                .submitLabel(.continue)
+                .addClearButton(isEditing: isEditingReason, text: $moderationReason)
+                
+                if let _ = mlMessage.participantJid {
+                    Toggle(isOn: $blockOnModeration) {
+                        Text("Block this user")
+                    }
+                }
+            }.textFieldStyle(.roundedBorder)
+        } buttons: { mlMessage in
+            Button(action: {
+                let promise = showPromisingLoadingOverlay(self.overlay, headline: "Retracting message", description: "") {
+                    self.account.moderateMessage(mlMessage, withReason: moderationReason)
+                    return Guarantee.value(())
+                }
+                if blockOnModeration, let participantJid = mlMessage.participantJid {
+                    let _ = promise.done { _ in
+                        showPromisingLoadingOverlay(self.overlay, headlineView: Text("Blocking user"), descriptionView: Text("Blocking \(participantJid)")) {
+                            DDLogVerbose("Changing affiliation of \(participantJid) to: \(String(describing:kMucAffiliationOutcast))...")
+                            return account.mucProcessor.setAffiliation(kMucAffiliationOutcast, ofUser:participantJid, inMuc:contact.obj.contactJid).toTypedPromise()
+                        }.catch { error in
+                            alertPrompt = AlertPrompt(
+                                title: Text("Error blocking user!"),
+                                message: Text(error.localizedDescription),
+                                dismissLabel: Text("Close")
+                            )
+                        }
+                    }
+                }
+                
+                // Reset the State variables to their default values, as the alert is dismissed
+                messageToModerate = nil
+                moderationReason = "Spam"
+                blockOnModeration = true
+            }) {
+                Text("Moderate")
+                    .foregroundColor(.red)
+                    .frame(maxWidth: .infinity)
+            }
+            
+            Button(action: {
+                messageToModerate = nil
+                moderationReason = "Spam"
+                blockOnModeration = true
+            }) {
+                Text("Cancel")
+                    .foregroundColor(.accentColor)
+                    .fontWeight(.bold)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                //make sure to take all space available, otherwise we'll get aligned to the center
+                //of the navigation bar instead of the leading edge
+                ZStack {
+                    Color.clear
+                    
+                    HStack {
+                        Button {
+                            selectedContactForContactDetails = contact
+                        } label: {
+                            HStack {
+                                Image(uiImage: contact.avatar)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 35, height: 35)
+                                    .id(colorScheme)
+
+                                VStack(alignment: .leading, spacing: 0) {
+                                    Text(contact.contactDisplayName as String)
+                                        .fontWeight(.semibold)
+                                        .font(.headline)
+                                        .foregroundColor(.primary)
+                                    
+                                    if (contact.isTyping as Bool) {
+                                        Text("Typing...")
+                                            .font(.footnote)
+                                            .foregroundColor(Color(hex: "AFB3B8"))
+                                    } else if let lastInteractionDate:Date = contact.lastInteractionTime {
+                                        Text(HelperTools.formatLastInteraction(lastInteractionDate))
+                                            .font(.footnote)
+                                            .foregroundColor(Color(hex: "AFB3B8"))
+                                    }
+                                }
+                            }
+                        }
+                        Spacer()
+                    }
+                }
+            }
+            
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                if ownRole == kMucRoleVisitor {
+                    Button {
+                        let _ = showPromisingLoadingOverlay(overlay, headline:"Requesting Voice") {
+                            Guarantee { $0(contact.obj.account?.mucProcessor.requestVoice(inMuc:contact.obj.contactJid)) }
+                        }
+                    } label: {
+                        Image(systemName: "lightbulb")
+                    }
+                }
+                
+                if contact.isMuc && ownRole == kMucRoleModerator && voiceRequests.count > 0 {
+                    Button {
+                        //TODO: open sheet with voice requests
+                    } label: {
+                        Image(systemName: "questionmark.bubble")
+                    }
+                }
+                
+                if !(contact.isMuc || contact.isSelf) {
+                    Button {
+                        showCallTypePicker = true
+                    } label: {
+                        Image(systemName: "phone.fill")
+                    }
+                    .confirmationDialog(Text("Call Type"), isPresented: $showCallTypePicker, titleVisibility: .visible) {
+                        Button {
+                            let activeChats = (UIApplication.shared.delegate as! MonalAppDelegate).activeChats!
+                            activeChats.call(contact.obj, with: .audio)
+                        } label: {
+                            Text("Audio")
+                        }
+                        Button {
+                            let activeChats = (UIApplication.shared.delegate as! MonalAppDelegate).activeChats!
+                            activeChats.call(contact.obj, with: .video)
+                        } label: {
+                            Text("Video")
+                        }
+                        Button("Cancel", role: .cancel) { }
+                    } message: {
+                        Text("What call do you want to place?")
+                    }
+                }
+            }
+        }
+        .toolbarRole(.editor)       //make sure to never show the title of the previous view in the back bar button
+        .addLoadingOverlay(overlay)
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            MLNotificationManager.sharedInstance().currentContact = self.contact.obj
+
+            checkOmemoSupport(withAlert:false)
+            loadHistory()
+            if self.contact.obj.isMuc {
+                ownRole = DataLayer.sharedInstance().getOwnRole(inGroupOrChannel: contact.obj) ?? kMucRoleNone
+                voiceRequests = DataLayer.sharedInstance().getVoiceRequests(forRoom:contact.obj) as! [[String: AnyObject]]
+            }
+            ChatViewHelpers.refreshCounter(for: self.contact.obj)
+        }
+        .onDisappear {
+            // When the split view is active, selecting different chats results in the old
+            // view's onDisappear executing after the new view's onAppear, thus erroneously
+            // making currentContact always nil.
+            // This if statement ensures currentContact has the correct value.
+            if MLNotificationManager.sharedInstance().currentContact == self.contact.obj {
+                MLNotificationManager.sharedInstance().currentContact = nil
+            }
+            messageInsertionTimer?.invalidate()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name(kMonalOmemoFetchingStateUpdate)).receive(on: RunLoop.main)) { notification in
+            if let xmppAccount = notification.object as? xmpp, let notificationJid = notification.userInfo?["jid"] as? String {
+                if xmppAccount.accountID == contact.accountID && notificationJid == contact.contactJid {
+                    DDLogDebug("Got omemo fetching update: \(contact) --> \(String(describing:notification.userInfo))")
+                    if let _ = (notification.userInfo?["isFetching"] as? Bool) {
+                        //recheck support and show alert if needed
+                        DDLogVerbose("Rechecking omemo support with alert, if needed...")
+                        checkOmemoSupport(withAlert:true)
+                    }
+                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name(kMonalNewMessageNotice)).receive(on: RunLoop.main)) { notification in
+            DDLogVerbose("ChatView got new message notice \(String(describing:notification.userInfo))")
+
+            guard let message = notification.userInfo?["message"] as? MLMessage else {
+                unreachable("kMonalNewMessageNotice notification without message!")
+            }
+            if message.isEqual(self.contact.obj) {
+                // Don't insert based on delay timestamp because that would make it possible to fake history entries.
+                // Insert new messages in batches to work around https://github.com/exyte/Chat/issues/223
+                queuedNewMessages.append(ChatViewMessage(message))
+                if messageInsertionTimer == nil {
+                    messageInsertionTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: false) { _ in
+                        messages.append(contentsOf: queuedNewMessages)
+                        queuedNewMessages.removeAll(keepingCapacity: true)
+                        messageInsertionTimer = nil
+                    }
+                    messageInsertionTimer?.tolerance = 0.04
+                }
+            }
+            ChatViewHelpers.refreshCounter(for: self.contact.obj)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name(kMonalRefresh)).receive(on: RunLoop.main)) { notification in
+            ChatViewHelpers.refreshCounter(for: self.contact.obj)
+            voiceRequests = DataLayer.sharedInstance().getVoiceRequests(forRoom:contact.obj) as! [[String: AnyObject]]
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name(kMonalMucOwnAffiliationOrRoleChanged)).receive(on: RunLoop.main)) { notification in
+            guard let mucContact = notification.userInfo?["contact"] as? MLContact else {
+                unreachable("kMonalMucOwnAffiliationOrRoleChanged notification without contact!")
+            }
+            if self.contact.obj.isMuc && mucContact.isEqual(self.contact.obj) {
+                voiceRequests = DataLayer.sharedInstance().getVoiceRequests(forRoom:contact.obj) as! [[String: AnyObject]]
+                ownRole = DataLayer.sharedInstance().getOwnRole(inGroupOrChannel: contact.obj) ?? kMucRoleNone
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name(kMonalMucVoiceRequestsUpdated)).receive(on: RunLoop.main)) { notification in
+            guard let mucContact = notification.userInfo?["contact"] as? MLContact else {
+                unreachable("kMonalMucVoiceRequestsUpdated notification without contact!")
+            }
+            if mucContact.isEqual(self.contact.obj) {
+                voiceRequests = DataLayer.sharedInstance().getVoiceRequests(forRoom:contact.obj) as! [[String: AnyObject]]
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name(kMonalContactHistoryCleared)).receive(on: RunLoop.main)) { notification in
+            DDLogVerbose("ChatView got history cleared notice \(String(describing:notification.userInfo))")
+            guard let contact = notification.userInfo?["contact"] as? MLContact else {
+                unreachable("Notification without contact")
+            }
+            if contact.isEqual(self.contact.obj) {
+                self.messages = []
+            }
+        }
+    }
+}
+
+class ChatViewMessage: ExyteChat.Message {
+    let innerMessage: ObservableKVOWrapper<MLMessage>
+    let fileInfo: ObservableKVOWrapper<MLFiletransferInfo>?
+    private var subscriptions: Set<AnyCancellable> = Set()
+    override var text: String {
+        get {
+            if innerMessage.messageType == kMessageTypeFiletransfer, let fileInfo = fileInfo {
+                switch(fileInfo.downloadState as DownloadState.RawValue) {
+                    case DownloadState.complete.rawValue:
+                        let mimeType = fileInfo.mimeType as String
+                        if mimeType.starts(with: "audio/") || mimeType.starts(with: "image/") || mimeType.starts(with: "video/") {
+                            return ""
+                        } else {
+                            return """
+                                [File transfer with a file type that's not yet supported for displaying]
+                                \(innerMessage.obj.encrypted ? "" : "Link: \(innerMessage.messageText as String)")
+                            """
+                        }
+                    case DownloadState.headers.rawValue:
+                        let humanReadableSize = (fileInfo.size as NSNumber).int64Value.formatted(.byteCount(style: .file))
+                        return """
+                        [File transfer; auto-downloading if the settings allow it...]
+                        Size: \(humanReadableSize)
+                        MimeType: \(fileInfo.mimeType as String)
+                        \(innerMessage.encrypted ? "" : "Link: \(fileInfo.downloadURL as String)")
+                        """
+                    case DownloadState.none.rawValue:
+                        return "[File transfer; checking the size...]"
+                    default:
+                        // .invalid case
+                        unreachable()
+                }
+            }
+            return innerMessage.retracted ? NSLocalizedString("This message got retracted", comment: "") : innerMessage.messageText
+        }
+        set {}
+    }
+    override var status: Status? {
+        get {
+            // Incoming messages shouldn't have a status
+            if innerMessage.inbound {
+                return nil
+            }
+            let errorType = innerMessage.errorType as String?
+            let isError = errorType != nil && !errorType!.isEmpty
+            switch(innerMessage) {
+                case let message where isError && !message.hasBeenReceived:
+                    return .error(DraftMessage(id: id, text: text, medias: [], recording: recording, replyMessage: replyMessage, createdAt: createdAt))
+                case let message where message.hasBeenDisplayed:
+                    return .read
+                case let message where message.hasBeenReceived:
+                    return .received
+                case let message where message.hasBeenSent:
+                    return .sent
+                default:
+                    return .sending
+            }
+        }
+        set {}
+    }
+    override var createdAt: Date {
+        get {
+            return innerMessage.timestamp
+        }
+        set {}
+    }
+    override var reactions: [Reaction] {
+        get {
+            //TODO: create new wrapper class ChatViewReaction just like we've already done for User and Contact
+            var retval: [Reaction] = []
+            let reactions: [MLReactionsEntry] = (innerMessage.reactions as [MLReactionsEntry]).sorted(by: { $0.user < $1.user })
+            for reactionsInfo in reactions {
+                for reaction in reactionsInfo.reactions {
+                    retval.append(Reaction(
+                        user: ChatViewUser(reactionsInfo.contact as! NSObject&MLContactProtocol),
+                        createdAt: reactionsInfo.timestamp,
+                        type: .emoji(reaction as! String),
+                        status: .sent
+                    ))
+                }
+            }
+            return retval
+        }
+        set {}
+    }
+    override var attachments: [Attachment] {
+        get {
+            guard innerMessage.messageType == kMessageTypeFiletransfer, let fileInfo = fileInfo else {
+                return []
+            }
+
+            guard (fileInfo.downloadState as DownloadState.RawValue) == DownloadState.complete.rawValue else {
+                // TODO: show a proper button for mime type checks instead of doing this automatically
+                MLFiletransfer.checkMimeTypeAndSize(forHistoryID: innerMessage.messageDBId)
+                return []
+            }
+            let fileURL = fileInfo.fileURL as URL
+            let cacheId = fileInfo.cacheId as String
+            let attachmentUUID = HelperTools.stringToUUID(cacheId).uuidString
+            switch fileInfo.mimeType as String {
+                case let mimeType where mimeType.starts(with: "image/"):
+                    let attachment = Attachment(id: attachmentUUID, url: fileURL, type: .image)
+                    return [attachment]
+                case let mimeType where mimeType.starts(with: "video/"):
+                    let thumbnail = fileInfo.thumbnailURL as URL? ?? URL(string: "about:blank")!
+                    let attachment = Attachment(id: attachmentUUID, thumbnail: thumbnail, full: fileURL, type: .video, mimeType: mimeType)
+                    return [attachment]
+                default:
+                    return []
+            }
+        }
+        set {}
+    }
+    override var recording: Recording? {
+        get {
+            guard innerMessage.messageType == kMessageTypeFiletransfer, let fileInfo = fileInfo else {
+                return nil
+            }
+
+            guard (fileInfo.downloadState as DownloadState.RawValue) == DownloadState.complete.rawValue else {
+                return nil
+            }
+            guard (fileInfo.mimeType as String).starts(with: "audio/") else {
+                return nil
+            }
+            let fileURL = fileInfo.fileURL as URL
+            return Recording(duration: fileInfo.mediaDuration, url: fileURL, mimeType: fileInfo.mimeType)
+        }
+        set {}
+    }
+
+    init(_ message: MLMessage) {
+//         DDLogVerbode("Creating new ChatViewMessage for MLMessage: \(String(describing:message)): \(Thread.callStackSymbols)")
+        self.innerMessage = ObservableKVOWrapper(message)
+        if innerMessage.obj.messageType == kMessageTypeFiletransfer {
+            self.fileInfo = ObservableKVOWrapper(innerMessage.obj.fileInfo)
+        } else {
+            self.fileInfo = nil
+        }
+        let user = ChatViewUser(message.contact as! NSObject&MLContactProtocol)
+        // We don't need to properly initialize the properties that we overrode with computed properties
+        super.init(id: message.id, user: user, createdAt: Date(), text: "")
+
+        // Forward innerMessage changes as ChatViewMessage changes
+        innerMessage.objectWillChange
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &subscriptions)
+
+        // Forward fileInfo changes as ChatViewMessage changes
+        fileInfo?.objectWillChange
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &subscriptions)
+    }
+    public var description: String {
+        return "ChatViewMessage<\(String(describing:self.innerMessage))>"
+    }
+}
+
+class ChatViewUser: ExyteChat.User {
+    let innerContact: ObservableKVOWrapper<NSObject&MLContactProtocol>
+    private var subscriptions: Set<AnyCancellable> = Set()
+    override var name: String {
+        get {
+            return innerContact.contactDisplayName ?? ""
+        }
+        set {}
+    }
+    override var avatarData: Data? {
+        get {
+            return (innerContact.avatar as UIImage?)?.pngData()
+        }
+        set {}
+    }
+    init(_ contact: NSObject&MLContactProtocol) {
+//         DDLogVerbose("Creating new ChatViewUser for MLContactProtocol: \(String(describing:contact)): \(Thread.callStackSymbols)")
+        self.innerContact = ObservableKVOWrapper(contact)
+        // We don't need to initialize the properties that we overrode with computed properties
+        super.init(id: contact.id, name: "", isCurrentUser: contact.isSelf)
+
+        // Forward innerContact changes as ChatViewUser changes
+        innerContact.objectWillChange
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &subscriptions)
+    }
+    //our parent class forces us to implement this, but it should never be called!
+    required init(from decoder: Decoder) throws {
+        unreachable("ChatViewUser should never be deserialized!")
+    }
+    public var description: String {
+        return "ChatViewUser<\(String(describing:self.innerContact))>"
+    }
+}
+
+struct MessageView: View {
+    @StateObject var message: ChatViewMessage
+    @ObservedObject var viewModel: ExyteChat.ChatViewModel
+    let positionInUserGroup: PositionInUserGroup
+    let positionInMessagesSection: PositionInMessagesSection
+    init(message: ChatViewMessage, viewModel: ChatViewModel, positionInUserGroup: PositionInUserGroup, positionInMessagesSection: PositionInMessagesSection) {
+        _message = StateObject(wrappedValue: message)
+        self.viewModel = viewModel
+        self.positionInUserGroup = positionInUserGroup
+        self.positionInMessagesSection = positionInMessagesSection
+    }
+    var body: some View {
+        ExyteChat.MessageView(
+            viewModel: viewModel,
+            message: message,
+            positionInUserGroup: positionInUserGroup,
+            positionInMessagesSection: positionInMessagesSection,
+            chatType: .conversation,
+            avatarSize: 32,
+            tapAvatarClosure: nil,
+            messageStyler: { $0.linkify() },
+            shouldShowLinkPreview: { _ in false },  //disabled for now due to https://github.com/exyte/Chat/issues/208
+            isDisplayingMessageMenu: false,
+            showMessageTimeView: true,
+            messageLinkPreviewLimit: 8,
+            font: UIFontMetrics.default.scaledFont(for: UIFont.systemFont(ofSize: 15))
+        )
+        .canContainExternalLinks()
+    }
+}

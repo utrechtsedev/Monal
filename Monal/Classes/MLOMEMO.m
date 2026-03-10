@@ -8,21 +8,21 @@
 #import <UserNotifications/UserNotifications.h>
 #import <stdlib.h>
 
-#import "MLOMEMO.h"
-#import "MLXMPPConnection.h"
-#import "MLHandler.h"
-#import "xmpp.h"
+#import <monalxmpp/MLOMEMO.h>
+#import <monalxmpp/MLXMPPConnection.h>
+#import <monalxmpp/MLHandler.h>
+#import <monalxmpp/xmpp.h>
 #import "XMPPMessage.h"
 #import "SignalAddress.h"
-#import "MLSignalStore.h"
+#import <monalxmpp/MLSignalStore.h>
 #import "SignalContext.h"
 #import "AESGcm.h"
-#import "HelperTools.h"
+#import <monalxmpp/HelperTools.h>
 #import "XMPPIQ.h"
-#import "xmpp.h"
-#import "MLPubSub.h"
-#import "DataLayer.h"
-#import "MLNotificationQueue.h"
+#import <monalxmpp/xmpp.h>
+#import <monalxmpp/MLPubSub.h>
+#import <monalxmpp/DataLayer.h>
+#import <monalxmpp/MLNotificationQueue.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -58,7 +58,7 @@ static NSDictionary* trustLevels2Text = nil;
 {
     self = [super init];
     self.account = account;
-    self.monalSignalStore = [[MLSignalStore alloc] initWithAccountId:self.account.accountNo andAccountJid:self.account.connectionProperties.identity.jid];
+    self.monalSignalStore = [[MLSignalStore alloc] initWithAccountID:self.account.accountID andAccountJid:self.account.connectionProperties.identity.jid];
     SignalStorage* signalStorage = [[SignalStorage alloc] initWithSignalStore:self.monalSignalStore];
     self.signalContext = [[SignalContext alloc] initWithStorage:signalStorage];
     self.openBundleFetchCnt = 0;
@@ -157,10 +157,10 @@ static NSDictionary* trustLevels2Text = nil;
 #ifndef DISABLE_OMEMO
     MLContact* removedContact = notification.userInfo[@"contact"];
     DDLogVerbose(@"Got kMonalContactRemoved event for contact: %@", removedContact);
-    if(removedContact == nil || removedContact.accountId.intValue != self.account.accountNo.intValue)
+    if(removedContact == nil || removedContact.accountID.intValue != self.account.accountID.intValue)
        return;
 
-    [self checkIfSessionIsStillNeeded:removedContact.contactJid isMuc:removedContact.isGroup];
+    [self checkIfSessionIsStillNeeded:removedContact.contactJid isMuc:removedContact.isMuc];
 #endif
 }
 
@@ -169,7 +169,7 @@ static NSDictionary* trustLevels2Text = nil;
     //this event will be called as soon as we are successfully authenticated, but BEFORE handleResourceBound: will be called
     //NOTE: handleResourceBound: won't be called for smacks resumptions at all
 #ifndef DISABLE_OMEMO
-    if(self.account.accountNo.intValue == ((xmpp*)notification.object).accountNo.intValue)
+    if(self.account.accountID.intValue == ((xmpp*)notification.object).accountID.intValue)
     {
         //mark catchup as running (will be smacks catchup or mam catchup)
         //this will queue any session repair attempts and key transport elements
@@ -183,7 +183,7 @@ static NSDictionary* trustLevels2Text = nil;
     //this event will be called as soon as we are bound, but BEFORE mam catchup happens
     //NOTE: this event won't be called for smacks resumes!
 #ifndef DISABLE_OMEMO
-    if(self.account.accountNo.intValue == ((xmpp*)notification.object).accountNo.intValue)
+    if(self.account.accountID.intValue == ((xmpp*)notification.object).accountID.intValue)
     {
         DDLogInfo(@"We did a non-smacks-resume reconnect, resetting some of our state (MLOMEMO instance=%@)...", self);
         DDLogVerbose(@"Current state: %@", self.state);
@@ -212,7 +212,7 @@ static NSDictionary* trustLevels2Text = nil;
 {
 #ifndef DISABLE_OMEMO
     //this event will be called as soon as mam OR smacks catchup on our account is done, it does not wait for muc mam catchups!
-    if(self.account.accountNo.intValue == ((xmpp*)notification.object).accountNo.intValue)
+    if(self.account.accountID.intValue == ((xmpp*)notification.object).accountID.intValue)
     {
         DDLogInfo(@"Catchup done now, handling omemo stuff...");
         DDLogVerbose(@"Current state: %@", self.state);
@@ -311,7 +311,7 @@ static NSDictionary* trustLevels2Text = nil;
 }
 
 $$instance_handler(devicelistHandler, account.omemo, $$ID(xmpp*, account), $$ID(NSString*, node), $$ID(NSString*, jid), $$ID(NSString*, type), $_ID((NSDictionary<NSString*, MLXMLNode*>*), data))
-    MLContact* contact = [MLContact createContactFromJid:jid andAccountNo:self.account.accountNo];
+    MLContact* contact = [MLContact createContactFromJid:jid andAccountID:account.accountID];
     if(!contact.isListedLocally)
     {
         DDLogWarn(@"Ignoring incoming devicelist update of user not even listed in our local contact list: %@", contact);
@@ -458,14 +458,14 @@ $$
 
 -(void) postOMEMOMessageForUser:(NSString*) jid withMessage:(NSString*) omemoMessage
 {
-    if(![[DataLayer sharedInstance] isContactInList:jid forAccount:self.account.accountNo]) {
-        [[DataLayer sharedInstance] addContact:jid forAccount:self.account.accountNo nickname:nil];
+    if(![[DataLayer sharedInstance] isContactInList:jid forAccount:self.account.accountID]) {
+        [[DataLayer sharedInstance] addContact:jid forAccount:self.account.accountID nickname:nil];
     }
     NSString* newMessageID = [[NSUUID UUID] UUIDString];
-    NSNumber* historyId = [[DataLayer sharedInstance] addMessageHistoryTo:jid forAccount:self.account.accountNo withMessage:omemoMessage actuallyFrom:jid withId:newMessageID encrypted:NO messageType:kMessageTypeStatus mimeType:nil size:nil];
+    NSNumber* historyId = [[DataLayer sharedInstance] addMessageHistoryTo:jid forAccount:self.account.accountID withMessage:omemoMessage actuallyFrom:jid withOccupantId:nil andId:newMessageID encrypted:NO messageType:kMessageTypeStatus mimeType:nil size:nil];
 
-    MLMessage* message = [[DataLayer sharedInstance] messageForHistoryID:historyId];
-    MLContact* contact = [MLContact createContactFromJid:jid andAccountNo:self.account.accountNo];
+    MLMessage* message = [MLMessage createMessageFromHistoryID:historyId];
+    MLContact* contact = [MLContact createContactFromJid:jid andAccountID:self.account.accountID];
     [[MLNotificationQueue currentQueue] postNotificationName:kMonalNewMessageNotice object:self.account userInfo:@{
         @"message": message,
         @"showAlert": @(NO),
@@ -562,6 +562,7 @@ $$
 
 -(void) cleanupOwnOldDevices
 {
+    NSMutableArray* deletedDevices = [NSMutableArray new];
     NSString* jid = self.account.connectionProperties.identity.jid;
     for(NSNumber* device in [self.ownDeviceList copy])
     {
@@ -578,8 +579,14 @@ $$
         //remove own old devices (these clients will add thei id back, if they are still active)
         //this is what conversations does, too
         if(trust == MLOmemoToFUButNoMsgSeenInTime || trust == MLOmemoTrustedButNoMsgSeenInTime)
+        {
             [self bulkDeleteDeviceForSource:jid andRid:device];
+            [deletedDevices addObject:device];
+        }
     }
+    //publish our changes, but only if we actually changed someting
+    if(deletedDevices.count > 0)
+        [self publishOwnDeviceList];
 }
 
 -(void) publishOwnDeviceList
@@ -608,7 +615,7 @@ $$
     //update bundle fetch status
     self.openBundleFetchCnt++;
     [[MLNotificationQueue currentQueue] postNotificationName:kMonalUpdateBundleFetchStatus object:self userInfo:@{
-        @"accountNo": self.account.accountNo,
+        @"accountID": self.account.accountID,
         @"completed": @(self.closedBundleFetchCnt),
         @"all": @(self.openBundleFetchCnt + self.closedBundleFetchCnt)
     }];
@@ -755,7 +762,7 @@ $$
         self.openBundleFetchCnt = 0;
         self.closedBundleFetchCnt = 0;
         [[MLNotificationQueue currentQueue] postNotificationName:kMonalFinishedOmemoBundleFetch object:self userInfo:@{
-            @"accountNo": self.account.accountNo,
+            @"accountID": self.account.accountID,
         }];
         return YES;
     }
@@ -772,7 +779,7 @@ $$
     if(![self checkBundleFetchCount])
     {
         [[MLNotificationQueue currentQueue] postNotificationName:kMonalUpdateBundleFetchStatus object:self userInfo:@{
-            @"accountNo": self.account.accountNo,
+            @"accountID": self.account.accountID,
             @"completed": @(self.closedBundleFetchCnt),
             @"all": @(self.openBundleFetchCnt + self.closedBundleFetchCnt),
         }];
@@ -1127,8 +1134,8 @@ $$
 -(NSMutableDictionary<NSString*, NSSet<NSNumber*>*>*) getContactDeviceMapForContactJid:(NSString*) contactJid
 {
     NSMutableSet<NSString*>* recipients = [NSMutableSet new];
-    if([[DataLayer sharedInstance] isBuddyMuc:contactJid forAccount:self.account.accountNo])
-        for(NSDictionary* participant in [[DataLayer sharedInstance] getMembersAndParticipantsOfMuc:contactJid forAccountId:self.account.accountNo])
+    if([[DataLayer sharedInstance] isBuddyMuc:contactJid forAccount:self.account.accountID])
+        for(NSDictionary* participant in [[DataLayer sharedInstance] getMembersAndParticipantsOfMuc:contactJid forAccountID:self.account.accountID])
         {
             if(participant[@"participant_jid"])
                 [recipients addObject:participant[@"participant_jid"]];
@@ -1367,10 +1374,6 @@ $$
                 return nil;
             }
             [self rebuildSessionWithJid:senderJid forRid:sid];
-#ifdef IS_ALPHA
-            if(isKeyTransportElement)
-                return !returnErrorString ? nil : [NSString stringWithFormat:@"There was an error decrypting this encrypted KEY TRANSPORT message (Signal error). To resolve this, try sending an encrypted message to this person. (%@)", error];
-#endif
             if(!isKeyTransportElement)
                 return !returnErrorString ? nil : [NSString stringWithFormat:NSLocalizedString(@"There was an error decrypting this encrypted message (Signal error). To resolve this, try sending an encrypted message to this person. (%@)", @""), error];
             return nil;
@@ -1382,10 +1385,6 @@ $$
         {
             DDLogError(@"Could not decrypt to obtain key (returned nil)");
             [self rebuildSessionWithJid:senderJid forRid:sid];
-#ifdef IS_ALPHA
-            if(isKeyTransportElement)
-                return !returnErrorString ? nil : @"There was an error decrypting this encrypted KEY TRANSPORT message (Signal error). To resolve this, try sending an encrypted message to this person.";
-#endif
             if(!isKeyTransportElement)
                 return !returnErrorString ? nil : NSLocalizedString(@"There was an error decrypting this encrypted message (Signal error). To resolve this, try sending an encrypted message to this person.", @"");
             return nil;
@@ -1415,11 +1414,7 @@ $$
             if(isKeyTransportElement)
             {
                 DDLogInfo(@"KeyTransportElement received from jid: %@ device: %@", senderJid, sid);
-#ifdef IS_ALPHA
-                return !returnErrorString ? nil : [NSString stringWithFormat:@"ALPHA_DEBUG_MESSAGE: KeyTransportElement received from jid: %@ device: %@", senderJid, sid];
-#else
                 return nil;
-#endif
             }
             
             //make sure the dh ratchet always advances, even on "receive only" devices
@@ -1478,11 +1473,7 @@ $$
         if(mucParticipantJid == nil)
         {
             DDLogError(@"Could not get muc participant jid and corresponding signal address of muc participant '%@': %@", messageNode.from, mucParticipantJid);
-#ifdef IS_ALPHA
-            return [NSString stringWithFormat:@"Could not get muc participant jid and corresponding signal address of muc participant '%@': %@", messageNode.from, mucParticipantJid];
-#else
             return nil;
-#endif
         }
         senderJid = mucParticipantJid;
         mucJid = messageNode.fromUser;
@@ -1510,7 +1501,7 @@ $$
     if([self.monalSignalStore sessionsExistForBuddy:buddyJid] == NO)
     {
         DDLogVerbose(@"No omemo session for %@", buddyJid);
-        MLContact* contact = [MLContact createContactFromJid:buddyJid andAccountNo:self.account.accountNo];
+        MLContact* contact = [MLContact createContactFromJid:buddyJid andAccountID:self.account.accountID];
         //only subscribe if we don't receive automatic headline pushes of the devicelist
         DDLogVerbose(@"Fetching devicelist %@ from contact: %@", !contact.isSubscribedTo ? @"with subscribe" : @"without subscribe", contact);
         [self queryOMEMODevices:buddyJid withSubscribe:!contact.isSubscribedTo];

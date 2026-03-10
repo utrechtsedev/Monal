@@ -16,7 +16,7 @@ struct ChannelMemberList: View {
     @State private var participants: OrderedDictionary<String, [String:String]>
 
     init(mucContact: ObservableKVOWrapper<MLContact>) {
-        account = MLXMPPManager.sharedInstance().getConnectedAccount(forID: mucContact.accountId)! as xmpp
+        account = mucContact.obj.account! as xmpp
         _channel = StateObject(wrappedValue:mucContact)
         _ownAffiliation = State(wrappedValue:kMucAffiliationNone)
         _ownRole = State(wrappedValue:kMucRoleNone)
@@ -27,7 +27,7 @@ struct ChannelMemberList: View {
         ownAffiliation = DataLayer.sharedInstance().getOwnAffiliation(inGroupOrChannel:channel.obj) ?? kMucAffiliationNone
         ownRole = DataLayer.sharedInstance().getOwnRole(inGroupOrChannel:channel.obj) ?? kMucRoleNone
         participants.removeAll(keepingCapacity:true)
-        for memberInfo in Array(DataLayer.sharedInstance().getMembersAndParticipants(ofMuc:channel.contactJid, forAccountId:account.accountNo)) {
+        for memberInfo in Array(DataLayer.sharedInstance().getMembersAndParticipants(ofMuc:channel.contactJid, forAccountID:account.accountID)) {
             //ignore ourselves
             if let jid = memberInfo["participant_jid"] as? String ?? memberInfo["member_jid"] as? String {
                 if jid == account.connectionProperties.identity.jid {
@@ -67,7 +67,7 @@ struct ChannelMemberList: View {
         .onAppear {
             updateParticipantList()
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("kMonalMucParticipantsAndMembersUpdated")).receive(on: RunLoop.main)) { notification in
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name(kMonalMucParticipantsAndMembersUpdated)).receive(on: RunLoop.main)) { notification in
             if let xmppAccount = notification.object as? xmpp, let contact = notification.userInfo?["contact"] as? MLContact {
                 DDLogVerbose("Got muc participants/members update from account \(xmppAccount)...")
                 if contact == channel {

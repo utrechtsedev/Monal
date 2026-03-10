@@ -6,7 +6,7 @@
 //  Copyright __MyCompanyName__ 2008. All rights reserved.
 //
 
-#import "MLConstants.h"
+#import <monalxmpp/MLConstants.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -24,6 +24,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong) MLVoIPProcessor* _Nullable voipProcessor;
 @property (nonatomic, assign) MLAudioState audioState;
 @property (nonatomic, assign) UIInterfaceOrientationMask orientationLock;
+@property (nonatomic, assign) BOOL showOneClickButton;
 
 -(UIViewController*) getTopViewController;
 -(void) updateUnread;
@@ -31,6 +32,7 @@ NS_ASSUME_NONNULL_BEGIN
 -(void) openChatOfContact:(MLContact* _Nullable) contact;
 -(void) openChatOfContact:(MLContact* _Nullable) contact withCompletion:(monal_id_block_t _Nullable) completion;
 -(void) incomingWakeupWithCompletionHandler:(void (^)(UIBackgroundFetchResult result)) completionHandler;
+-(void) setupTabBarController;
 
 @end
 

@@ -7,7 +7,7 @@
 //
 
 #import <Foundation/Foundation.h>
-#import "MLConstants.h"
+#import <monalxmpp/MLConstants.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -42,7 +42,8 @@ typedef BOOL (^monal_sqlite_bool_operations_t)(void);
 
 -(void) checkpointWal;
 -(void) enableWAL;
--(void) vacuum;
+-(BOOL) vacuum;
+-(BOOL) vacuumInto:(NSString*) newFile;
 
 @end
 

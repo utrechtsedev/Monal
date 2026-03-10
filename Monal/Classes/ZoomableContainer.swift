@@ -22,7 +22,7 @@ struct ZoomableContainer<Content: View>: View {
 
     var body: some View {
         //ios 17+ will zoom to the point the double tap was done, older ios versions will zoom to the center of the image instead
-        if #available(iOS 17.0, macCatalyst 17.0, *) {
+        if #available(iOS 17.0, *) {
             ZoomableScrollView(maxScale: maxScale, scale: $currentScale, tapLocation: $tapLocation) {
                 content
             }.onTapGesture(count: 2, perform: {location in
@@ -87,10 +87,11 @@ struct ZoomableContainer<Content: View>: View {
                 uiView.setZoomScale(currentScale, animated: true)
             } else if tapLocation != .zero { // Scale in to a specific point
                 uiView.zoom(to: zoomRect(for: uiView, scale: uiView.maximumZoomScale, center: tapLocation), animated: true)
-                // Reset the location to prevent scaling to it in case of a negative scale (manual pinch)
-                // Use the main thread to prevent unexpected behavior
-                DispatchQueue.main.async { tapLocation = .zero }
             }
+
+            // Reset the location to prevent scaling to it in case of a negative scale (manual pinch)
+            // Use the main thread to prevent unexpected behavior
+            DispatchQueue.main.async { tapLocation = .zero }
 
             assert(context.coordinator.hostingController.view.superview == uiView)
         }

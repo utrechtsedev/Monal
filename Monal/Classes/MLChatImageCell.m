@@ -8,10 +8,11 @@
 
 #import "FLAnimatedImage.h"
 #import "MLChatImageCell.h"
-#import "MLImageManager.h"
-#import "MLFiletransfer.h"
-#import "MLMessage.h"
-#import "HelperTools.h"
+#import <monalxmpp/MLImageManager.h>
+#import <monalxmpp/MLFileTransfer.h>
+#import <monalxmpp/MLMessage.h>
+#import <monalxmpp/HelperTools.h>
+#import <monalxmpp/MLFiletransferInfo.h>
 
 @import QuartzCore;
 @import UIKit;
@@ -55,17 +56,17 @@
 /// Load the image from messageText (link) and display it in the UI
 -(void) loadImage:(MLMessage*) msg
 {
+    MLFiletransferInfo* info = msg.fileInfo;
     if(_animatedImageView != nil)
         [_animatedImageView removeFromSuperview];
     if(msg.messageText && self.thumbnailImage.image == nil)
     {
         [self.spinner startAnimating];
-        NSDictionary* info = [MLFiletransfer getFileInfoForMessage:msg];
-        if(info && [info[@"mimeType"] hasPrefix:@"image/gif"])
+        if([info.mimeType hasPrefix:@"image/gif"])
         {
             self.link = msg.messageText;
             // uses cached file if the file was already downloaded
-            FLAnimatedImage* image = [FLAnimatedImage animatedImageWithGIFData:[NSData dataWithContentsOfFile:info[@"cacheFile"]]];
+            FLAnimatedImage* image = [FLAnimatedImage animatedImageWithGIFData:[NSData dataWithContentsOfFile:info.cacheFilePath]];
             if(!image)
                 return;
             _animatedImageView = [FLAnimatedImageView new];
@@ -86,39 +87,35 @@
             [self.thumbnailImage addSubview:_animatedImageView];
             self.thumbnailImage.contentMode = UIViewContentModeScaleAspectFit;
         }
-        else if(info && [info[@"mimeType"] hasPrefix:@"image/"])
+        else if([info.mimeType hasPrefix:@"image/"])
         {
             self.link = msg.messageText;
-            // uses cached file if the file was already downloaded
-            UIImage* image = nil;
-            if([info[@"mimeType"] hasPrefix:@"image/svg"])
-            {
-                if(@available(iOS 16.0, macCatalyst 16.0, *))
-                    image = [HelperTools renderUIImageFromSVGURL:[NSURL fileURLWithPath:info[@"cacheFile"]]];
+            AnyPromise* imagePromise = nil;
+            // this code already runs in the main queue --> we can't use PMKHang
+            if([info.mimeType hasPrefix:@"image/svg"])
+                imagePromise = [HelperTools renderUIImageFromSVGURL:[NSURL fileURLWithPath:info.cacheFilePath]];
+            else
+                imagePromise = [AnyPromise promiseWithValue:[[UIImage alloc] initWithContentsOfFile:info.cacheFilePath]];
+            imagePromise.then(^(UIImage* image) {
+                if(!nilExtractor(image))
+                    return;
+                DDLogVerbose(@"image %@\n--> %fx%f", info, image.size.height, image.size.width);
+                CGFloat wi = image.size.width;
+                CGFloat hi = image.size.height;
+                CGFloat ws = 225.0;
+                CGFloat hs = 200.0;
+                CGFloat ri = wi / hi;
+                CGFloat rs = ws / hs;
+                if(rs > ri)
+                    self.thumbnailImage.frame = CGRectMake(0.0, 0.0, wi * hs/hi, hs);
                 else
-                {
-                    DDLogWarn(@"Using photo placeholder for SVG on ios < 16...");
-                    image = [UIImage systemImageNamed:@"photo.fill"];
-                }
-            }
-            else
-                image = [[UIImage alloc] initWithContentsOfFile:info[@"cacheFile"]];
-            if(!image)
-                return;
-            DDLogVerbose(@"image %@\n--> %fx%f", info, image.size.height, image.size.width);
-            CGFloat wi = image.size.width;
-            CGFloat hi = image.size.height;
-            CGFloat ws = 225.0;
-            CGFloat hs = 200.0;
-            CGFloat ri = wi / hi;
-            CGFloat rs = ws / hs;
-            if(rs > ri)
-                self.thumbnailImage.frame = CGRectMake(0.0, 0.0, wi * hs/hi, hs);
-            else
-                self.thumbnailImage.frame = CGRectMake(0.0, 0.0, ws, hi * ws/wi);
-            self.imageWidth.constant = self.thumbnailImage.frame.size.width;
-            self.imageHeight.constant = self.thumbnailImage.frame.size.height;
-            [self.thumbnailImage setImage:image];
+                    self.thumbnailImage.frame = CGRectMake(0.0, 0.0, ws, hi * ws/wi);
+                self.imageWidth.constant = self.thumbnailImage.frame.size.width;
+                self.imageHeight.constant = self.thumbnailImage.frame.size.height;
+                [self.thumbnailImage setImage:image];
+            }).catch(^(NSError* error) {
+                DDLogWarn(@"Image promise returned an error: %@", error);
+            });
         }
         else
             unreachable();

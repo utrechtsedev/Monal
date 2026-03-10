@@ -18,25 +18,17 @@ import Combine
 import SwiftUI
 import SVGView
 
-//import some defines in MLConstants.h into swift
-let kAppGroup = HelperTools.getObjcDefinedValue(.kAppGroup)
-let kMonalOpenURL = HelperTools.getObjcDefinedValue(.kMonalOpenURL)
-let kBackgroundProcessingTask = HelperTools.getObjcDefinedValue(.kBackgroundProcessingTask)
-let kBackgroundRefreshingTask = HelperTools.getObjcDefinedValue(.kBackgroundRefreshingTask)
-let kMonalKeychainName = HelperTools.getObjcDefinedValue(.kMonalKeychainName)
-let SHORT_PING = HelperTools.getObjcDefinedValue(.SHORT_PING)
-let LONG_PING = HelperTools.getObjcDefinedValue(.LONG_PING)
-let MUC_PING = HelperTools.getObjcDefinedValue(.MUC_PING)
-let BGFETCH_DEFAULT_INTERVAL = HelperTools.getObjcDefinedValue(.BGFETCH_DEFAULT_INTERVAL)
-
 public typealias monal_timer_block_t = @convention(block) (MLDelayableTimer?) -> Void;
 public typealias monal_void_block_t = @convention(block) () -> Void;
 public typealias monal_id_block_t = @convention(block) (AnyObject?) -> Void;
 public typealias monal_id_returning_void_block_t = @convention(block) () -> AnyObject?;
 public typealias monal_id_returning_id_block_t = @convention(block) (AnyObject?) -> AnyObject?;
 
+extension MLContact : Identifiable {}               //make MLContact be usable in swiftui ForEach clauses etc.
+extension Quicksy_Country : Identifiable {}         //make Quicksy_Country be usable in swiftui ForEach clauses etc.
+
 //see https://stackoverflow.com/a/40629365/3528174
-extension String: Error {}
+extension String: @retroactive Error {}
 
 //see https://stackoverflow.com/a/40592109/3528174
 public func objcCast<T>(_ obj: Any) -> T {
@@ -72,21 +64,84 @@ public func nilExtractor(_ value: Any?) -> Any? {
     }
 }
 
+public extension Binding {
+    func optionalMappedToBool<Wrapped>() -> Binding<Bool> where Value == Wrapped? {
+        Binding<Bool>(
+            get: { self.wrappedValue != nil },
+            set: { newValue in
+                MLAssert(!newValue, "New value should never be true when writing to a binding created by optionalMappedToBool()")
+                self.wrappedValue = nil
+            }
+        )
+    }
+}
+public extension Binding {
+    func bytecount(mappedTo: Double) -> Binding<Double> where Value == UInt {
+        Binding<Double>(
+            get: { Double(self.wrappedValue) / mappedTo },
+            set: { newValue in self.wrappedValue = UInt(newValue * mappedTo) }
+        )
+    }
+}
+
+public extension String {
+    /**
+     Returns an attributed version of the string, where the links are clickable.
+     */
+    func linkify() -> AttributedString {
+        var attributed = AttributedString(self)
+        if let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) {
+            let range = NSRange(self.startIndex..., in: self)
+            detector.enumerateMatches(in: self, range: range) { match, _, _ in
+                if let match = match, let url = match.url, let range = Range(match.range, in: attributed) {
+                    attributed[range].link = url
+                    attributed[range].underlineStyle = .single
+                    attributed[range].foregroundColor = Color("monalGreen")
+                }
+            }
+        }
+        return attributed
+    }
+}
+
 @objc public enum NotificationPrivacySettingOption: Int, CaseIterable, RawRepresentable {
     case DisplayNameAndMessage
     case DisplayOnlyName
     case DisplayOnlyPlaceholder
 }
 
+final class ChangeCoalescer {
+    private var scheduled = false
+    private let lock = NSLock()
+    private let notify: () -> Void
+
+    init(notify: @escaping () -> Void) {
+        self.notify = notify
+    }
+
+    func markChanged() {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !scheduled else { return }
+        scheduled = true
+        DispatchQueue.main.async {
+            self.lock.lock()
+            self.scheduled = false
+            self.lock.unlock()
+            self.notify()
+        }
+    }
+}
+
 class KVOObserver: NSObject {
     var obj: NSObject
     var keyPath: String
-    var objectWillChange: ()->Void
+    var coalescer: ChangeCoalescer
     
-    init(obj:NSObject, keyPath:String, objectWillChange: @escaping ()->Void) {
+    init(obj:NSObject, keyPath:String, coalescer: ChangeCoalescer) {
         self.obj = obj
         self.keyPath = keyPath
-        self.objectWillChange = objectWillChange
+        self.coalescer = coalescer
         super.init()
         self.obj.addObserver(self, forKeyPath: keyPath, options: [], context: nil)
     }
@@ -97,33 +152,44 @@ class KVOObserver: NSObject {
     
     override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey: Any]?, context: UnsafeMutableRawPointer?) {
         //DDLogVerbose("\(String(describing:object)): keyPath \(String(describing:keyPath)) changed: \(String(describing:change))")
-        self.objectWillChange()
+        self.coalescer.markChanged()
     }
 }
 
 @dynamicMemberLookup
 public class ObservableKVOWrapper<ObjType:NSObject>: ObservableObject, Hashable, Equatable, CustomStringConvertible, Identifiable {
-    public var obj: ObjType
+    public let obj: ObjType
     private var observedMembers: NSMutableSet = NSMutableSet()
     private var observers: [KVOObserver] = Array()
+    
+    private lazy var coalescer = ChangeCoalescer { [weak self] in
+        guard let self = self else {
+            return
+        }
+        DDLogDebug("Calling objectWillChange.send() for obj: \(String(describing:self.obj))")
+        self.objectWillChange.send()
+    }
     
     public init(_ obj: ObjType) {
         self.obj = obj
     }
 
-    private func addObserverForMember(_ member: String){
+    private func addObserverForMember(_ member: String) {
+        //doesn't work for protocols
+        /*
+        guard self.obj.responds(to: NSSelectorFromString(member)), self.obj.responds(to: NSSelectorFromString("set\(member.capitalized):")) else {
+            HelperTools.throwException(withName:"ObservableKVOWrapperAccessError", reason:"Getter/setter not provided for member '\(String(describing:member))' by underlying objc object \(String(describing:self.obj))", userInfo:[
+                "obj": "\(String(describing:self.obj))",
+                "member": "\(String(describing:member))",
+            ])
+            return
+        }
+        */
         if(!self.observedMembers.contains(member)) {
-            DDLogDebug("Adding observer for member '\(member)'...")
-            self.observers.append(KVOObserver(obj:self.obj, keyPath:member, objectWillChange: { [weak self] in
-                guard let self = self else {
-                    return
-                }
-                //DDLogDebug("Observer said '\(member)' has changed...")
-                DispatchQueue.main.async {
-                    DDLogDebug("Calling self.objectWillChange.send() for '\(member)'...")
-                    self.objectWillChange.send()
-                }
-            }))
+            let ownAddress = Unmanaged.passUnretained(self).toOpaque()
+            let objAddress = Unmanaged.passUnretained(self.obj).toOpaque()
+            DDLogDebug("Adding observer for member '\(member)' in KVOObserver \(ownAddress) with wrapped obj \(objAddress)...")
+            self.observers.append(KVOObserver(obj:self.obj, keyPath:member, coalescer: self.coalescer))
             self.observedMembers.add(member)
         }
     }
@@ -223,31 +289,45 @@ struct RuntimeError: LocalizedError {
     }
 }
 
-extension AnyPromise {
-    public func toGuarantee<T>() -> Guarantee<T> {
+public extension AnyPromise {
+    func toTypedGuarantee<T>() -> Guarantee<T> {
         return Guarantee<T> { seal in
             self.done { value in
-                if let value = value as? T {
+                if let value = nilExtractor(value) as? T {
                     seal(value)
                 } else {
-                    HelperTools.throwException(withName:"AnyPromiseConversionError", reason:"Could not cast value to type \(String(describing: T.self))", userInfo:[
+                    HelperTools.throwException(withName:"AnyPromiseToGuaranteeConversionError", reason:"Could not cast value to type \(String(describing: T.self))", userInfo:[
                         "type": "\(String(describing: T.self))",
-                        "promise": "\(String(describing: self))",
+                        "value": "\(String(describing:value))",
+                        "from_anyPromise": "\(String(describing: self))",
                     ])
                 }
             }.catch { error in
-                HelperTools.throwException(withName:"AnyPromiseConversionError", reason:"Uncatched promise error: \(error)", userInfo:[
+                HelperTools.throwException(withName:"AnyPromiseToGuaranteeConversionError", reason:"Uncatched promise error: \(error)", userInfo:[
                     "error": "\(String(describing:error))",
                     "promise": "\(String(describing: self))",
                 ])
             }
         }
     }
-
-    public func toPromise<T>() -> Promise<T> {
+    
+    func toTypedGuarantee() -> Guarantee<Void> {
+        return Guarantee<Void> { seal in
+            self.done { _ in
+                seal(())
+            }.catch { error in
+                HelperTools.throwException(withName:"AnyPromiseToGuaranteeConversionError", reason:"Uncatched promise error: \(error)", userInfo:[
+                    "error": "\(String(describing:error))",
+                    "promise": "\(String(describing: self))",
+                ])
+            }
+        }
+    }
+    
+    func toTypedPromise<T>() -> Promise<T> {
         return Promise<T> { seal in
             self.done { value in
-                if let value = value as? T {
+                if let value = nilExtractor(value) as? T {
                     seal.fulfill(value)
                 } else {
                     seal.reject(PMKError.invalidCallingConvention)
@@ -256,6 +336,56 @@ extension AnyPromise {
                 seal.reject(error)
             }
         }
+    }
+    
+    func toTypedPromise() -> Promise<Void> {
+        return Promise<Void> { seal in
+            self.done { _ in
+                seal.fulfill(())
+            }.catch { error in
+                seal.reject(error)
+            }
+        }
+    }
+}
+
+//since we can not be generic over actors, any new actor we create has to be added here, if we want to use it in conjunction with promises
+//see https://forums.swift.org/t/generic-over-global-actor/67304/2
+public extension Promise {
+    @MainActor
+    func asyncOnMainActor() async throws -> T {
+        try await withCheckedThrowingContinuation { continuation in
+            self.done { value in
+                continuation.resume(returning: value)
+            }.catch(policy: .allErrors) { error in
+                continuation.resume(throwing: error)
+            }
+        }
+    }
+}
+public extension Guarantee {
+    @MainActor
+    func asyncOnMainActor() async -> T {
+        await withCheckedContinuation { continuation in
+            self.done { value in
+                continuation.resume(returning: value)
+            }
+        }
+    }
+}
+
+public extension MainActor {
+    @MainActor static func runOnMainThread<T>(action: @MainActor @Sendable () throws -> T) rethrows -> T {
+        try action()
+    }
+}
+
+public extension Actor {
+    /// Adds a general `perform` method for any actor to access its isolation domain to perform
+    /// multiple operations in one go using the closure.
+    @discardableResult
+    func performInIsolation<T: Sendable>(_ block: @Sendable (_ actor: isolated Self) throws -> T) async rethrows -> T {
+        try block(self)
     }
 }
 
@@ -328,7 +458,7 @@ extension Optional : OptionalProtocol {
     func unwrap() -> Any {
         switch self {
             // If a nil is unwrapped it will crash!
-            case .none: preconditionFailure("nil unwrap!")
+            case .none: unreachable("nil unwrap!")
             case .some(let unwrapped): return unwrapped
         }
     }
@@ -345,53 +475,61 @@ public class SwiftHelpers: NSObject {
         });
     }
     
-    //this is wrapped by HelperTools.renderUIImage(fromSVGURL) / [HelperTools renderUIImageFromSVGURL:]
-    //because MLChatImageCell wasn't able to import the monalxmpp-Swift bridging header somehow (but importing HelperTools works just fine)
-    @available(iOS 16.0, macCatalyst 16.0, *)
-    @objc(_renderUIImageFromSVGURL:)
-    public static func _renderUIImageFromSVG(url: URL?) -> UIImage? {
-        guard let url = url else {
-            return nil
-        }
-        guard let svgView = SVGParser.parse(contentsOf: url)?.toSwiftUI() else {
-            return nil
-        }
+    //we use the main actor here, because ImageRenderer needs to run in the main actor
+    //(and we don't want to overcomplicate things here by using a Task and returning a Promise)
+    @MainActor
+    private static func _renderSVG<T: View>(_ svgView: T) -> UIImage? {
         var image: UIImage? = nil
-        HelperTools.dispatchAsync(false, reentrantOn: DispatchQueue.main) {
-            if HelperTools.isAppExtension() {
-                image = ImageRenderer(content:svgView.scaledToFit().frame(width: 320, height: 200)).uiImage
-                DDLogDebug("We are in appex: mirroring SVG image on Y axis...");
-                image = HelperTools.mirrorImage(onXAxis:image)
-            } else {
-                image = ImageRenderer(content:svgView.scaledToFit().frame(width: 1280, height: 960)).uiImage
-            }
+        if HelperTools.isAppExtension() {
+            image = ImageRenderer(content:svgView.scaledToFit().frame(width: 320, height: 200)).uiImage
+            DDLogDebug("We are in appex: mirroring SVG image on Y axis...");
+            image = HelperTools.mirrorImage(onXAxis:image)
+        } else {
+            image = ImageRenderer(content:svgView.scaledToFit().frame(width: 1280, height: 960)).uiImage
         }
         return image
     }
     
     //this is wrapped by HelperTools.renderUIImage(fromSVGURL) / [HelperTools renderUIImageFromSVGURL:]
     //because MLChatImageCell wasn't able to import the monalxmpp-Swift bridging header somehow (but importing HelperTools works just fine)
-    @available(iOS 16.0, macCatalyst 16.0, *)
-    @objc(_renderUIImageFromSVGData:)
-    public static func _renderUIImageFromSVG(data: Data?) -> UIImage? {
-        guard let data = data else {
-            return nil
-        }
-        guard let svgView = SVGParser.parse(data: data)?.toSwiftUI() else {
-            return nil
-        }
-        var image: UIImage? = nil
-        HelperTools.dispatchAsync(false, reentrantOn: DispatchQueue.main) {
-            //the uiimage is somehow mirrored at the X-axis when received by appex --> mirror it back
-            if HelperTools.isAppExtension() {
-                image = ImageRenderer(content:svgView.scaledToFit().frame(width: 320, height: 200)).uiImage
-                DDLogDebug("We are in appex: mirroring SVG image on Y axis...");
-                image = HelperTools.mirrorImage(onXAxis:image)
-            } else {
-                image = ImageRenderer(content:svgView.scaledToFit().frame(width: 1280, height: 960)).uiImage
+    @objc(_renderUIImageFromSVGURL:)
+    public static func _renderUIImageFromSVG(url: URL?) -> AnyPromise {
+        return AnyPromise(Promise<UIImage?> { seal in
+            guard let url = url, let svgView = SVGParser.parse(contentsOf: url)?.toSwiftUI() else {
+                return seal.fulfill(nil)
             }
+            Task {
+                return seal.fulfill(await self._renderSVG(svgView))
+            }
+        })
+    }
+    
+    //this is wrapped by HelperTools.renderUIImage(fromSVGURL) / [HelperTools renderUIImageFromSVGURL:]
+    //because MLChatImageCell wasn't able to import the monalxmpp-Swift bridging header somehow (but importing HelperTools works just fine)
+    @objc(_renderUIImageFromSVGData:)
+    public static func _renderUIImageFromSVG(data: Data?) -> AnyPromise {
+        return AnyPromise(Promise<UIImage?> { seal in
+            guard let data = data, let svgView = SVGParser.parse(data: data)?.toSwiftUI() else {
+                return seal.fulfill(nil)
+            }
+            Task {
+                return seal.fulfill(await self._renderSVG(svgView))
+            }
+        })
+    }
+}
+
+// **********************************************
+// **************** rust bridges ****************
+// **********************************************
+
+fileprivate extension RustVec {
+    func intoArray() -> [T] {
+        var array: [T] = []
+        for _ in 0..<self.len() {
+            array.append(self.pop()!)
         }
-        return image
+        return array.reversed()
     }
 }
 
@@ -457,5 +595,57 @@ public class HtmlParserBridge : NSObject {
     
     public func select(_ selector: String, attribute: String? = nil) throws -> [String] {
         return self.document.select(selector, attribute).intoArray().map { $0.toString() }
+    }
+}
+
+@objcMembers
+public class XmlParserBridge : NSObject {
+    var wrapped: MonalXmlStreamParserWrapper
+    var delegate: MLBasePaser
+    
+    public init(with delegate: MLBasePaser) {
+        //never buffer more than 8192 bytes inside the rust parser and limit maximum
+        //token length (attribute value, attribute name, element name) to 1024
+        self.wrapped = MonalXmlStreamParserWrapper(8192, 1024)
+        self.delegate = delegate
+    }
+    
+    @objc(feedData:withLength:)
+    public func feed(data chunk: UnsafePointer<UInt8>, length size: Int) {
+        do {
+            //this is zero-copy
+            self.wrapped.feed(UnsafeBufferPointer(start: chunk, count: size))
+            var notDoneYet = true
+            while notDoneYet {
+                switch try self.wrapped.poll() {
+                    case .XmlDeclaration(let version):
+                        self.delegate.parserDidStartDocument(version.toString())
+                    case .Start(let element):
+                        let keys: [String] = element.attr_keys!.intoArray().map { $0.toString() }
+                        let values: [String] = element.attr_values!.intoArray().map { $0.toString() }
+                        MLAssert(keys.count == values.count, "Atrribute vectors coming from rust should have the same sizes!", [
+                            "keys": keys as NSArray,
+                            "values": values as NSArray,
+                        ])
+                        var attributes: [String:String] = [:]
+                        for i in 0..<keys.count {
+                            attributes[keys[i]] = values[i]
+                        }
+                        self.delegate.parserDidStartElement(element.name.toString(), namespaceURI:element.ns.toString(), attributes:attributes)
+                    case .End:
+                        self.delegate.parserDidEndInnermostElement()
+                    case .Text(let text):
+                        self.delegate.parserFoundCharacters(text.toString())
+                    case .NeedMoreData:
+                        notDoneYet = false
+                }
+            }
+        } catch let err as RustString {
+            DDLogError("XML parser returned error: \(err.toString())")
+            self.delegate.parserErrorOccurred(err.toString())
+        } catch let err {
+            DDLogError("XML parser returned UNEXPECTED error: \(String(describing:err))")
+            unreachable("xml parser should never return non-string errors!")
+        }
     }
 }

@@ -10,6 +10,7 @@
 
 @import UIKit;
 @class MLContact;
+@class MLMessage;
 
 @interface MLImageManager : NSObject
 
@@ -40,6 +41,9 @@
 -(UIImage* _Nullable) getIconForContact:(MLContact* _Nonnull) contact;
 +(UIImage* _Nonnull) circularImage:(UIImage* _Nonnull) image;
 
+-(NSURL* _Nullable) getThumbnailURLOfMessage:(MLMessage* _Nonnull) message;
+-(NSURL* _Nullable) setThumbnailOfMessage:(MLMessage* _Nonnull) message withData:(NSData* _Nullable) data;
+
 -(void) saveBackgroundImageData:(NSData* _Nullable) data forContact:(MLContact* _Nullable) contact;
 -(UIImage* _Nullable) getBackgroundFor:(MLContact* _Nullable) contact;
 
@@ -47,6 +51,6 @@
  Purge cache in the event of  a memory warning
  */
 -(void) purgeCache;
--(void) purgeCacheForContact:(NSString* _Nonnull) contact andAccount:(NSNumber* _Nonnull) accountNo;
+-(void) purgeCacheForContact:(NSString* _Nonnull) contact andAccount:(NSNumber* _Nonnull) accountID;
 
 @end

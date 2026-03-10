@@ -9,14 +9,7 @@
 struct AccountPicker: View {
     let contacts: [MLContact]
     let callType: MLCallType
-#if IS_ALPHA
-    let appLogoId = "AlphaAppLogo"
-#elseif IS_QUICKSY
-    let appLogoId = "QuicksyAppLogo"
-#else
-    let appLogoId = "AppLogo"
-#endif
-    
+    let appLogoId = "AppLogo"    
     init(contacts:[MLContact], callType: MLCallType) {
         self.contacts = contacts
         self.callType = callType
@@ -40,13 +33,13 @@ struct AccountPicker: View {
                 
                 List {
                     ForEach(contacts) { contact in
-                        if let accountEntry = DataLayer.sharedInstance().details(forAccount:contact.accountId) {
+                        if let accountEntry = DataLayer.sharedInstance().details(forAccount:contact.accountID) {
                             let accountJid = "\(accountEntry["username"] ?? "<unknown>" as NSString)@\(accountEntry["domain"] ?? "<unknown>" as NSString)"
-                            let accountContact = MLContact.createContact(fromJid:accountJid, andAccountNo:accountEntry["account_id"] as! NSNumber)
+                            let accountContact = MLContact.createContact(fromJid:accountJid, andAccountID:accountEntry["account_id"] as! NSNumber)
                             Button {
                                 (UIApplication.shared.delegate as! MonalAppDelegate).activeChats!.call(contact, with:callType)
                             } label: {
-                                ContactEntry(contact:ObservableKVOWrapper(accountContact), selfnotesPrefix:false)
+                                ContactEntry(contact:accountContact, selfnotesPrefix:false)
                             }
                         }
                     }
@@ -56,7 +49,6 @@ struct AccountPicker: View {
         //}
         .textFieldStyle(.roundedBorder)
         .navigationBarTitle(Text("Account Picker"))
-        .accentColor(monalGreen)
     }
 }
 

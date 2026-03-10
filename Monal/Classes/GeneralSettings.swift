@@ -127,11 +127,21 @@ class GeneralSettingsDefaultsDB: ObservableObject {
     
     @defaultsDB("hardlinkFiletransfersIntoDocuments")
     var hardlinkFiletransfersIntoDocuments: Bool
+    
+    @defaultsDB("showAdvancedUI")
+    var showAdvancedUI: Bool
+    
+    @defaultsDB("preventLeaksBeforeAuth")
+    var preventLeaksBeforeAuth: Bool
+    
+    @defaultsDB("showNotificationsForReactions")
+    var showNotificationsForReactions: Bool
 }
 
 
 struct GeneralSettings: View {
     @ObservedObject var generalSettingsDefaultsDB = GeneralSettingsDefaultsDB()
+    @ScaledMetric(relativeTo:.body) private var size20px: CGFloat = 20
     
     var body: some View {
         Form {
@@ -141,7 +151,7 @@ struct GeneralSettings: View {
                         Image(systemName: "hand.tap.fill")
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .frame(width: 20, height: 20)
+                            .frame(width: size20px, height: size20px)
                         Text("User Interface")
                     }
                 }
@@ -150,7 +160,7 @@ struct GeneralSettings: View {
                         Image(systemName: "shield.checkerboard")
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .frame(width: 20, height: 20)
+                            .frame(width: size20px, height: size20px)
                         Text("Security")
                     }
                 }
@@ -159,7 +169,7 @@ struct GeneralSettings: View {
                         Image(systemName: "eye")
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .frame(width: 20, height: 20)
+                            .frame(width: size20px, height: size20px)
                         Text("Privacy")
                     }
                 }
@@ -168,7 +178,7 @@ struct GeneralSettings: View {
                         Image(systemName: "text.bubble")
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .frame(width: 20, height: 20)
+                            .frame(width: size20px, height: size20px)
                         Text("Notifications")
                     }
                 }
@@ -177,7 +187,7 @@ struct GeneralSettings: View {
                         Image(systemName: "paperclip")
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .frame(width: 20, height: 20)
+                            .frame(width: size20px, height: size20px)
                         Text("Attachments")
                     }
                 }
@@ -189,12 +199,8 @@ struct GeneralSettings: View {
                         Image(systemName: "gear")
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .frame(width: 20, height: 20)
-                        #if targetEnvironment(macCatalyst)
-                            Text("Open macOS settings")
-                        #else
+                            .frame(width: size20px, height: size20px)
                             Text("Open iOS settings")
-                        #endif
                     }.foregroundColor(Color(UIColor.label))
                 })
                 .buttonStyle(.borderless) 
@@ -241,6 +247,10 @@ struct UserInterfaceSettings: View {
                         .font(.footnote)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                SettingsToggle(isOn: $generalSettingsDefaultsDB.showAdvancedUI) {
+                    Text("Show advanced options in UI")
+                    Text("Show power-user options in settings and other parts of the user interface.")
+                }
             }
         }
         .navigationBarTitle(Text("User Interface"), displayMode: .inline)
@@ -271,66 +281,59 @@ struct SecuritySettings: View {
     init() {
         _autodeleteInterval = State(wrappedValue:generalSettingsDefaultsDB.AutodeleteInterval)
         _autodeleteIntervalSelection = State(wrappedValue:generalSettingsDefaultsDB.AutodeleteInterval)
-        if #available(iOS 15, *) {
-            //only activate custom values on ios >= 15
-            autodeleteOptions[-1] = NSLocalizedString("Custom", comment:"Message autdelete time")
-            //check if we have a custom value and change picker value accordingly
-            if autodeleteOptions[autodeleteInterval] == nil {
-                _autodeleteIntervalSelection = State(wrappedValue:-1)
-            }
-        } else {
-            //check if we have a custom value, this should never happen because custom values should only be settable in ios >= 15
-            if autodeleteOptions[autodeleteInterval] == nil {
-                //turn autodelete off int his case (sane value)
-                _autodeleteIntervalSelection = State(wrappedValue:0)
-                _autodeleteInterval = State(wrappedValue:0)
-            }
+        autodeleteOptions[-1] = NSLocalizedString("Custom", comment:"Message autdelete time")
+        //check if we have a custom value and change picker value accordingly
+        if autodeleteOptions[autodeleteInterval] == nil {
+            _autodeleteIntervalSelection = State(wrappedValue:-1)
         }
     }
     
     var body: some View {
         Form {
-            Section(header: Text("Encryption")) {
-                SettingsToggle(isOn: $generalSettingsDefaultsDB.omemoDefaultOn) {
-                    Text("Enable encryption by default for new chats")
-                    Text(
+            //only allow power users to mess with the encryption settings at all (turn off encryption etc.)
+            if generalSettingsDefaultsDB.showAdvancedUI {
+                Section(header: Text("Encryption")) {
+                    SettingsToggle(isOn: $generalSettingsDefaultsDB.omemoDefaultOn) {
+                        Text("Enable encryption by default for new chats")
+                        Text(
 """
 Every new contact will have encryption enabled, but already known contacts will preserve their encryption settings.
 Generally this should never be turned off by members of high risk groups like journalists, activists etc.
 """
-                    )
-                }
-                
-                SettingsToggle(isOn: $generalSettingsDefaultsDB.allowUnverifiedCalls) {
-                    Text("Allow unverified calls in encrypted chats")
-                    Text(
+                        )
+                    }
+                    
+                    SettingsToggle(isOn: $generalSettingsDefaultsDB.allowUnverifiedCalls) {
+                        Text("Allow unverified calls in encrypted chats")
+                        Text(
 """
 Allow calls not being OMEMO-verified in OMEMO encrypted chats.
 If you turn this off, you won't be able to place or receive calls to/from contacts not using a client implementing [http://gultsch.de/xmpp/drafts/omemo/dlts-srtp-verification](https://gist.github.com/iNPUTmice/aa4fc0aeea6ce5fb0e0fe04baca842cd).
 This should be turned off by members of high risk groups like journalists, activists etc.
 """
-                    )
-                }
-                
-                SettingsToggle(isOn: $generalSettingsDefaultsDB.allowMixedTrustInGroups) {
-                    Text("Allow BTBV-only participants in verified encrypted groups")
-                    Text(
+                        )
+                    }
+                    
+                    SettingsToggle(isOn: $generalSettingsDefaultsDB.allowMixedTrustInGroups) {
+                        Text("Allow BTBV-only participants in verified encrypted groups")
+                        Text(
 """
 If this is off, you won't send encrypted messages to members of a group not having any explicitly trusted device once you explicitly trusted/distrusted at least one single device of another member of this group.
 Use with care, because this means you'll have to explicitly trust at least one device of *all* members of a group once you started manually changing the trust of one device of a member of this group (even if you did this in an 1:1 chat with one of the members)!
 Generally this should only be turned off by members of high risk groups like journalists, activists etc.
 """
-                    )
+                        )
+                    }
                 }
             }
-
+            
             Section(header: Text("Networking")) {
                 SettingsToggle(isOn: $generalSettingsDefaultsDB.webrtcAllowP2P) {
                     Text("Calls: Allow P2P sessions")
                     Text("Allow your device to establish a direct network connection to the remote party. This might leak your IP address to the caller/callee.")
                 }
-
-                if #available(iOS 16.0, macCatalyst 16.0, *) {
+                
+                if generalSettingsDefaultsDB.showAdvancedUI {
                     SettingsToggle(isOn: $generalSettingsDefaultsDB.useDnssecForAllConnections) {
                         Text("Use DNSSEC validation for all connections")
                         Text(
@@ -343,6 +346,19 @@ like hotel wifi, ugly mobile carriers etc.
                         )
                     }
                 }
+                
+                SettingsToggle(isOn: $generalSettingsDefaultsDB.preventLeaksBeforeAuth) {
+                    Text("Prevent leaks when authenticating")
+                    Text(
+"""
+This is only needed in extreme situations and slows down your connection setup. \
+It will remove the SASL2 User-Agent and deactivate authentication using FAST tokens \
+as well as inlining XEP-0198 resumption and BIND2.
+Only activate if you fear active MITM attacks or already experienced one and want them \
+to be detected before revealing your XEP-0198 counter or random but unique device-id.
+"""
+                    )
+                }
             }
             
             Section(header: Text("On this device")) {
@@ -352,16 +368,14 @@ like hotel wifi, ugly mobile carriers etc.
                             Text(autodeleteOptions[key]!).tag(key)
                         }
                     }
-                    if #available(iOS 15, *) {
-                        //custom interval requested explicitly
-                        if autodeleteIntervalSelection == -1 {
-                            HStack {
-                                Text("Custom Time: ")
-                                Stepper(String(format:NSLocalizedString("%@ hours", comment:""), String(describing:(max(1, autodeleteInterval / 3600)).formatted())), value: Binding<Int>(
-                                    get: { max(1, autodeleteInterval / 3600) /*clamp to 1 ... .max*/ },
-                                    set: { autodeleteInterval = $0 * 3600 }
-                                ), in: 1 ... .max)
-                            }
+                    //custom interval requested explicitly
+                    if autodeleteIntervalSelection == -1 {
+                        HStack {
+                            Text("Custom Time: ")
+                            Stepper(String(format:NSLocalizedString("%@ hours", comment:""), String(describing:(max(1, autodeleteInterval / 3600)).formatted())), value: Binding<Int>(
+                                get: { max(1, autodeleteInterval / 3600) /*clamp to 1 ... .max*/ },
+                                set: { autodeleteInterval = $0 * 3600 }
+                            ), in: 1 ... .max)
                         }
                     }
                     Text("Be warned: Message will only be deleted on incoming pushes or if you open the app! This is especially true for shorter time intervals!").foregroundColor(Color(UIColor.secondaryLabel)).font(.footnote)
@@ -442,7 +456,7 @@ struct PrivacySettingsSubview: View {
                 }
                 SettingsToggle(isOn: $generalSettingsDefaultsDB.webrtcUseFallbackTurn) {
                     Text("Calls: Allow TURN fallback to Monal-Servers")
-                    Text("This will make calls possible even if your XMPP server does not provide a TURN server.")
+                    Text("This will make calls possible even if your XMPP server does not provide a TURN server, but leaks your IP to Monal's servers if your XMPP server does not provide a TURN server.")
                 }
             }
         }
@@ -471,6 +485,11 @@ struct NotificationSettings: View {
                     }
                 }
                 .frame(height: 56, alignment: .trailing)
+                
+                SettingsToggle(isOn: $generalSettingsDefaultsDB.showNotificationsForReactions) {
+                    Text("Show reaction notifications")
+                    Text("Show notifications if users react to your messages.")
+                }
             }
             
             Section(header: Text("Debugging")) {

@@ -7,18 +7,17 @@
 //
 
 #import <Foundation/Foundation.h>
-#import "MLConstants.h"
+#import <monalxmpp/MLConstants.h>
 #import "Monal-Swift.h"
-#import "HelperTools.h"
+#import <monalxmpp/HelperTools.h>
 #import "XMPPIQ.h"
 #import "XMPPMessage.h"
-#import "xmpp.h"
-#import "MLXMPPManager.h"
-#import "MLVoIPProcessor.h"
-#import "MLCall.h"
+#import <monalxmpp/xmpp.h>
+#import <monalxmpp/MLXMPPManager.h>
+#import <monalxmpp/MLVoIPProcessor.h>
+#import <monalxmpp/MLCall.h>
 #import "MonalAppDelegate.h"
-#import "ActiveChatsViewController.h"
-#import "MLNotificationQueue.h"
+#import <monalxmpp/MLNotificationQueue.h>
 #import "secrets.h"
 
 @import PushKit;
@@ -80,11 +79,7 @@ static NSMutableDictionary* _pendingCalls;
     config.supportsVideo = YES;
     config.includesCallsInRecents = YES;
     //see https://stackoverflow.com/a/45823730/3528174
-#ifndef QUICKSY
     config.iconTemplateImageData = UIImagePNGRepresentation([UIImage imageNamed:@"CallKitLogo"]);
-#else
-    config.iconTemplateImageData = UIImagePNGRepresentation([UIImage imageNamed:@"QuicksyCallKitLogo"]);
-#endif
     self.cxProvider = [[CXProvider alloc] initWithConfiguration:config];
     [self.cxProvider setDelegate:self queue:dispatch_get_main_queue()];
     self.callController = [[CXCallController alloc] initWithQueue:dispatch_get_main_queue()];
@@ -110,18 +105,24 @@ static NSMutableDictionary* _pendingCalls;
 -(void) addCall:(MLCall*) call
 {
     DDLogInfo(@"Adding call to list: %@", call);
+    [self willChangeValueForKey:@"activeCalls"];
     @synchronized(_pendingCalls) {
         _pendingCalls[call.uuid] = call;
     }
+    [self didChangeValueForKey:@"activeCalls"];
+    //TODO: remove once chatviewcontroller gets removed
     [[MLNotificationQueue currentQueue] postNotificationName:kMonalCallAdded object:call userInfo:@{@"uuid": call.uuid}];
 }
 
 -(void) removeCall:(MLCall*) call
 {
     DDLogInfo(@"Removing call from list: %@", call);
+    [self willChangeValueForKey:@"activeCalls"];
     @synchronized(_pendingCalls) {
         [_pendingCalls removeObjectForKey:call.uuid];
     }
+    [self didChangeValueForKey:@"activeCalls"];
+    //TODO: remove once chatviewcontroller gets removed
     [[MLNotificationQueue currentQueue] postNotificationName:kMonalCallRemoved object:call userInfo:@{@"uuid": call.uuid}];
 }
 
@@ -130,10 +131,10 @@ static NSMutableDictionary* _pendingCalls;
     return _pendingCalls.count;
 }
 
--(NSDictionary<NSString*, MLCall*>*) getActiveCalls
+-(NSArray<MLCall*>*) activeCalls
 {
     @synchronized(_pendingCalls) {
-        return [_pendingCalls copy];
+        return [_pendingCalls allValues];
     }
 }
 
@@ -165,7 +166,7 @@ static NSMutableDictionary* _pendingCalls;
 
 -(MLCall*) initiateCallWithType:(MLCallType) callType toContact:(MLContact*) contact
 {
-    xmpp* account = [[MLXMPPManager sharedInstance] getConnectedAccountForID:contact.accountId];
+    xmpp* account = contact.account;
     MLAssert(account != nil, @"account is nil in initiateCallWithType:ToContact:!", (@{@"contact": contact}));
     
     NSUUID* uuid = [NSUUID UUID];
@@ -224,13 +225,13 @@ static NSMutableDictionary* _pendingCalls;
     //handle tie breaking: check for already running call
     //(this is only needed if we are in the mainapp because of an already "running" call we now have to tie break)
     XMPPMessage* messageNode =  notification.userInfo[@"messageNode"];
-    NSNumber* accountNo = notification.userInfo[@"accountNo"];
-    MLContact* contact = [MLContact createContactFromJid:messageNode.fromUser andAccountNo:accountNo];
+    NSNumber* accountID = notification.userInfo[@"accountID"];
+    MLContact* contact = [MLContact createContactFromJid:messageNode.fromUser andAccountID:accountID];
     MLCall* existingCall = [self getActiveCallWithContact:contact];
     if(existingCall == nil || existingCall.state == MLCallStateFinished)
         return [self processIncomingCall:notification.userInfo withCompletion:nil];
     
-    MLCall* newCall = [self createCallWithJmiPropose:messageNode onAccountNo:accountNo];
+    MLCall* newCall = [self createCallWithJmiPropose:messageNode onAccountID:accountID];
     if(newCall == nil)
         return;
     
@@ -288,9 +289,9 @@ static NSMutableDictionary* _pendingCalls;
 {
     //TODO: handle jmi propose coming from other devices on our account (see TODO in MLMessageProcessor.m)
     XMPPMessage* messageNode =  userInfo[@"messageNode"];
-    NSNumber* accountNo = userInfo[@"accountNo"];
+    NSNumber* accountID = userInfo[@"accountID"];
     
-    MLCall* call = [self createCallWithJmiPropose:messageNode onAccountNo:accountNo];
+    MLCall* call = [self createCallWithJmiPropose:messageNode onAccountID:accountID];
     if(call == nil)
     {
         //ios will stop delivering voip notifications if an incoming pushkit notification doesn't trigger a visible ringing
@@ -405,9 +406,8 @@ static NSMutableDictionary* _pendingCalls;
         
         // request turn credentials
         NSMutableURLRequest* urlRequest = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:@"/api/v1/challenge/new" relativeToURL:[HelperTools getFailoverTurnApiServer]]];
-        if(@available(iOS 16.1, macCatalyst 16.1, *))
-            if([[HelperTools defaultsDB] boolForKey: @"useDnssecForAllConnections"])
-                urlRequest.requiresDNSSECValidation = YES;
+        if([[HelperTools defaultsDB] boolForKey: @"useDnssecForAllConnections"])
+            urlRequest.requiresDNSSECValidation = YES;
         [urlRequest setTimeoutInterval:3.0];
         NSURLSession* challengeSession = [HelperTools createEphemeralURLSession];
         [[challengeSession dataTaskWithRequest:urlRequest completionHandler:^(NSData* data, NSURLResponse* response, NSError* error) {
@@ -446,9 +446,8 @@ static NSMutableDictionary* _pendingCalls;
                 return;
             }
             NSMutableURLRequest* responseRequest = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:@"/api/v1/challenge/validate" relativeToURL:[HelperTools getFailoverTurnApiServer]]];
-            if(@available(iOS 16.1, macCatalyst 16.1, *))
-                if([[HelperTools defaultsDB] boolForKey: @"useDnssecForAllConnections"])
-                    responseRequest.requiresDNSSECValidation = YES;
+            if([[HelperTools defaultsDB] boolForKey: @"useDnssecForAllConnections"])
+                responseRequest.requiresDNSSECValidation = YES;
 
             [responseRequest setHTTPMethod:@"POST"];
             [responseRequest setValue:@"application/json" forHTTPHeaderField:@"Accept"];
@@ -706,6 +705,25 @@ static NSMutableDictionary* _pendingCalls;
     [appDelegate.activeChats presentCall:call];
 }
 
+-(void) provider:(CXProvider*) provider performPlayDTMFCallAction:(CXPlayDTMFCallAction*) action
+{
+    MLCall* call = [self getCallForUUID:action.callUUID];
+    DDLogDebug(@"CXProvider: performPlayDTMFCallAction with provider=%@, performPlayDTMFCallAction=%@, pendingCallsInfo: %@", provider, action, call);
+    if(call == nil)
+    {
+        DDLogWarn(@"Pending call not present anymore: %@", (@{
+            @"provider": provider,
+            @"action": action,
+            @"uuid": action.callUUID,
+        }));
+        [action fail];
+        return;
+    }
+    
+    [call sendDtmf:action.digits];
+    [action fulfill];
+}
+
 -(void) provider:(CXProvider*) provider performEndCallAction:(CXEndCallAction*) action
 {
     MLCall* call = [self getCallForUUID:action.callUUID];
@@ -806,7 +824,7 @@ static NSMutableDictionary* _pendingCalls;
     CXCallUpdate* update = [CXCallUpdate new];
     update.remoteHandle = [[CXHandle alloc] initWithType:CXHandleTypeGeneric value:call.contact.contactJid];
     update.localizedCallerName = call.contact.contactDisplayName;
-    update.supportsDTMF = NO;
+    update.supportsDTMF = call.canSendDtmf;
     update.hasVideo = call.callType == MLCallTypeVideo;
     update.supportsHolding = NO;
     update.supportsGrouping = NO;
@@ -814,7 +832,7 @@ static NSMutableDictionary* _pendingCalls;
     return update;
 }
 
--(MLCall* _Nullable) createCallWithJmiPropose:(XMPPMessage*) messageNode onAccountNo:(NSNumber*) accountNo
+-(MLCall* _Nullable) createCallWithJmiPropose:(XMPPMessage*) messageNode onAccountID:(NSNumber*) accountID
 {
     //if the jmi id is a uuid, just use it, otherwise infer a uuid from the given jmi id
     NSUUID* uuid = [messageNode findFirst:@"{urn:xmpp:jingle-message:0}propose@id|uuidcast"];
@@ -833,7 +851,7 @@ static NSMutableDictionary* _pendingCalls;
     if([messageNode check:@"{urn:xmpp:jingle-message:0}propose/{urn:xmpp:jingle:apps:rtp:1}description<media=video>"])
         callType = MLCallTypeVideo;
     
-    MLCall* call = [[MLCall alloc] initWithUUID:uuid jmiid:jmiid contact:[MLContact createContactFromJid:messageNode.fromUser andAccountNo:accountNo] callType:callType andDirection:MLCallDirectionIncoming];
+    MLCall* call = [[MLCall alloc] initWithUUID:uuid jmiid:jmiid contact:[MLContact createContactFromJid:messageNode.fromUser andAccountID:accountID] callType:callType andDirection:MLCallDirectionIncoming];
     //order matters here!
     call.fullRemoteJid = messageNode.from;
     call.jmiPropose = messageNode;

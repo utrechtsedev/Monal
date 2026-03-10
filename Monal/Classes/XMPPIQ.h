@@ -6,8 +6,8 @@
 //
 //
 
-#import "XMPPStanza.h"
-#import "MLContact.h"
+#import <monalxmpp/XMPPStanza.h>
+#import <monalxmpp/MLContact.h>
 
 @class XMPPDataForm;
 
@@ -135,10 +135,6 @@ removes a contact from the roster
 -(void) setMucAdminQueryWithAffiliation:(NSString*) affiliation forJid:(NSString*) jid;
 -(void) setGetRoomConfig;
 -(void) setRoomConfig:(XMPPDataForm*) configForm;
-
-#ifdef IS_QUICKSY
--(void) setQuicksyPhoneBook:(NSArray*) numbers;
-#endif
 
 @end
 

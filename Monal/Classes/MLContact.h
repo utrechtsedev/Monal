@@ -7,6 +7,7 @@
 //
 
 #import <Foundation/Foundation.h>
+#import <monalxmpp/MLContactProtocol.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -22,16 +23,13 @@ FOUNDATION_EXPORT NSString* const kAskSubscribe;
 @class MLMessage;
 @class UIImage;
 
-@interface MLContact : NSObject <NSSecureCoding>
+@interface MLContact : NSObject <NSSecureCoding, MLContactProtocol>
 +(MLContact*) makeDummyContact:(int) type;
 
 +(BOOL) supportsSecureCoding;
 
 +(NSString*) ownDisplayNameForAccount:(xmpp*) account;
 
-@property (readonly) NSString* id;     //for Identifiable protocol
-
-@property (nonatomic, readonly) BOOL isSelfChat;
 @property (nonatomic, readonly) BOOL isListedLocally;
 @property (nonatomic, readonly) BOOL isInRoster;
 @property (nonatomic, readonly) BOOL isSubscribedTo;
@@ -40,20 +38,15 @@ FOUNDATION_EXPORT NSString* const kAskSubscribe;
 @property (nonatomic, readonly) BOOL hasIncomingContactRequest;
 @property (nonatomic, readonly) BOOL hasOutgoingContactRequest;
 
--(BOOL) isEqualToContact:(MLContact*) contact;
--(BOOL) isEqualToMessage:(MLMessage*) message;
--(BOOL) isEqual:(id _Nullable) object;
-
-+(MLContact*) createContactFromJid:(NSString*) jid andAccountNo:(NSNumber*) accountNo;
++(MLContact*) createContactFromJid:(NSString*) jid andAccountID:(NSNumber*) accountID;
 
 /**
  account number in the database should be an integer
  */
-@property (nonatomic, readonly) NSNumber* accountId;
+@property (nonatomic, readonly) NSNumber* accountID;
 @property (nonatomic, readonly) NSString* contactJid;
-@property (nonatomic, readonly, copy) UIImage* avatar;
-@property (nonatomic, readonly) BOOL hasAvatar;
 @property (nonatomic, readonly) NSString* fullName;
+@property (nonatomic, readonly) NSSet<NSString*>* rosterGroups;
 /**
  usually user assigned nick name
  */
@@ -71,6 +64,7 @@ FOUNDATION_EXPORT NSString* const kAskSubscribe;
  */
 @property (nonatomic, copy) NSString* statusMessage;
 @property (nonatomic, readonly) NSDate* _Nullable lastInteractionTime;
+@property (nonatomic, readonly) BOOL isTyping;
 
 /**
  used to display the badge on a row
@@ -83,7 +77,6 @@ FOUNDATION_EXPORT NSString* const kAskSubscribe;
 @property (nonatomic, readonly) BOOL isActiveChat;
 @property (nonatomic, assign) BOOL isEncrypted;
 
-@property (nonatomic, readonly) BOOL isGroup;
 @property (nonatomic, readonly) NSString* groupSubject;
 @property (nonatomic, readonly) NSString* mucType;
 @property (nonatomic, readonly) NSString* accountNickInGroup;
@@ -92,16 +85,16 @@ FOUNDATION_EXPORT NSString* const kAskSubscribe;
 @property (nonatomic, readonly) NSString* subscription; //roster subbscription state
 @property (nonatomic, readonly) NSString* ask; //whether we have tried to subscribe
 
-@property (nonatomic, readonly) NSString* contactDisplayName;
 @property (nonatomic, readonly) NSString* contactDisplayNameWithoutSelfnotesPrefix;
+
+// This property is used to avoid querying MAM if the top of the archive
+// was already reached in a previous query
+@property (nonatomic, readonly) BOOL hasReachedMamArchiveTop;
 
 -(NSString*) contactDisplayNameWithFallback:(NSString* _Nullable) fallbackName;
 -(NSString*) contactDisplayNameWithFallback:(NSString* _Nullable) fallbackName andSelfnotesPrefix:(BOOL) hasSelfnotesPrefix;
--(void) updateWithContact:(MLContact*) contact;
 -(void) refresh;
 -(void) updateUnreadCount;
-
-@property (strong, readonly) NSString* description;
 
 
 // *** mutating methods (for swiftui etc.) below ***
@@ -114,9 +107,8 @@ FOUNDATION_EXPORT NSString* const kAskSubscribe;
 -(void) removeFromRoster;
 -(void) addToRoster;
 -(void) clearHistory;
+-(void) markReachedMamArchiveTop;
 -(void) removeShareInteractions;
-
--(NSUInteger) hash;
 
 @end
 

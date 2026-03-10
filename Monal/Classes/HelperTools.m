@@ -20,6 +20,7 @@
 #include <objc/runtime.h> 
 #include <objc/message.h>
 #include <objc/objc-exception.h>
+#import <zlib.h>
 #import <sys/qos.h>
 #import <BackgroundTasks/BackgroundTasks.h>
 #import <CommonCrypto/CommonDigest.h>
@@ -32,32 +33,33 @@
 //#import <KSCrash/Recording/KSCrashReportStore.h>
 extern int64_t kscrs_getNextCrashReport(char* crashReportPathBuffer);
 #import <monalxmpp/monalxmpp-Swift.h>
-#import "hsluv.h"
-#import "HelperTools.h"
-#import "MLXMPPManager.h"
-#import "MLPubSub.h"
-#import "MLUDPLogger.h"
-#import "MLHandler.h"
+#import <monalxmpp/hsluv.h>
+#import <monalxmpp/HelperTools.h>
+#import <monalxmpp/MLXMPPManager.h>
+#import <monalxmpp/MLPubSub.h>
+#import <monalxmpp/MLUDPLogger.h>
+#import <monalxmpp/MLHandler.h>
 #import "MLBasePaser.h"
-#import "MLXMLNode.h"
-#import "XMPPStanza.h"
+#import <monalxmpp/MLXMLNode.h>
+#import <monalxmpp/XMPPStanza.h>
 #import "XMPPIQ.h"
-#import "XMPPPresence.h"
+#import <monalxmpp/XMPPPresence.h>
 #import "XMPPMessage.h"
-#import "XMPPDataForm.h"
-#import "xmpp.h"
-#import "MLNotificationQueue.h"
-#import "MLContact.h"
-#import "MLMessage.h"
-#import "MLFiletransfer.h"
-#import "DataLayer.h"
-#import "OmemoState.h"
-#import "MLUDPLogger.h"
-#import "MLStreamRedirect.h"
+#import <monalxmpp/XMPPDataForm.h>
+#import <monalxmpp/xmpp.h>
+#import <monalxmpp/MLNotificationQueue.h>
+#import <monalxmpp/MLContact.h>
+#import <monalxmpp/MLMessage.h>
+#import <monalxmpp/MLFileTransfer.h>
+#import <monalxmpp/DataLayer.h>
+#import <monalxmpp/OmemoState.h>
+#import <monalxmpp/MLUDPLogger.h>
+#import <monalxmpp/MLStreamRedirect.h>
 #import "commithash.h"
-#import "MLContactSoftwareVersionInfo.h"
-#import "IPC.h"
-#import "MLDelayableTimer.h"
+#import <monalxmpp/MLContactSoftwareVersionInfo.h>
+#import <monalxmpp/IPC.h>
+#import <monalxmpp/MLDelayableTimer.h>
+#import <monalxmpp/Quicksy_Country.h>
 
 @import UserNotifications;
 @import CoreImage;
@@ -76,6 +78,11 @@ extern int64_t kscrs_getNextCrashReport(char* crashReportPathBuffer);
 -(void) invalidate;
 @end
 
+@interface NSUserDefaults (SerializeNSObject)
+-(id) swizzled_objectForKey:(NSString*) defaultName;
+-(void) swizzled_setObject:(id) value forKey:(NSString*) defaultName;
+@end
+
 //make method visible
 @interface DDLog()
 -(void) queueLogMessage:(DDLogMessage*) logMessage asynchronously:(BOOL) asyncFlag;
@@ -85,22 +92,29 @@ extern int64_t kscrs_getNextCrashReport(char* crashReportPathBuffer);
 -(void) swizzled_queueLogMessage:(DDLogMessage*) logMessage asynchronously:(BOOL) asyncFlag;
 @end
 
+@interface PMKArray (AllowSerialization) <NSSecureCoding>
++(BOOL) supportsSecureCoding;
+-(void) encodeWithCoder:(NSCoder*) coder;
+-(instancetype) initWithCoder:(NSCoder*) coder;
+@end
+
 static char* _crashBundleName = "UnifiedReport";
 static NSString* _processID;
 static DDFileLogger* _fileLogger = nil;
+static uint64_t _nextCrashId = 0;
 static char _origLogfilePath[1024] = "";
 static char _logfilePath[1024] = "";
+static char _origProfilePath[1024] = "";
+static char _profilePath[1024] = "";
 static NSObject* _isAppExtensionLock = nil;
 static NSObject* _suspensionHandling_lock = nil;
 static BOOL _suspensionHandling_isSuspended = NO;
 static NSMutableDictionary* _versionInfoCache;
 static NSCharacterSet* _invalidXMLCharacters;
+static NSCharacterSet* _validVs16Emojis;
 static MLStreamRedirect* _stdoutRedirector = nil;
 static MLStreamRedirect* _stderrRedirector = nil;
 static volatile void (*_oldExceptionHandler)(NSException*) = NULL;
-#if TARGET_OS_MACCATALYST
-static objc_exception_preprocessor _oldExceptionPreprocessor = NULL;
-#endif
 
 //shamelessly stolen from utils.ip in conversations source
 static NSRegularExpression* IPV4;
@@ -140,7 +154,6 @@ void exitLogging(void)
 // running under the debugger or has a debugger attached post facto).
 bool isDebugerActive(void)
 {
-#ifdef IS_ALPHA
     int                 junk;
     int                 mib[4];
     struct kinfo_proc   info;
@@ -164,9 +177,6 @@ bool isDebugerActive(void)
 
     // We're being debugged if the P_TRACED flag is set.
     return ( (info.kp_proc.p_flag & P_TRACED) != 0 );
-#else
-    return 0;
-#endif
 }
 
 //see https://stackoverflow.com/a/2180788
@@ -245,27 +255,32 @@ static void addFilePathWithSize(const KSCrashReportWriter* writer, char* name, c
 
 static void crash_callback(const KSCrashReportWriter* writer)
 {
-    int copyRetval = asyncSafeCopyFile(_origLogfilePath, _logfilePath);
-    int errnoCopy = errno;
+    //copy current logfile
+    int logfileCopyRetval = asyncSafeCopyFile(_origLogfilePath, _logfilePath);
+    int errnoLogfileCopy = errno;
     writer->addStringElement(writer, "logfileCopied", "YES");
-    writer->addIntegerElement(writer, "logfileCopyResult", copyRetval);
-    writer->addIntegerElement(writer, "logfileCopyErrno", errnoCopy);
+    writer->addIntegerElement(writer, "logfileCopyResult", logfileCopyRetval);
+    writer->addIntegerElement(writer, "logfileCopyErrno", errnoLogfileCopy);
     addFilePathWithSize(writer, "logfileCopy", _logfilePath);
     //this comes last to make sure we see size differences if the logfile got written during crash data collection (could be other processes)
     addFilePathWithSize(writer, "currentLogfile", _origLogfilePath);
+    
+    //copy current profiling file (see https://leodido.dev/demystifying-profraw/)
+    int profileCopyRetval = asyncSafeCopyFile(_origProfilePath, _profilePath);
+    int errnoProfileCopy = errno;
+    writer->addStringElement(writer, "profileCopied", "YES");
+    writer->addIntegerElement(writer, "profileCopyResult", profileCopyRetval);
+    writer->addIntegerElement(writer, "profileCopyErrno", errnoProfileCopy);
+    addFilePathWithSize(writer, "profileCopy", _profilePath);
+    //this comes last to make sure we see size differences if the logfile got written during crash data collection (could be other processes)
+    addFilePathWithSize(writer, "currentProfile", _origProfilePath);
 }
 
 void logException(NSException* exception)
 {
-#if TARGET_OS_MACCATALYST
-    NSString* prefix = @"POSSIBLE_CRASH";
-#else
     NSString* prefix = @"CRASH";
-#endif
     //log error and flush all logs
-    [DDLog flushLog];
     DDLogError(@"*****************\n%@(%@): %@\nUserInfo: %@\nStack Trace: %@", prefix, [exception name], [exception reason], [exception userInfo], [exception callStackSymbols]);
-    [DDLog flushLog];
     [HelperTools flushLogsWithTimeout:0.250];
 }
 
@@ -275,7 +290,10 @@ void uncaughtExceptionHandler(NSException* exception)
 
     //don't report that crash through KSCrash if the debugger is active
     if(isDebugerActive())
+    {
+        DDLogError(@"Not reporting crash through KSCrash: debugger is active!");
         return;
+    }
     
     //make sure this crash will be recorded by kscrash using the NSException rather than the c++ exception thrown by the objc runtime
     //this will make sure that the stacktrace matches the objc exception rather than being a top level c++ stacktrace
@@ -283,16 +301,6 @@ void uncaughtExceptionHandler(NSException* exception)
 }
 
 //this function will only be in use under macos alpha builds to log every exception (even when catched with @try-@catch constructs)
-#if TARGET_OS_MACCATALYST
-static id preprocess(id exception)
-{
-    id preprocessed = exception;
-    if(_oldExceptionPreprocessor != NULL)
-        preprocessed = _oldExceptionPreprocessor(exception);
-    logException(preprocessed);
-    return preprocessed;
-}
-#endif
 
 void swizzle(Class c, SEL orig, SEL new)
 {
@@ -302,6 +310,30 @@ void swizzle(Class c, SEL orig, SEL new)
         class_replaceMethod(c, new, method_getImplementation(origMethod), method_getTypeEncoding(origMethod));
     else
         method_exchangeImplementations(origMethod, newMethod);
+}
+
+static void notification_center_logging(CFNotificationCenterRef center, void* observer, CFStringRef name, const void* object, CFDictionaryRef userInfo)
+{
+    // The `object` pointers of some Apple-internal notifications don't represent objective-C objects.
+    // Trying to log them as such causes a crash. They are all related to audio / video file playback.
+    NSArray* unprintableNotifications = @[
+        @"FPM_PlayableRangeChanged",
+        @"FPM_StreamLikelyToKeepUp",
+        @"MentorPrerollComplete",
+        @"MentorStoppingDueToCompletion",
+        @"MentorPausingDueToHighWaterLevel",
+        @"MentorResumingAfterHighWaterLevel",
+        @"MentorResettingDueToModeSwitch",
+        @"pool_ForgetBlock", // logging this doesn't cause a crash, but it breaks audio / video file playblack
+    ];
+    if([unprintableNotifications containsObject:(__bridge NSString*)name])
+        DDLogDebug(@"NSNotification %@ with <unprintable object>: %@", name, userInfo);
+    else if([(__bridge NSString*)name isEqualToString:@"BufferConsumed"])
+        // Received when generating a video's thumbnail for the upload item preview
+        // In addition to its `object`, its `userInfo` also contains an unprintable value
+        DDLogDebug(@"NSNotification %@ with <unprintable object>: <unprintable userInfo>", name);
+    else
+        DDLogDebug(@"NSNotification %@ with %@: %@", name, object, userInfo);
 }
 
 @implementation WeakContainer
@@ -322,6 +354,64 @@ void swizzle(Class c, SEL orig, SEL new)
 -(BOOL) ml_isDirect
 {
     return ((NSNumber*)objc_getAssociatedObject(self, @selector(ml_isDirect))).boolValue;
+}
+@end
+
+@implementation NSUserDefaults (SerializeNSObject)
+-(id) swizzled_objectForKey:(NSString*) defaultName
+{
+    //this will call the original not this one, because of swizzling!
+    id data = [self swizzled_objectForKey:defaultName];
+    //always unserialize this: every real NSData should be serialized to NSData (e.g. an NSData containing a serialized NSData)
+    //and therefore any exception thrown by unserialize of not serialized data should never happen as it is an implementation error in Monal
+    if([data isKindOfClass:[NSData class]])
+    {
+        @try {
+            return [HelperTools unserializeData:data];
+        } @catch (NSException* exception) {
+            NSMutableDictionary* userInfo = [NSMutableDictionary dictionaryWithDictionary:nilDefault(exception.userInfo, @{})];
+            [userInfo addEntriesFromDictionary:@{@"userDefaultsName":defaultName}];
+            @throw [NSException exceptionWithName:exception.name reason:exception.reason userInfo:userInfo];
+        }
+    }
+    return data;
+}
+
+-(void) swizzled_setObject:(id) value forKey:(NSString*) defaultName
+{
+    id toSave = value;
+    //these are the default datatypes/class clusters already handled by NSUserDefaults
+    //(NSData gets a special handling by us and is therefore not listed here)
+    if(
+        [value isKindOfClass:[NSString class]] ||
+        [value isKindOfClass:[NSNumber class]] ||
+        [value isKindOfClass:[NSDate class]] ||
+        [value isKindOfClass:[NSURL class]] ||
+        [value isKindOfClass:[NSDictionary class]] ||
+        [value isKindOfClass:[NSMutableDictionary class]] ||
+        [value isKindOfClass:[NSArray class]] ||
+        [value isKindOfClass:[NSMutableArray class]] ||
+        value == nil
+    )
+        ;       //do nothing, already handled by original NSUserDefaults method
+    //every NSData should be double serialized (see swizzled_objectForKey: above for a detailed explanation)
+    //everything else will just be (single) serialized to NSData
+    else
+        toSave = [HelperTools serializeObject:value];
+    return [self swizzled_setObject:toSave forKey:defaultName];
+}
+
+//see https://stackoverflow.com/a/13326633 and https://fek.io/blog/method-swizzling-in-obj-c-and-swift/
++(void) load
+{
+    if(self == NSUserDefaults.self)
+    {
+        static dispatch_once_t onceToken;
+        dispatch_once(&onceToken, ^{
+            swizzle([self class], @selector(objectForKey:), @selector(swizzled_objectForKey:));
+            swizzle([self class], @selector(setObject:forKey:), @selector(swizzled_setObject:forKey:));
+        });
+    }
 }
 @end
 
@@ -368,6 +458,31 @@ void swizzle(Class c, SEL orig, SEL new)
 
 @end
 
+@implementation PMKArray (AllowSerialization)
+
++(BOOL) supportsSecureCoding
+{
+    return YES;
+}
+
+-(void) encodeWithCoder:(NSCoder*) coder
+{
+    [coder encodeInteger:self->count forKey:@"count"];
+    for(NSUInteger c=0; c<self->count; c++)
+        [coder encodeObject:self->objs[c] forKey:[NSString stringWithFormat:@"%@", @(c)]];
+}
+
+-(instancetype) initWithCoder:(NSCoder*) coder
+{
+    self = [self init];
+    self->count = [coder decodeIntegerForKey:@"count"];
+    for(NSUInteger c=0; c<self->count; c++)
+        self->objs[c] = [coder decodeObjectForKey:[NSString stringWithFormat:@"%@", @(c)]];
+    return self;
+}
+
+@end
+
 @implementation HelperTools
 
 +(void) initialize
@@ -398,6 +513,9 @@ void swizzle(Class c, SEL orig, SEL new)
 
     [validXMLCharacters removeCharactersInString:notRecommendedXMLCharacters];
     _invalidXMLCharacters = [validXMLCharacters invertedSet];
+    
+    //listed with vs16 at https://www.unicode.org/Public/emoji/latest/emoji-sequences.txt
+    _validVs16Emojis = [NSCharacterSet characterSetWithCharactersInString:@"\u00A9\u00AE\u203C\u2049\u2122\u2139\u2194\u2195\u2196\u2197\u2198\u2199\u21A9\u21AA\u2328\u23CF\u23ED\u23EE\u23EF\u23F1\u23F2\u23F8\u23F9\u23FA\u24C2\u25AA\u25AB\u25B6\u25C0\u25FB\u25FC\u2600\u2601\u2602\u2603\u2604\u260E\u2611\u2618\u261D\u2620\u2622\u2623\u2626\u262A\u262E\u262F\u2638\u2639\u263A\u2640\u2642\u265F\u2660\u2663\u2665\u2666\u2668\u267B\u267E\u2692\u2694\u2695\u2696\u2697\u2699\u269B\u269C\u26A0\u26A7\u26B0\u26B1\u26C8\u26CF\u26D1\u26D3\u26E9\u26F0\u26F1\u26F4\u26F7\u26F8\u26F9\u2702\u2708\u2709\u270C\u270D\u270F\u2712\u2714\u2716\u271D\u2721\u2733\u2734\u2744\u2747\u2763\u2764\u27A1\u2934\u2935\u2B05\u2B06\u2B07\u3030\u303D\u3297\u3299\U0001F170\U0001F171\U0001F17E\U0001F17F\U0001F202\U0001F237\U0001F321\U0001F324\U0001F325\U0001F326\U0001F327\U0001F328\U0001F329\U0001F32A\U0001F32B\U0001F32C\U0001F336\U0001F37D\U0001F396\U0001F397\U0001F399\U0001F39A\U0001F39B\U0001F39E\U0001F39F\U0001F3CB\U0001F3CC\U0001F3CD\U0001F3CE\U0001F3D4\U0001F3D5\U0001F3D6\U0001F3D7\U0001F3D8\U0001F3D9\U0001F3DA\U0001F3DB\U0001F3DC\U0001F3DD\U0001F3DE\U0001F3DF\U0001F3F3\U0001F3F5\U0001F3F7\U0001F43F\U0001F441\U0001F4FD\U0001F549\U0001F54A\U0001F56F\U0001F570\U0001F573\U0001F574\U0001F575\U0001F576\U0001F577\U0001F578\U0001F579\U0001F587\U0001F58A\U0001F58B\U0001F58C\U0001F58D\U0001F590\U0001F5A5\U0001F5A8\U0001F5B1\U0001F5B2\U0001F5BC\U0001F5C2\U0001F5C3\U0001F5C4\U0001F5D1\U0001F5D2\U0001F5D3\U0001F5DC\U0001F5DD\U0001F5DE\U0001F5E1\U0001F5E3\U0001F5E8\U0001F5EF\U0001F5F3\U0001F5FA\U0001F6CB\U0001F6CD\U0001F6CE\U0001F6CF\U0001F6E0\U0001F6E1\U0001F6E2\U0001F6E3\U0001F6E4\U0001F6E5\U0001F6E9\U0001F6F0\U0001F6F3#*0123456789"];
 
     //shamelessly stolen from utils.ip in conversations source
     IPV4 = [NSRegularExpression regularExpressionWithPattern:@"\\A(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)(\\.(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)){3}\\z" options:0 error:nil];
@@ -416,22 +534,6 @@ void swizzle(Class c, SEL orig, SEL new)
         DDLogVerbose(@"Replaced unhandled exception handler, old handler: %p, new handler: %p", NSGetUncaughtExceptionHandler(), &uncaughtExceptionHandler);
         NSSetUncaughtExceptionHandler(uncaughtExceptionHandler);
     }
-    
-#if TARGET_OS_MACCATALYST
-    //this is needed for catalyst because catalyst apps are based on NSApplication which will swallow exceptions on the main thread and just continue
-    //see: https://stackoverflow.com/questions/3336278/why-is-raising-an-nsexception-not-bringing-down-my-application
-    //obj exception handling explanation: https://stackoverflow.com/a/28391007/3528174
-    //objc exception implementation: https://opensource.apple.com/source/objc4/objc4-818.2/runtime/objc-exception.mm.auto.html
-    //objc exception header: https://opensource.apple.com/source/objc4/objc4-818.2/runtime/objc-exception.h.auto.html
-    //example C++ exception ABI: https://github.com/nicolasbrailo/cpp_exception_handling_abi/tree/master/abi_v12
-    
-    //this will log the exception
-    if(_oldExceptionPreprocessor == NULL)
-        _oldExceptionPreprocessor = objc_setExceptionPreprocessor(preprocess);
-    
-    //this will stop the swallowing
-    [[NSUserDefaults standardUserDefaults] registerDefaults:@{@"NSApplicationCrashOnExceptions": @YES}];
-#endif
 }
 
 +(void) __attribute__((noreturn)) MLAssertWithText:(NSString*) text andUserData:(id) userInfo andFile:(const char* const) file andLine:(int) line andFunc:(const char* const) func
@@ -471,10 +573,10 @@ void swizzle(Class c, SEL orig, SEL new)
     {
         //disconnect and reset state (including pipelined auth etc.)
         //this has to be done before disabling the account to not trigger an assertion
-        [[MLXMPPManager sharedInstance] disconnectAccount:account.accountNo withExplicitLogout:YES];
+        [[MLXMPPManager sharedInstance] disconnectAccount:account.accountID withExplicitLogout:YES];
 
         //make sure we don't try this again even when the mainapp/appex gets restarted
-        NSMutableDictionary* accountDic = [[NSMutableDictionary alloc] initWithDictionary:[[DataLayer sharedInstance] detailsForAccount:account.accountNo] copyItems:YES];
+        NSMutableDictionary* accountDic = [[NSMutableDictionary alloc] initWithDictionary:[[DataLayer sharedInstance] detailsForAccount:account.accountID] copyItems:YES];
         accountDic[kEnabled] = @NO;
         [[DataLayer sharedInstance] updateAccounWithDictionary:accountDic];
     }
@@ -495,24 +597,7 @@ void swizzle(Class c, SEL orig, SEL new)
     NSString* message = description;
     if(node)
         message = [self extractXMPPError:node withDescription:description];
-#ifdef IS_ALPHA
-    DDLogError(@"Notifying alpha user about error on account %@ at %@:%d in %s: %@", account, fileStr, line, func, message);
-    if(account != nil)
-        [[MLNotificationQueue currentQueue] postNotificationName:kXMPPError object:account userInfo:@{@"message": message, @"isSevere":@YES}];
-    else
-    {
-        UNMutableNotificationContent* content = [UNMutableNotificationContent new];
-        content.title = @"Global Error";
-        content.body = message;
-        content.sound = [UNNotificationSound defaultSound];
-        UNNotificationRequest* request = [UNNotificationRequest requestWithIdentifier:[[NSUUID UUID] UUIDString] content:content trigger:nil];
-        NSError* error = [self postUserNotificationRequest:request];
-        if(error)
-            DDLogError(@"Error posting global alpha xmppError notification: %@", error);
-    }
-#else
     DDLogWarn(@"Ignoring alpha-only error at %@:%d in %s: %@", fileStr, line, func, message);
-#endif
 }
 
 +(NSString*) extractXMPPError:(XMPPStanza*) stanza withDescription:(NSString*) description
@@ -529,6 +614,12 @@ void swizzle(Class c, SEL orig, SEL new)
     return message;
 }
 
++(NSError*) getNSErrorFrom:(XMPPStanza*) stanza withDescription:(NSString*) description
+{
+    NSString* errorMessage = [HelperTools extractXMPPError:stanza withDescription:description];
+    return [NSError errorWithDomain:@"Monal" code:0 userInfo:@{NSLocalizedDescriptionKey: errorMessage}];
+}
+
 +(void) initSystem
 {
     BOOL enableDefaultLogAndCrashFramework = YES;
@@ -542,10 +633,35 @@ void swizzle(Class c, SEL orig, SEL new)
         //don't install KSCrash if the debugger is active
         if(!isDebugerActive())
             [self installCrashHandler];
+        else
+            DDLogWarn(@"Not installing crash handler: debugger is active!");
         [self installExceptionHandler];
     }
     else
         [self configureXcodeLogging];
+    
+    //enable logging of all NSNotifications only on debug builds or if the debug menu was activated
+#ifdef DEBUG
+    BOOL enableNotificationObserver = YES;
+#else
+    BOOL enableNotificationObserver = [[HelperTools defaultsDB] boolForKey:@"showLogInSettings"];
+#endif
+    if(enableNotificationObserver && [[HelperTools defaultsDB] boolForKey:@"debugNSNotifications"])
+    {
+        //see https://stackoverflow.com/a/3738387
+        CFNotificationCenterAddObserver(CFNotificationCenterGetLocalCenter(),
+            NULL,
+            notification_center_logging,
+            NULL,
+            NULL,
+            CFNotificationSuspensionBehaviorDeliverImmediately);
+    }
+    
+    atexit(exitLogging);
+    
+    //set right path for llvm default.profraw file
+    NSString* profrawFilePath = [[HelperTools getContainerURLForPathComponents:@[@"default.profraw"]] path];
+    setenv("LLVM_PROFILE_FILE", profrawFilePath.UTF8String, 1);
     
     [SwiftHelpers initSwiftHelpers];
     [self activityLog];
@@ -582,9 +698,6 @@ void swizzle(Class c, SEL orig, SEL new)
 
 +(NSString*) getSelectedPushServerBasedOnLocale
 {
-#ifdef IS_ALPHA
-    return @"alpha.push.monal-im.org";
-#else
     return @"eu.prod.push.monal-im.org";
     /*
     if([[[NSLocale currentLocale] countryCode] isEqualToString:@"US"])
@@ -596,7 +709,6 @@ void swizzle(Class c, SEL orig, SEL new)
         return @"eu.prod.push.monal-im.org";
     }
     */
-#endif
 }
 
 +(NSDictionary<NSString*, NSString*>*) getAvailablePushServers
@@ -605,33 +717,25 @@ void swizzle(Class c, SEL orig, SEL new)
         //@"us.prod.push.monal-im.org": @"US",
         @"eu.prod.push.monal-im.org": @"Europe",
         @"alpha.push.monal-im.org": @"Alpha/Debug (more Logging)",
-#ifdef IS_ALPHA
-        @"disabled.push.monal-im.org": @"Disabled - Alpha Test",
-#endif
     };
 }
 
 +(NSArray<NSString*>*) getFailoverStunServers
 {
     return @[
-#ifdef IS_ALPHA
-        @"stuns:alpha.turn.monal-im.org:443",
-        @"stuns:alpha.turn.monal-im.org:3478",
-#else
         @"stuns:eu.prod.turn.monal-im.org:443",
         @"stuns:eu.prod.turn.monal-im.org:3478",
-#endif
     ];
 }
 
 //this wrapper is needed, because MLChatImageCell can't import our monalxmpp-Swift bridging header, but importing HelperTools is okay
-+(UIImage* _Nullable) renderUIImageFromSVGURL:(NSURL* _Nullable) url    API_AVAILABLE(ios(16.0), macosx(13.0))  //means: API_AVAILABLE(ios(16.0), maccatalyst(16.0))
++(AnyPromise*) renderUIImageFromSVGURL:(NSURL* _Nullable) url
 {
     return [SwiftHelpers _renderUIImageFromSVGURL:url];
 }
 
 //this wrapper is needed, because MLChatImageCell can't import our monalxmpp-Swift bridging header, but importing HelperTools is okay
-+(UIImage* _Nullable) renderUIImageFromSVGData:(NSData* _Nullable) data    API_AVAILABLE(ios(16.0), macosx(13.0))  //means: API_AVAILABLE(ios(16.0), maccatalyst(16.0))
++(AnyPromise*) renderUIImageFromSVGData:(NSData* _Nullable) data
 {
     return [SwiftHelpers _renderUIImageFromSVGData:data];
 }
@@ -652,24 +756,6 @@ void swizzle(Class c, SEL orig, SEL new)
     }
     if(busyWaitCounter > 0)
         DDLogWarn(@"busyWaitFor:%@ --> busyWaitCounter=%d, waitTime=%f", queue.name, busyWaitCounter, waitTime);
-}
-
-+(id) getObjcDefinedValue:(MLDefinedIdentifier) identifier
-{
-    switch(identifier)
-    {
-        case MLDefinedIdentifier_kAppGroup: return kAppGroup; break;
-        case MLDefinedIdentifier_kMonalOpenURL: return kMonalOpenURL; break;
-        case MLDefinedIdentifier_kBackgroundProcessingTask: return kBackgroundProcessingTask; break;
-        case MLDefinedIdentifier_kBackgroundRefreshingTask: return kBackgroundRefreshingTask; break;
-        case MLDefinedIdentifier_kMonalKeychainName: return kMonalKeychainName; break;
-        case MLDefinedIdentifier_SHORT_PING: return @(SHORT_PING); break;
-        case MLDefinedIdentifier_LONG_PING: return @(LONG_PING); break;
-        case MLDefinedIdentifier_MUC_PING: return @(MUC_PING); break;
-        case MLDefinedIdentifier_BGFETCH_DEFAULT_INTERVAL: return @(BGFETCH_DEFAULT_INTERVAL); break;
-        default:
-            unreachable(@"unknown MLDefinedIdentifier!");
-    }
 }
 
 +(NSRunLoop*) getExtraRunloopWithIdentifier:(MLRunLoopIdentifier) identifier
@@ -762,24 +848,13 @@ void swizzle(Class c, SEL orig, SEL new)
 +(NSURL*) getFailoverTurnApiServer
 {
     NSString* turnApiServer;
-#ifdef IS_ALPHA
-    turnApiServer = @"https://alpha.turn.monal-im.org";
-#else
     turnApiServer = @"https://eu.prod.turn.monal-im.org";
-#endif
     return [NSURL URLWithString:turnApiServer];
 }
 
 +(BOOL) shouldProvideVoip
 {
     BOOL shouldProvideVoip = NO;
-#if TARGET_OS_MACCATALYST
-#ifdef IS_ALPHA
-    shouldProvideVoip = YES;
-#endif
-#else
-    shouldProvideVoip = YES;
-#endif
     return shouldProvideVoip;
 }
     
@@ -791,12 +866,7 @@ void swizzle(Class c, SEL orig, SEL new)
 #else
     // check if were are sandbox or production
     NSString* embeddedProvPath;
-#if TARGET_OS_MACCATALYST
-    NSString* bundleURL = [[NSBundle mainBundle] bundleURL].absoluteString;
-    embeddedProvPath = [[[bundleURL componentsSeparatedByString:@"file://"] objectAtIndex:1] stringByAppendingString:@"Contents/embedded.provisionprofile"];
-#else
     embeddedProvPath = [[NSBundle mainBundle] pathForResource:@"embedded" ofType:@"mobileprovision"];
-#endif
     DDLogVerbose(@"Loading embedded provision plist at: %@", embeddedProvPath);
     NSError* loadingError;
     NSString* embeddedProvStr = [NSString stringWithContentsOfFile:embeddedProvPath encoding:NSISOLatin1StringEncoding error:&loadingError];
@@ -890,6 +960,8 @@ void swizzle(Class c, SEL orig, SEL new)
 
 +(id) unserializeData:(NSData*) data
 {
+    if(data == nil)
+        return nil;
     NSError* error;
     id obj = [NSKeyedUnarchiver unarchivedObjectOfClasses:[[NSSet alloc] initWithArray:@[
         [NSData class],
@@ -898,6 +970,8 @@ void swizzle(Class c, SEL orig, SEL new)
         [NSDictionary class],
         [NSMutableSet class],
         [NSSet class],
+        [NSMutableOrderedSet class],
+        [NSOrderedSet class],
         [NSMutableArray class],
         [NSArray class],
         [NSNumber class],
@@ -914,6 +988,11 @@ void swizzle(Class c, SEL orig, SEL new)
         [NSURL class],
         [OmemoState class],
         [MLContactSoftwareVersionInfo class],
+        [Quicksy_Country class],
+        [NSUUID class],
+        [MLPromise class],
+        [NSError class],
+        [PMKArray class],
     ]] fromData:data error:&error];
     if(error)
         @throw [NSException exceptionWithName:@"NSError" reason:[NSString stringWithFormat:@"%@", error] userInfo:@{@"error": error}];
@@ -945,39 +1024,91 @@ void swizzle(Class c, SEL orig, SEL new)
     return retval;
 }
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wcompletion-handler"
-+(void) addUploadItemPreviewForItem:(NSURL* _Nullable) url provider:(NSItemProvider* _Nullable) provider andPayload:(NSMutableDictionary*) payload withCompletionHandler:(void(^)(NSMutableDictionary* _Nullable)) completion
++(void) createAVURLAssetFromFile:(NSString*) file havingMimeType:(NSString*) mimeType andFileExtension:(NSString* _Nullable) fileExtension withCompletionHandler:(void(^)(AVURLAsset* _Nullable)) completion
 {
-    void (^useProvider)() = ^() {
-        if(provider == nil)
-        {
-            DDLogWarn(@"Can not creating preview image via item provider, no provider present: using generic doc image instead");
-            payload[@"preview"] = [UIImage systemImageNamed:@"doc"];
-            [url stopAccessingSecurityScopedResource];
-            return completion(payload);
-        }
-        else
-            [provider loadPreviewImageWithOptions:nil completionHandler:^(UIImage*  _Nullable previewImage, NSError* _Null_unspecified error) {
-                if(error != nil || previewImage == nil)
-                {
-                    if(url == nil)
-                    {
-                        DDLogWarn(@"Error creating preview image via item provider, using generic doc image instead: %@", error);
-                        payload[@"preview"] = [UIImage systemImageNamed:@"doc"];
-                    }
-                }
-                else
-                {
-                    DDLogVerbose(@"Managed to generate thumbnail for url=%@ using loadPreviewImageWithOptions: %@", url, previewImage);
-                    payload[@"preview"] = previewImage;
-                }
-                [url stopAccessingSecurityScopedResource];
-                return completion(payload);
-            }];
-    };
-    if(url != nil)
+    NSURL* fileUrl = [NSURL fileURLWithPath:file];
+    if(@available(iOS 17.0, *))
     {
+        //generate an AVURLAsset using the modern ios 17 method to attach a mime type to an AVURLAsset
+        return completion([AVURLAsset URLAssetWithURL:fileUrl options:@{AVURLAssetOverrideMIMETypeKey: mimeType}]);
+    }
+    else
+        return completion([AVURLAsset URLAssetWithURL:fileUrl options:@{@"AVURLAssetOutOfBandMIMETypeKey": mimeType}]);
+}
+
++(AnyPromise*) computeMediaDurationFromFile:(NSString*) file havingMimeType:(NSString*) mimeType andFileExtension:(NSString* _Nullable) fileExtension
+{
+    return [AnyPromise promiseWithResolverBlock:^(PMKResolver resolve) {
+        [self createAVURLAssetFromFile:file havingMimeType:mimeType andFileExtension:fileExtension withCompletionHandler:^(AVURLAsset* asset) {
+            if(asset == nil)
+                return resolve([NSError errorWithDomain:@"Monal" code:0 userInfo:@{NSLocalizedDescriptionKey: @"Could not create AVURLAsset"}]);
+
+            [asset loadValuesAsynchronouslyForKeys:@[@"duration"] completionHandler:^{
+                Float64 duration = CMTimeGetSeconds(asset.duration);
+                resolve(@(duration));
+            }];
+        }];
+    }];
+}
+
++(AnyPromise*) generateVideoThumbnailFromFile:(NSString*) file havingMimeType:(NSString*) mimeType andFileExtension:(NSString* _Nullable) fileExtension
+{
+    return [AnyPromise promiseWithResolverBlock:^(PMKResolver resolve) {
+        [self createAVURLAssetFromFile:file havingMimeType:mimeType andFileExtension:fileExtension withCompletionHandler:^(AVURLAsset* asset) {
+            if(asset == nil)
+                return resolve([NSError errorWithDomain:@"Monal" code:0 userInfo:@{NSLocalizedDescriptionKey: @"Could not create AVURLAsset"}]);
+            
+            AVAssetImageGenerator* imageGenerator = [[AVAssetImageGenerator alloc] initWithAsset:asset];
+            imageGenerator.appliesPreferredTrackTransform=TRUE;
+            CMTime time = CMTimeMakeWithSeconds(1, 600);
+
+            [imageGenerator generateCGImageAsynchronouslyForTime:time completionHandler:^(CGImageRef image, CMTime actualTime, NSError* error) {
+                if(error != nil)
+                {
+                    DDLogError(@"Error generating thumbnail: %@", error);
+                    return resolve(error);
+                }
+                return resolve([UIImage imageWithCGImage:image]);
+            }];  
+        }];
+    }];
+}
+
++(AnyPromise*) addUploadItemPreviewForItem:(NSURL* _Nullable) url provider:(NSItemProvider* _Nullable) provider andPayload:(NSMutableDictionary*) payload
+{
+    return [AnyPromise promiseWithResolverBlock:^(PMKResolver resolve) {
+        void (^useProvider)() = ^() {
+            if(provider == nil)
+            {
+                DDLogWarn(@"Can not creating preview image via item provider, no provider present: using generic doc image instead");
+                payload[@"preview"] = [UIImage systemImageNamed:@"doc"];
+                [url stopAccessingSecurityScopedResource];
+                return resolve(payload);
+            }
+            else
+                [provider loadPreviewImageWithOptions:nil completionHandler:^(UIImage*  _Nullable previewImage, NSError* _Null_unspecified error) {
+                    if(error != nil || previewImage == nil)
+                    {
+                        if(url == nil)
+                        {
+                            DDLogWarn(@"Error creating preview image via item provider, using generic doc image instead: %@", error);
+                            payload[@"preview"] = [UIImage systemImageNamed:@"doc"];
+                        }
+                    }
+                    else
+                    {
+                        DDLogVerbose(@"Managed to generate thumbnail for url=%@ using loadPreviewImageWithOptions: %@", url, previewImage);
+                        payload[@"preview"] = previewImage;
+                    }
+                    [url stopAccessingSecurityScopedResource];
+                    return resolve(payload);
+                }];
+        };
+        
+        //if no url is given, try to use our provider as last resort
+        if(url == nil)
+            return useProvider();
+        
         DDLogVerbose(@"Generating thumbnail for url=%@", url);
         QLThumbnailGenerationRequest* request = [[QLThumbnailGenerationRequest alloc] initWithFileAtURL:url size:CGSizeMake(64, 64) scale:1.0 representationTypes:QLThumbnailGenerationRequestRepresentationTypeThumbnail];
         NSURL* tmpURL = [NSURL fileURLWithPath:NSTemporaryDirectory() isDirectory: YES];
@@ -992,7 +1123,7 @@ void swizzle(Class c, SEL orig, SEL new)
                     payload[@"preview"] = result;
                     DDLogVerbose(@"Managed to generate thumbnail for url=%@ using QLThumbnailGenerator: %@", url, result);
                     [url stopAccessingSecurityScopedResource];
-                    return completion(payload);     //don't fall through on success
+                    return resolve(payload);     //don't fall through on success
                 }
             }
             //if we fall through to this point, either the thumbnail generation or the imageWithContentsOfFile above failed
@@ -1004,7 +1135,7 @@ void swizzle(Class c, SEL orig, SEL new)
                 payload[@"preview"] = result;
                 DDLogVerbose(@"Managed to generate thumbnail for url=%@ using imageWithContentsOfFile: %@", url, result);
                 [url stopAccessingSecurityScopedResource];
-                return completion(payload);
+                return resolve(payload);
             }
             else
             {
@@ -1015,275 +1146,329 @@ void swizzle(Class c, SEL orig, SEL new)
                     payload[@"preview"] = imgCtrl.icons.firstObject;
                     DDLogVerbose(@"Managed to generate thumbnail for url=%@ using generic image for file: %@", url, imgCtrl.icons.firstObject);
                     [url stopAccessingSecurityScopedResource];
-                    return completion(payload);
+                    return resolve(payload);
                 }
             }
             
-            //last resort
-            useProvider();
+            //try to generate video thumbnail
+            NSString* mimeType = [UTType typeWithFilenameExtension:url.pathExtension].preferredMIMEType;
+            if(!mimeType)
+                mimeType = @"application/octet-stream";
+            [self generateVideoThumbnailFromFile:url.path havingMimeType:mimeType andFileExtension:url.pathExtension].then(^(UIImage* image) {
+                payload[@"preview"] = image;
+                DDLogVerbose(@"Managed to generate thumbnail for url=%@ using generateVideoThumbnailFromFile: %@", url, image);
+                [url stopAccessingSecurityScopedResource];
+                return resolve(payload);
+            }).catch(^(NSError* error) {
+                DDLogError(@"Could not create video thumbnail, using provider as last resort: %@", error);
+                
+                //last resort
+                useProvider();
+            });
         }];
-    }
-    else
-        useProvider();
+    }];
 }
-#pragma clang diagnostic pop
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wcompletion-handler"
-+(void) handleUploadItemProvider:(NSItemProvider*) provider withCompletionHandler:(void(^)(NSMutableDictionary* _Nullable)) completion
++(AnyPromise*) handleUploadItemProvider:(NSItemProvider*) provider
 {
-    NSMutableDictionary* payload = [NSMutableDictionary new];
-    //for a list of types, see UTCoreTypes.h in MobileCoreServices framework
-    DDLogInfo(@"ShareProvider: %@", provider.registeredTypeIdentifiers);
-    if(provider.suggestedName != nil)
-        payload[@"filename"] = provider.suggestedName;
-    
-    void (^prepareFile)(NSURL*) = ^(NSURL* item) {
-        NSError* error;
-        [item startAccessingSecurityScopedResource];
-        [[NSFileCoordinator new] coordinateReadingItemAtURL:item options:NSFileCoordinatorReadingForUploading error:&error byAccessor:^(NSURL* _Nonnull newURL) {
-            DDLogDebug(@"NSFileCoordinator called accessor: %@", newURL);
-            payload[@"data"] = [MLFiletransfer prepareFileUpload:newURL];
-            //we can not use newURL here, because it will fall out of scope while the preview is rendered in another thread
-            return [HelperTools addUploadItemPreviewForItem:item provider:provider andPayload:payload withCompletionHandler:completion];
-        }];
-        if(error != nil)
-        {
-            DDLogError(@"Error preparing file coordinator: %@", error);
-            payload[@"error"] = error;
-            [item stopAccessingSecurityScopedResource];
-            return completion(payload);
-        }
-    };
-    
-    if([provider hasItemConformingToTypeIdentifier:@"com.apple.mapkit.map-item"])
-    {
-        // convert map item to geo:
-        [provider loadItemForTypeIdentifier:@"com.apple.mapkit.map-item" options:nil completionHandler:^(NSData*  _Nullable item, NSError* _Null_unspecified error) {
-            if(error != nil || item == nil)
-            {
-                DDLogError(@"Error extracting item from NSItemProvider: %@", error);
-                payload[@"error"] = error;
-                return completion(payload);
-            }
-            NSError* err;
-            MKMapItem* mapItem = [NSKeyedUnarchiver unarchivedObjectOfClass:[MKMapItem class] fromData:item error:&err];
-            if(err != nil || mapItem == nil)
-            {
-                DDLogError(@"Error extracting mapkit item: %@", err);
-                payload[@"error"] = err;
-                return completion(payload);
-            }
-            else
-            {
-                DDLogInfo(@"Got mapkit item: %@", item);
-                payload[@"type"] = @"geo";
-                payload[@"data"] = [NSString stringWithFormat:@"geo:%f,%f", mapItem.placemark.coordinate.latitude, mapItem.placemark.coordinate.longitude];
-                return [HelperTools addUploadItemPreviewForItem:nil provider:provider andPayload:payload withCompletionHandler:completion];
-            }
-        }];
-    }
-    //the apple-private autoloop gif type has a bug that does not allow to load this as normal gif --> try audiovisual content below
-    else if([provider hasItemConformingToTypeIdentifier:UTTypeGIF.identifier] && ![provider hasItemConformingToTypeIdentifier:@"com.apple.private.auto-loop-gif"])
-    {
-        /*
-        [provider loadDataRepresentationForTypeIdentifier:UTTypeGIF.identifier completionHandler:^(NSData* data, NSError* error) {
-            if(error != nil || data == nil)
-            {
-                DDLogError(@"Error extracting gif image from NSItemProvider: %@", error);
-                payload[@"error"] = error;
-                return completion(payload);
-            }
-            DDLogInfo(@"Got gif image data: %@", data);
-            payload[@"type"] = @"file";
-            payload[@"data"] = [MLFiletransfer prepareDataUpload:data withFileExtension:@"gif"];
-            return [HelperTools addUploadItemPreviewForItem:nil provider:provider andPayload:payload withCompletionHandler:completion];
-        }];
-        */
-        [provider loadInPlaceFileRepresentationForTypeIdentifier:UTTypeGIF.identifier completionHandler:^(NSURL*  _Nullable item, BOOL isInPlace, NSError* _Null_unspecified error) {
-            if(error != nil || item == nil)
-            {
-                DDLogError(@"Error extracting gif image from NSItemProvider: %@", error);
-                payload[@"error"] = error;
-                return completion(payload);
-            }
-            DDLogInfo(@"Got %@ gif image item: %@", isInPlace ? @"(in place)" : @"(copied)", item);
-            payload[@"type"] = @"file";
-            return prepareFile(item);
-        }];
-    }
-    else if([provider hasItemConformingToTypeIdentifier:UTTypeAudiovisualContent.identifier])
-    {
-        [provider loadItemForTypeIdentifier:UTTypeAudiovisualContent.identifier options:nil completionHandler:^(NSURL*  _Nullable item, NSError* _Null_unspecified error) {
-            if(error != nil || item == nil)
-            {
-                DDLogError(@"Error extracting item from NSItemProvider: %@", error);
-                payload[@"error"] = error;
-                return completion(payload);
-            }
-            DDLogInfo(@"Got audiovisual item: %@", item);
-            payload[@"type"] = @"audiovisual";
-            return prepareFile(item);
-        }];
-    }
-    else if([provider hasItemConformingToTypeIdentifier:UTTypeImage.identifier])
-    {
-        [provider loadItemForTypeIdentifier:UTTypeImage.identifier options:nil completionHandler:^(NSURL*  _Nullable item, NSError* _Null_unspecified error) {
-            if(error != nil || item == nil)
-            {
-                //for example: image shared directly from screenshots
-                DDLogWarn(@"Got error, retrying with UIImage: %@", error);
-                [provider loadItemForTypeIdentifier:UTTypeImage.identifier options:nil completionHandler:^(UIImage*  _Nullable item, NSError* _Null_unspecified error) {
-                    if(error != nil || item == nil)
-                    {
-                        DDLogError(@"Error extracting item from NSItemProvider: %@", error);
-                        payload[@"error"] = error;
-                        return completion(payload);
-                    }
-                    DDLogInfo(@"Got memory image item: %@", item);
-                    payload[@"type"] = @"image";
-                    if(![[HelperTools defaultsDB] boolForKey:@"uploadImagesOriginal"])
-                    {
-                        //use prepareUIImageUpload to resize the image to the configured quality
-                        payload[@"data"] = [MLFiletransfer prepareUIImageUpload:item];
-                    }
-                    else
-                        payload[@"data"] = [MLFiletransfer prepareDataUpload:UIImagePNGRepresentation(item) withFileExtension:@"png"];
-                    payload[@"preview"] = item;
-                    return completion(payload);
+    return [AnyPromise promiseWithResolverBlock:^(PMKResolver resolve) {
+        NSMutableDictionary* payload = [NSMutableDictionary new];
+        
+        //for a list of types, see UTCoreTypes.h in MobileCoreServices framework
+        DDLogInfo(@"ShareProvider: %@", provider.registeredTypeIdentifiers);
+        
+        if(provider.suggestedName != nil)
+            payload[@"filename"] = provider.suggestedName;
+        
+        AnyPromise* (^prepareFile)(NSURL*) = ^(NSURL* item) {
+            return [AnyPromise promiseWithResolverBlock:^(PMKResolver resolve) {
+                NSError* error;
+                [item startAccessingSecurityScopedResource];
+                [[NSFileCoordinator new] coordinateReadingItemAtURL:item options:NSFileCoordinatorReadingForUploading error:&error byAccessor:^(NSURL* _Nonnull newURL) {
+                    DDLogDebug(@"NSFileCoordinator called accessor: %@", newURL);
+                    payload[@"data"] = [MLFiletransfer prepareFileUpload:newURL];
+                    //we can not use newURL here, because it will fall out of scope while the preview is rendered in another thread
+                    [HelperTools addUploadItemPreviewForItem:item provider:provider andPayload:payload].then(^(NSMutableDictionary* payload) {
+                        resolve(payload);
+                    });
+                    return;
                 }];
-            }
-            else
-            {
-                DDLogInfo(@"Got image item: %@", item);
-                payload[@"type"] = @"image";
-                if(![[HelperTools defaultsDB] boolForKey:@"uploadImagesOriginal"])
-                {
-                    [item startAccessingSecurityScopedResource];
-                    [[NSFileCoordinator new] coordinateReadingItemAtURL:item options:NSFileCoordinatorReadingForUploading error:&error byAccessor:^(NSURL* _Nonnull newURL) {
-                        DDLogDebug(@"NSFileCoordinator called accessor for image: %@", newURL);
-                        UIImage* image = [UIImage imageWithContentsOfFile:[newURL path]];
-                        DDLogDebug(@"Created UIImage: %@", image);
-                        //use prepareUIImageUpload to resize the image to the configured quality (instead of just uploading the raw image file)
-                        payload[@"data"] = [MLFiletransfer prepareUIImageUpload:image];
-                        //we can not use newURL here, because it will fall out of scope while the preview is rendered in another thread
-                        return [HelperTools addUploadItemPreviewForItem:item provider:provider andPayload:payload withCompletionHandler:completion];
-                    }];
-                }
-                else
-                    return prepareFile(item);
                 if(error != nil)
                 {
                     DDLogError(@"Error preparing file coordinator: %@", error);
                     payload[@"error"] = error;
                     [item stopAccessingSecurityScopedResource];
-                    return completion(payload);
+                    return resolve(payload);
                 }
-            }
-        }];
-    }
-    /*else if([provider hasItemConformingToTypeIdentifier:(NSString*)])
-    {
-    }
-    else if([provider hasItemConformingToTypeIdentifier:(NSString*)])
-    {
-    }*/
-    else if([provider hasItemConformingToTypeIdentifier:UTTypeContact.identifier])
-    {
-        [provider loadDataRepresentationForTypeIdentifier:UTTypeContact.identifier completionHandler:^(NSData* data, NSError* error) {
-            if(error != nil || data == nil)
-            {
-                DDLogWarn(@"Got error, retrying with NSURL: %@", error);
-                [provider loadItemForTypeIdentifier:UTTypeContact.identifier options:nil completionHandler:^(NSURL* _Nullable item, NSError* _Null_unspecified error) {
-                    if(error != nil || item == nil)
-                    {
-                        DDLogError(@"Error extracting contact item from NSItemProvider: %@", error);
-                        payload[@"error"] = error;
-                        return completion(payload);
-                    }
-                    DDLogInfo(@"Got contact item NSURL: %@", item);
-                    payload[@"type"] = @"contact";
-                    return prepareFile(item);
-                }];
-                return;
-            }
-            DDLogInfo(@"Got contact item NSData: %@", data);
-            payload[@"type"] = @"contact";
-            payload[@"data"] = [MLFiletransfer prepareDataUpload:data withFileExtension:@"vcf"];
-            return [HelperTools addUploadItemPreviewForItem:nil provider:provider andPayload:payload withCompletionHandler:completion];
-        }];
-    }
-    else if([provider hasItemConformingToTypeIdentifier:UTTypeFileURL.identifier])
-    {
-        [provider loadItemForTypeIdentifier:UTTypeFileURL.identifier options:nil completionHandler:^(NSURL*  _Nullable item, NSError* _Null_unspecified error) {
-            if(error != nil || item == nil)
-            {
-                DDLogError(@"Error extracting item from NSItemProvider: %@", error);
-                payload[@"error"] = error;
-                return completion(payload);
-            }
-            DDLogInfo(@"Got file url item: %@", item);
-            payload[@"type"] = @"file";
-            return prepareFile(item);
-        }];
-    }
-    else if([provider hasItemConformingToTypeIdentifier:(NSString*)@"com.apple.finder.node"])
-    {
-        [provider loadItemForTypeIdentifier:UTTypeItem.identifier options:nil completionHandler:^(id <NSSecureCoding> item, NSError* _Null_unspecified error) {
-            if(error != nil || item == nil)
-            {
-                DDLogError(@"Error extracting item from NSItemProvider: %@", error);
-                payload[@"error"] = error;
-                return completion(payload);
-            }
-            if([(NSObject*)item isKindOfClass:[NSURL class]])
-            {
-                DDLogInfo(@"Got finder file url item: %@", item);
+            }];
+        };
+        
+        if([provider hasItemConformingToTypeIdentifier:@"com.apple.mapkit.map-item"])
+        {
+            // convert map item to geo:
+            [provider loadItemForTypeIdentifier:@"com.apple.mapkit.map-item" options:nil completionHandler:^(NSData*  _Nullable item, NSError* _Null_unspecified error) {
+                if(error != nil || item == nil)
+                {
+                    DDLogError(@"Error extracting item from NSItemProvider: %@", error);
+                    payload[@"error"] = error;
+                    return resolve(payload);
+                }
+                NSError* err;
+                MKMapItem* mapItem = [NSKeyedUnarchiver unarchivedObjectOfClass:[MKMapItem class] fromData:item error:&err];
+                if(err != nil || mapItem == nil)
+                {
+                    DDLogError(@"Error extracting mapkit item: %@", err);
+                    payload[@"error"] = err;
+                    return resolve(payload);
+                }
+                else
+                {
+                    DDLogInfo(@"Got mapkit item: %@", item);
+                    payload[@"type"] = @"geo";
+                    payload[@"data"] = [NSString stringWithFormat:@"geo:%f,%f", mapItem.placemark.coordinate.latitude, mapItem.placemark.coordinate.longitude];
+                    [HelperTools addUploadItemPreviewForItem:nil provider:provider andPayload:payload].then(^(NSMutableDictionary* payload) {
+                        resolve(payload);
+                    });
+                    return;
+                }
+            }];
+        }
+        //the apple-private autoloop gif type has a bug that does not allow to load this as normal gif --> try audiovisual content below
+        else if([provider hasItemConformingToTypeIdentifier:UTTypeGIF.identifier] && ![provider hasItemConformingToTypeIdentifier:@"com.apple.private.auto-loop-gif"])
+        {
+            /*
+            [provider loadDataRepresentationForTypeIdentifier:UTTypeGIF.identifier completionHandler:^(NSData* data, NSError* error) {
+                if(error != nil || data == nil)
+                {
+                    DDLogError(@"Error extracting gif image from NSItemProvider: %@", error);
+                    payload[@"error"] = error;
+                    return resolve(payload);
+                }
+                DDLogInfo(@"Got gif image data: %@", data);
                 payload[@"type"] = @"file";
-                return prepareFile((NSURL*)item);
-            }
-            else
-            {
-                DDLogError(@"Could not extract finder item");
-                payload[@"error"] = NSLocalizedString(@"Could not access Finder item!", @"");
-                return completion(payload);
-            }
-        }];
-    }
-    else if([provider hasItemConformingToTypeIdentifier:UTTypeURL.identifier])
-    {
-        [provider loadItemForTypeIdentifier:UTTypeURL.identifier options:nil completionHandler:^(NSURL*  _Nullable item, NSError* _Null_unspecified error) {
-            if(error != nil || item == nil)
-            {
-                DDLogError(@"Error extracting item from NSItemProvider: %@", error);
-                payload[@"error"] = error;
-                return completion(payload);
-            }
-            DDLogInfo(@"Got internet url item: %@", item);
-            payload[@"type"] = @"url";
-            payload[@"data"] = item.absoluteString;
-            return [HelperTools addUploadItemPreviewForItem:nil provider:provider andPayload:payload withCompletionHandler:completion];
-        }];
-    }
-    else if([provider hasItemConformingToTypeIdentifier:UTTypePlainText.identifier])
-    {
-        [provider loadItemForTypeIdentifier:UTTypePlainText.identifier options:nil completionHandler:^(NSString*  _Nullable item, NSError* _Null_unspecified error) {
-            if(error != nil || item == nil)
-            {
-                DDLogError(@"Error extracting item from NSItemProvider: %@", error);
-                payload[@"error"] = error;
-                return completion(payload);
-            }
-            DDLogInfo(@"Got direct text item: %@", item);
-            payload[@"type"] = @"text";
-            payload[@"data"] = item;
-            return [HelperTools addUploadItemPreviewForItem:nil provider:provider andPayload:payload withCompletionHandler:completion];
-        }];
-    }
-    else
-        return completion(nil);
+                payload[@"data"] = [MLFiletransfer prepareDataUpload:data withFileExtension:@"gif"];
+                [HelperTools addUploadItemPreviewForItem:nil provider:provider andPayload:payload].then(^(NSMutableDictionary* payload) {
+                    resolve(payload);
+                });
+                return;
+            }];
+            */
+            [provider loadInPlaceFileRepresentationForTypeIdentifier:UTTypeGIF.identifier completionHandler:^(NSURL*  _Nullable item, BOOL isInPlace, NSError* _Null_unspecified error) {
+                if(error != nil || item == nil)
+                {
+                    DDLogError(@"Error extracting gif image from NSItemProvider: %@", error);
+                    payload[@"error"] = error;
+                    return resolve(payload);
+                }
+                DDLogInfo(@"Got %@ gif image item: %@", isInPlace ? @"(in place)" : @"(copied)", item);
+                payload[@"type"] = @"file";
+                prepareFile(item).then(^(NSMutableDictionary* payload) {
+                    resolve(payload);
+                });
+                return;
+            }];
+        }
+        else if([provider hasItemConformingToTypeIdentifier:UTTypeAudiovisualContent.identifier])
+        {
+            [provider loadItemForTypeIdentifier:UTTypeAudiovisualContent.identifier options:nil completionHandler:^(NSURL*  _Nullable item, NSError* _Null_unspecified error) {
+                if(error != nil || item == nil)
+                {
+                    DDLogError(@"Error extracting item from NSItemProvider: %@", error);
+                    payload[@"error"] = error;
+                    return resolve(payload);
+                }
+                DDLogInfo(@"Got audiovisual item: %@", item);
+                payload[@"type"] = @"audiovisual";
+                prepareFile(item).then(^(NSMutableDictionary* payload) {
+                    resolve(payload);
+                });
+                return;
+            }];
+        }
+        else if([provider hasItemConformingToTypeIdentifier:UTTypeImage.identifier])
+        {
+            [provider loadItemForTypeIdentifier:UTTypeImage.identifier options:nil completionHandler:^(NSURL*  _Nullable item, NSError* _Null_unspecified error) {
+                if(error != nil || item == nil)
+                {
+                    //for example: image shared directly from screenshots
+                    DDLogWarn(@"Got error, retrying with UIImage: %@", error);
+                    [provider loadItemForTypeIdentifier:UTTypeImage.identifier options:nil completionHandler:^(UIImage*  _Nullable item, NSError* _Null_unspecified error) {
+                        if(error != nil || item == nil)
+                        {
+                            DDLogError(@"Error extracting item from NSItemProvider: %@", error);
+                            payload[@"error"] = error;
+                            return resolve(payload);
+                        }
+                        DDLogInfo(@"Got memory image item: %@", item);
+                        payload[@"type"] = @"image";
+                        if(![[HelperTools defaultsDB] boolForKey:@"uploadImagesOriginal"])
+                        {
+                            //use prepareUIImageUpload to resize the image to the configured quality
+                            payload[@"data"] = [MLFiletransfer prepareUIImageUpload:item];
+                        }
+                        else
+                            payload[@"data"] = [MLFiletransfer prepareDataUpload:UIImagePNGRepresentation(item) withFileExtension:@"png"];
+                        payload[@"preview"] = item;
+                        return resolve(payload);
+                    }];
+                }
+                else
+                {
+                    DDLogInfo(@"Got image item: %@", item);
+                    payload[@"type"] = @"image";
+                    if(![[HelperTools defaultsDB] boolForKey:@"uploadImagesOriginal"])
+                    {
+                        [item startAccessingSecurityScopedResource];
+                        [[NSFileCoordinator new] coordinateReadingItemAtURL:item options:NSFileCoordinatorReadingForUploading error:&error byAccessor:^(NSURL* _Nonnull newURL) {
+                            DDLogDebug(@"NSFileCoordinator called accessor for image: %@", newURL);
+                            UIImage* image = [UIImage imageWithContentsOfFile:[newURL path]];
+                            DDLogDebug(@"Created UIImage: %@", image);
+                            //use prepareUIImageUpload to resize the image to the configured quality (instead of just uploading the raw image file)
+                            payload[@"data"] = [MLFiletransfer prepareUIImageUpload:image];
+                            //we can not use newURL here, because it will fall out of scope while the preview is rendered in another thread
+                            [HelperTools addUploadItemPreviewForItem:item provider:provider andPayload:payload].then(^(NSMutableDictionary* payload) {
+                                resolve(payload);
+                            });
+                            return;
+                        }];
+                    }
+                    else
+                    {
+                        prepareFile(item).then(^(NSMutableDictionary* payload) {
+                            resolve(payload);
+                        });
+                        return;
+                    }
+                    if(error != nil)
+                    {
+                        DDLogError(@"Error preparing file coordinator: %@", error);
+                        payload[@"error"] = error;
+                        [item stopAccessingSecurityScopedResource];
+                        return resolve(payload);
+                    }
+                }
+            }];
+        }
+        /*else if([provider hasItemConformingToTypeIdentifier:(NSString*)])
+        {
+        }
+        else if([provider hasItemConformingToTypeIdentifier:(NSString*)])
+        {
+        }*/
+        else if([provider hasItemConformingToTypeIdentifier:UTTypeContact.identifier])
+        {
+            [provider loadDataRepresentationForTypeIdentifier:UTTypeContact.identifier completionHandler:^(NSData* data, NSError* error) {
+                if(error != nil || data == nil)
+                {
+                    DDLogWarn(@"Got error, retrying with NSURL: %@", error);
+                    [provider loadItemForTypeIdentifier:UTTypeContact.identifier options:nil completionHandler:^(NSURL* _Nullable item, NSError* _Null_unspecified error) {
+                        if(error != nil || item == nil)
+                        {
+                            DDLogError(@"Error extracting contact item from NSItemProvider: %@", error);
+                            payload[@"error"] = error;
+                            return resolve(payload);
+                        }
+                        DDLogInfo(@"Got contact item NSURL: %@", item);
+                        payload[@"type"] = @"contact";
+                        prepareFile(item).then(^(NSMutableDictionary* payload) {
+                            resolve(payload);
+                        });
+                        return;
+                    }];
+                    return;
+                }
+                DDLogInfo(@"Got contact item NSData: %@", data);
+                payload[@"type"] = @"contact";
+                payload[@"data"] = [MLFiletransfer prepareDataUpload:data withFileExtension:@"vcf"];
+                [HelperTools addUploadItemPreviewForItem:nil provider:provider andPayload:payload].then(^(NSMutableDictionary* payload) {
+                    resolve(payload);
+                });
+                return;
+            }];
+        }
+        else if([provider hasItemConformingToTypeIdentifier:UTTypeFileURL.identifier])
+        {
+            [provider loadItemForTypeIdentifier:UTTypeFileURL.identifier options:nil completionHandler:^(NSURL*  _Nullable item, NSError* _Null_unspecified error) {
+                if(error != nil || item == nil)
+                {
+                    DDLogError(@"Error extracting item from NSItemProvider: %@", error);
+                    payload[@"error"] = error;
+                    return resolve(payload);
+                }
+                DDLogInfo(@"Got file url item: %@", item);
+                payload[@"type"] = @"file";
+                prepareFile(item).then(^(NSMutableDictionary* payload) {
+                    resolve(payload);
+                });
+                return;
+            }];
+        }
+        else if([provider hasItemConformingToTypeIdentifier:(NSString*)@"com.apple.finder.node"])
+        {
+            [provider loadItemForTypeIdentifier:UTTypeItem.identifier options:nil completionHandler:^(id <NSSecureCoding> item, NSError* _Null_unspecified error) {
+                if(error != nil || item == nil)
+                {
+                    DDLogError(@"Error extracting item from NSItemProvider: %@", error);
+                    payload[@"error"] = error;
+                    return resolve(payload);
+                }
+                if([(NSObject*)item isKindOfClass:[NSURL class]])
+                {
+                    DDLogInfo(@"Got finder file url item: %@", item);
+                    payload[@"type"] = @"file";
+                    prepareFile((NSURL*)item).then(^(NSMutableDictionary* payload) {
+                        resolve(payload);
+                    });
+                    return;
+                }
+                else
+                {
+                    DDLogError(@"Could not extract finder item");
+                    payload[@"error"] = NSLocalizedString(@"Could not access Finder item!", @"");
+                    return resolve(payload);
+                }
+            }];
+        }
+        else if([provider hasItemConformingToTypeIdentifier:UTTypeURL.identifier])
+        {
+            [provider loadItemForTypeIdentifier:UTTypeURL.identifier options:nil completionHandler:^(NSURL*  _Nullable item, NSError* _Null_unspecified error) {
+                if(error != nil || item == nil)
+                {
+                    DDLogError(@"Error extracting item from NSItemProvider: %@", error);
+                    payload[@"error"] = error;
+                    return resolve(payload);
+                }
+                DDLogInfo(@"Got internet url item: %@", item);
+                payload[@"type"] = @"url";
+                payload[@"data"] = item.absoluteString;
+                [HelperTools addUploadItemPreviewForItem:nil provider:provider andPayload:payload].then(^(NSMutableDictionary* payload) {
+                    resolve(payload);
+                });
+                return;
+            }];
+        }
+        else if([provider hasItemConformingToTypeIdentifier:UTTypePlainText.identifier])
+        {
+            [provider loadItemForTypeIdentifier:UTTypePlainText.identifier options:nil completionHandler:^(NSString*  _Nullable item, NSError* _Null_unspecified error) {
+                if(error != nil || item == nil)
+                {
+                    DDLogError(@"Error extracting item from NSItemProvider: %@", error);
+                    payload[@"error"] = error;
+                    return resolve(payload);
+                }
+                DDLogInfo(@"Got direct text item: %@", item);
+                payload[@"type"] = @"text";
+                payload[@"data"] = item;
+                [HelperTools addUploadItemPreviewForItem:nil provider:provider andPayload:payload].then(^(NSMutableDictionary* payload) {
+                    resolve(payload);
+                });
+                return;
+            }];
+        }
+        else
+            return resolve(nil);
+    }];
 }
-#pragma clang diagnostic pop
 
 //see https://gist.github.com/giaesp/7704753
 +(UIImage* _Nullable) rotateImage:(UIImage* _Nullable) image byRadians:(CGFloat) rotation
@@ -1636,17 +1821,18 @@ void swizzle(Class c, SEL orig, SEL new)
 +(BOOL) isContactBlacklistedForEncryption:(MLContact*) contact
 {
     BOOL blacklisted = NO;
+    //cheogram.com does not support OMEMO encryption as it is a PSTN gateway
     blacklisted = [@"cheogram.com" isEqualToString:[self splitJid:contact.contactJid][@"host"]];
     if(blacklisted)
         DDLogWarn(@"Jid blacklisted for encryption: %@", contact);
     return blacklisted;
 }
 
-+(void) removeAllShareInteractionsForAccountNo:(NSNumber*) accountNo
++(void) removeAllShareInteractionsForAccountID:(NSNumber*) accountID
 {
-    DDLogInfo(@"Removing share interaction for all contacts on account id %@", accountNo);
+    DDLogInfo(@"Removing share interaction for all contacts on account id %@", accountID);
     for(MLContact* contact in [[DataLayer sharedInstance] contactList])
-        if(contact.accountId.intValue == accountNo.intValue)
+        if(contact.accountID.intValue == accountID.intValue)
             [contact removeShareInteractions];
 }
 
@@ -1681,7 +1867,7 @@ void swizzle(Class c, SEL orig, SEL new)
             //new task
             BGAppRefreshTaskRequest* refreshingRequest = [[BGAppRefreshTaskRequest alloc] initWithIdentifier:kBackgroundRefreshingTask];
             //on ios<17 do the same like the corona warn app from germany which leads to this hint: https://developer.apple.com/forums/thread/134031
-//             if(@available(iOS 17.0, macCatalyst 17.0, *))
+//             if(@available(iOS 17.0, *))
 //                 refreshingRequest.earliestBeginDate = [NSDate dateWithTimeIntervalSinceNow:BGFETCH_DEFAULT_INTERVAL];
 //             else
                 refreshingRequest.earliestBeginDate = nil;
@@ -2050,6 +2236,8 @@ void swizzle(Class c, SEL orig, SEL new)
 
 +(void) configureLogging
 {
+    NSError* error;
+    
     //network logger (start as early as possible)
     MLUDPLogger* udpLogger = [MLUDPLogger new];
     [DDLog addLogger:udpLogger];
@@ -2061,6 +2249,19 @@ void swizzle(Class c, SEL orig, SEL new)
     //redirect stdout for good measure
     _stdoutRedirector = [[MLStreamRedirect alloc] initWithStream:stdout];
     printf("stdout redirection complete...");
+    
+    //redirect apple system logs, too
+    /*
+    OSLogStore* osLogStore = [OSLogStore storeWithScope:OSLogStoreCurrentProcessIdentifier error:&error];
+    if(error)
+        DDLogError(@"Failed to open os log store: %@", error);
+    else
+    {
+        dispatch_async(, ^{
+            [osLogStore entriesEnumeratorAndReturnError:&error];
+        });
+    }
+    */
     
     NSString* containerUrl = [[HelperTools getContainerURLForPathComponents:@[]] path];
     DDLogInfo(@"Logfile dir: %@", containerUrl);
@@ -2077,7 +2278,6 @@ void swizzle(Class c, SEL orig, SEL new)
     
     DDLogDebug(@"Sorted logfiles: %@", [logFileManager sortedLogFileInfos]);
     DDLogDebug(@"Current logfile: %@", self.fileLogger.currentLogFileInfo.filePath);
-    NSError* error;
     NSDictionary* attrs = [[NSFileManager defaultManager] attributesOfItemAtPath:self.fileLogger.currentLogFileInfo.filePath error:&error];
     if(error)
         DDLogError(@"File attributes error: %@", error);
@@ -2125,6 +2325,7 @@ void swizzle(Class c, SEL orig, SEL new)
         DDLogError(@"Failed to get directory contents while cleaning up rawlog crashcopies...");
         return;
     }
+    DDLogInfo(@"Current crash report ids: %@", reportIds);
     
     //parts taken from https://github.com/kstenerud/KSCrash/blob/9e72c018a0ba455a89cf5770dea6e1d5258744b6/Source/KSCrash/Recording/KSCrashReportStore.c#L75
     char scanFormat[100];
@@ -2134,12 +2335,13 @@ void swizzle(Class c, SEL orig, SEL new)
         NSString* file = [NSString stringWithFormat:@"%@/%@", reportpath, filename];
         int64_t reportID = 0;
         sscanf(filename.UTF8String, scanFormat, &reportID);
+        DDLogVerbose(@"Checking crash report id: %@", @(reportID));
         if(reportID == 0)
         {
             DDLogError(@"Could not extract crash report id from '%@', ignoring file!", file);
             continue;
         }
-        if(![reportIds containsObject:[NSNumber numberWithLongLong:reportID]])
+        if(![reportIds containsObject:@(reportID)])
         {
             DDLogInfo(@"Deleting orphan rawlog copy at '%@'...", file);
             [[NSFileManager defaultManager] removeItemAtPath:file error:&error];
@@ -2158,10 +2360,7 @@ void swizzle(Class c, SEL orig, SEL new)
     handler.monitoring = KSCrashMonitorTypeProductionSafe;      //KSCrashMonitorTypeAll
     handler.onCrash = crash_callback;
     //this can trigger crashes on macos < 13 (e.g. mac catalyst < 16) (and possibly ios < 16)
-#if !TARGET_OS_MACCATALYST
-    if(@available(iOS 16.0, *))
-        [handler enableSwapOfCxaThrow];
-#endif
+    [handler enableSwapOfCxaThrow];
     handler.searchQueueNames = NO;      //this is not async safe and can crash :(
     handler.introspectMemory = YES;
     handler.addConsoleLogToReport = YES;
@@ -2183,15 +2382,19 @@ void swizzle(Class c, SEL orig, SEL new)
     else
         DDLogInfo(@"Crash monitoring active now: %d", handler.monitoring);
     
-    //store data globally for later retrieval by our crash_callback() (_origLogfilePath and _logfilePath)
-    strncpy(_origLogfilePath, self.fileLogger.currentLogFileInfo.filePath.UTF8String, sizeof(_logfilePath)-1);
-    _origLogfilePath[sizeof(_origLogfilePath)-1] = '\0';
-    //use the same id for our logfile copy as for the main report (allows to delete all logfile copies for which no crash report exists)
     //KSCrash increments the id by one every new crash --> the next id used by kscrash will be this one
-    uint64_t nextCrashId = kscrs_getNextCrashReport(NULL) + 1;
-    snprintf(_logfilePath, sizeof(_logfilePath)-1, "%s/Reports/%s-log-%016llx.rawlog", handler.basePath.UTF8String, _crashBundleName, nextCrashId);
-    _logfilePath[sizeof(_logfilePath)-1] = '\0';
-    DDLogVerbose(@"KSCrash: _origLogfilePath=%s, _logfilePath=%s", _origLogfilePath, _logfilePath);
+    _nextCrashId = kscrs_getNextCrashReport(NULL) + 1;
+    
+    [HelperTools updateCurrentLogfilePath:self.fileLogger.currentLogFileInfo.filePath];
+    
+    //store data globally for later retrieval by our crash_callback() (_origProfilePath and _profilePath)
+    NSString* profrawFilePath = [[HelperTools getContainerURLForPathComponents:@[@"default.profraw"]] path];
+    strncpy(_origProfilePath, profrawFilePath.UTF8String, sizeof(_profilePath)-1);
+    _origProfilePath[sizeof(_origProfilePath)-1] = '\0';
+    //use the same id for our logfile copy as for the main report (allows to delete all logfile copies for which no crash report exists)
+    snprintf(_profilePath, sizeof(_profilePath)-1, "%s/Reports/%s-profile-%016llx.profraw", handler.basePath.UTF8String, _crashBundleName, _nextCrashId);
+    _profilePath[sizeof(_profilePath)-1] = '\0';
+    DDLogVerbose(@"KSCrash: _origProfilePath=%s, _profilePath=%s", _origProfilePath, _profilePath);
     
     //clean up orphan rawlog copies
     [self cleanupRawlogCrashcopies];
@@ -2202,6 +2405,19 @@ void swizzle(Class c, SEL orig, SEL new)
     DDLogDebug(@"KSCrash report files: %@", directoryContentsReports);
     
     //[[KSCrash sharedInstance] reportUserException:@"test" reason:@"dummy test" language:@"dylang" lineOfCode:nil stackTrace:nil logAllThreads:NO terminateProgram:YES];
+}
+
++(void) updateCurrentLogfilePath:(NSString*) logfilePath
+{
+    KSCrash* handler = [KSCrash sharedInstance];
+    
+    //store data globally for later retrieval by our crash_callback() (_origLogfilePath and _logfilePath)
+    strncpy(_origLogfilePath, logfilePath.UTF8String, sizeof(_logfilePath)-1);
+    _origLogfilePath[sizeof(_origLogfilePath)-1] = '\0';
+    //use the same id for our logfile copy as for the main report (allows to delete all logfile copies for which no crash report exists)
+    snprintf(_logfilePath, sizeof(_logfilePath)-1, "%s/Reports/%s-log-%016llx.rawlog", handler.basePath.UTF8String, _crashBundleName, _nextCrashId);
+    _logfilePath[sizeof(_logfilePath)-1] = '\0';
+    DDLogVerbose(@"KSCrash: _origLogfilePath=%s, _logfilePath=%s", _origLogfilePath, _logfilePath);
 }
 
 +(BOOL) isAppExtension
@@ -2260,8 +2476,7 @@ void swizzle(Class c, SEL orig, SEL new)
             @"urn:xmpp:eme:0",
             @"urn:xmpp:message-retract:1",
             @"urn:xmpp:message-correct:0",
-            
-            
+            @"urn:xmpp:reactions:0",
         ] mutableCopy];
         if([[HelperTools defaultsDB] boolForKey: @"SendLastUserInteraction"])
             [featuresArray addObject:@"urn:xmpp:idle:1"];
@@ -2333,9 +2548,8 @@ void swizzle(Class c, SEL orig, SEL new)
 
 /*
  * create string containing the info when a user was seen the last time
- * return nil if no timestamp was found in the db
  */
-+(NSString* _Nullable) formatLastInteraction:(NSDate*) lastInteraction
++(NSString*) formatLastInteraction:(NSDate*) lastInteraction
 {
     // get current timestamp
     unsigned long currentTimestamp = [HelperTools currentTimestampInSeconds].unsignedLongValue;
@@ -2512,21 +2726,19 @@ void swizzle(Class c, SEL orig, SEL new)
 +(NSString*) generateRandomPassword
 {
     u_int32_t i=arc4random();
-    return [self hexadecimalString:[NSData dataWithBytes: &i length: sizeof(i)]];
+    u_int32_t k=arc4random();
+    NSData* di = [NSData dataWithBytes:&i length:sizeof(i)];
+    NSData* dk = [NSData dataWithBytes:&k length:sizeof(k)];
+    NSMutableData* data = [di mutableCopy];
+    [data appendData:dk];
+    //use base64, strip off the trailing '=' if present and replace '/' by '-' because it isn't allowed in the userpart of a jid
+    return [[[self encodeBase64WithData:data] componentsSeparatedByString:@"="][0] stringByReplacingOccurrencesOfString:@"/" withString:@"-"];
 }
 
 +(NSString*) encodeRandomResource
 {
     u_int32_t i=arc4random();
-#if TARGET_OS_MACCATALYST
-    NSString* resource = [NSString stringWithFormat:@"Monal-macOS.%@", [self hexadecimalString:[NSData dataWithBytes: &i length: sizeof(i)]]];
-#else
-#if IS_QUICKSY
-    NSString* resource = [NSString stringWithFormat:@"Quicksy-iOS.%@", [self hexadecimalString:[NSData dataWithBytes: &i length: sizeof(i)]]];
-#else
     NSString* resource = [NSString stringWithFormat:@"Monal-iOS.%@", [self hexadecimalString:[NSData dataWithBytes: &i length: sizeof(i)]]];
-#endif
-#endif
     return resource;
 }
 
@@ -2535,26 +2747,23 @@ void swizzle(Class c, SEL orig, SEL new)
     @synchronized(_versionInfoCache) {
         if(_versionInfoCache[@(type)] != nil)
             return _versionInfoCache[@(type)];
-        
-#ifdef IS_ALPHA
-        NSString* rawVersionString = [NSString stringWithFormat:@"Alpha %s (%s %s UTC)", ALPHA_COMMIT_HASH, __DATE__, __TIME__];
-#else// IS_ALPHA
         NSDictionary* infoDict = [[NSBundle mainBundle] infoDictionary];
         NSString* rawVersionString = [NSString stringWithFormat:@"%@ %@ (%@)",
 #ifdef DEBUG
-            @"Beta",
-#else// DEBUG
-            @"Stable",
-#endif// DEBUG
-            [infoDict objectForKey:@"CFBundleShortVersionString"],
-            [infoDict objectForKey:@"CFBundleVersion"]
+    @"Beta",
+        #else
+    @"Stable",
+#endif
+        [infoDict objectForKey:@"CFBundleShortVersionString"],
+        [infoDict objectForKey:@"CFBundleVersion"]
         ];
-#endif// IS_ALPHA
         
         if(type == MLVersionTypeIQ)
             return _versionInfoCache[@(type)] = rawVersionString;
         else if(type == MLVersionTypeLog)
             return _versionInfoCache[@(type)] = [NSString stringWithFormat:@"Version %@, %@ on iOS/macOS %@", rawVersionString, [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleIdentifier"], [UIDevice currentDevice].systemVersion];
+        else if(type==MLVersionTypeUserAgent)
+            return _versionInfoCache[@(type)] = [[HelperTools defaultsDB] boolForKey: @"allowVersionIQ"] ? [NSString stringWithFormat:@"Monal %@", rawVersionString] : @"Monal";
         unreachable(@"unknown version type!");
     }
 }
@@ -2604,12 +2813,9 @@ void swizzle(Class c, SEL orig, SEL new)
     if(xmlString == nil)
         return nil;
     DDLogVerbose(@"Parsing XML string produced by rust sdp parser(withInitiator=%@): %@", bool2str(initiator), xmlString);
-    NSXMLParser* xmlParser = [[NSXMLParser alloc] initWithData:[xmlString dataUsingEncoding:NSUTF8StringEncoding]];
-    [xmlParser setShouldProcessNamespaces:YES];
-    [xmlParser setShouldReportNamespacePrefixes:YES];       //for debugging only
-    [xmlParser setShouldResolveExternalEntities:NO];
-    [xmlParser setDelegate:delegate];
-    [xmlParser parse];     //blocking operation
+    XmlParserBridge* xmlParser = [[XmlParserBridge alloc] initWith:delegate];
+    NSData* xmlData = [xmlString dataUsingEncoding:NSUTF8StringEncoding];
+    [xmlParser feedData:xmlData.bytes withLength:xmlData.length];     //blocking operation
     return retval;
 }
 
@@ -2976,14 +3182,16 @@ a=%@\r\n", mid, candidate];
 }
 
 //see https://nachtimwald.com/2017/04/02/constant-time-string-comparison-in-c/
-+(BOOL) constantTimeCompareAttackerString:(NSString* _Nonnull) str1 withKnownString:(NSString* _Nonnull) str2
++(BOOL) constantTimeCompareAttackerPointer:(void*) p1 withLength:(NSUInteger) p1Length andKnownPointer:(void*) p2 withLength:(NSUInteger) p2Length
 {
-    if(str1 == nil || str2 == nil)
+    if(p1 == nil || p2 == nil)
         return NO;
     
-    const char* s1 = str1.UTF8String;
-    const char* s2 = str2.UTF8String;
-    volatile int m = 0;
+    p1Length--;
+    p2Length--;
+    const uint8_t* s1 = p1;
+    const uint8_t* s2 = p2;
+    volatile uint8_t m = 0;
     volatile size_t i = 0;
     volatile size_t j = 0;
     volatile size_t k = 0;    
@@ -2993,19 +3201,33 @@ a=%@\r\n", mid, candidate];
         //this will only turn on bits in m, but never turn them off
         m |= s1[i] ^ s2[j];
         
-        //
-        if(s1[i] == '\0')
+        //always balance increments even if s2 is shorter than s1
+        if(j != p2Length)
+            j++;
+        if(j == p2Length)
+            k++;
+        
+        //use length instead of null-byte
+        if(i == p1Length)
             break;
         i++;
-        
-        //always balance increments even if s2 is shorter than s1
-        if(s2[j] != '\0')
-            j++;
-        if(s2[j] == '\0')
-            k++;
     }
     
     return m == 0;      //check if we never turned on any bit in m
+}
+
++(BOOL) constantTimeCompareAttackerString:(NSString* _Nonnull) str1 withKnownString:(NSString* _Nonnull) str2
+{
+    if(str1 == nil || str2 == nil)
+        return NO;
+    return [self constantTimeCompareAttackerPointer:(void*)str1.UTF8String withLength:str1.length andKnownPointer:(void*)str2.UTF8String withLength:str2.length];
+}
+    
++(BOOL) constantTimeCompareAttackerData:(NSData* _Nonnull) data1 withKnownData:(NSData* _Nonnull) data2
+{
+    if(data1 == nil || data2 == nil)
+        return NO;
+    return [self constantTimeCompareAttackerPointer:(void*)data1.bytes withLength:data1.length andKnownPointer:(void*)data2.bytes withLength:data2.length];
 }
 
 +(BOOL) isIP:(NSString*) host
@@ -3026,10 +3248,107 @@ a=%@\r\n", mid, candidate];
 +(NSURLSession*) createEphemeralURLSession
 {
     NSURLSessionConfiguration* sessionConfig = [NSURLSessionConfiguration ephemeralSessionConfiguration];
-    if(@available(iOS 16.1, macCatalyst 16.1, *))
-        if([[HelperTools defaultsDB] boolForKey: @"useDnssecForAllConnections"])
-            sessionConfig.requiresDNSSECValidation = YES;
+    if([[HelperTools defaultsDB] boolForKey: @"useDnssecForAllConnections"])
+        sessionConfig.requiresDNSSECValidation = YES;
+    sessionConfig.HTTPAdditionalHeaders = @{
+        @"User-Agent": [HelperTools appBuildVersionInfoFor:MLVersionTypeUserAgent],
+    };
     return [NSURLSession sessionWithConfiguration:sessionConfig];
+}
+
++(NSURLSession*) createBackgroundURLSession
+{
+    NSURLSessionConfiguration* sessionConfig = [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:[NSString stringWithFormat:@"%@.backgroundHttpFetch", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleIdentifier"]]];
+    if([[HelperTools defaultsDB] boolForKey: @"useDnssecForAllConnections"])
+        sessionConfig.requiresDNSSECValidation = YES;
+    sessionConfig.HTTPAdditionalHeaders = @{
+        @"User-Agent": [HelperTools appBuildVersionInfoFor:MLVersionTypeUserAgent],
+    };
+    sessionConfig.sessionSendsLaunchEvents = YES;
+    return [NSURLSession sessionWithConfiguration:sessionConfig];
+}
+
++(NSURL* _Nullable) compressFileAtPath:(NSString*) path withLevel:(NSInteger) level
+{
+    uint8_t buffer[65536];
+    
+    NSFileManager* fileManager = [NSFileManager defaultManager];
+    NSString* filename = path.lastPathComponent;
+    NSString* gzipPath = [NSTemporaryDirectory() stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.gz", filename]];
+    
+    DDLogInfo(@"Compressing file at '%@' into '%@'...", path, gzipPath);
+    
+    NSError* error = nil;
+    if([fileManager fileExistsAtPath:gzipPath])
+        [fileManager removeItemAtPath:gzipPath error:&error];
+    if(error != nil)
+    {
+        DDLogError(@"Could not delete old leftover gzip file at '%@': %@", gzipPath, error);
+        return nil;
+    }
+    
+    NSInputStream* input = [NSInputStream inputStreamWithFileAtPath:path];
+    if(!input)
+    {
+        DDLogError(@"Could not open file to compress: %@", path);
+        return nil;
+    }
+    [input open];
+    
+    FILE* outputFile = fopen([gzipPath fileSystemRepresentation], "wb");
+    if(!outputFile)
+    {
+        DDLogError(@"Could not open gzip output file: %@", gzipPath);
+        [input close];
+        return nil;
+    }
+    
+    gzFile gzOutput = gzdopen(fileno(outputFile), [NSString stringWithFormat:@"%ldwb", (long)level].UTF8String);
+    if(!gzOutput)
+    {
+        DDLogError(@"Could not create gzip stream for output file: %@", gzipPath);
+        fclose(outputFile);
+        [input close];
+        return nil;
+    }
+    
+    NSInteger bytesRead;
+    while((bytesRead = [input read:buffer maxLength:sizeof(buffer)]) > 0)
+    {
+        if(gzwrite(gzOutput, buffer, (unsigned int)bytesRead) != bytesRead)
+        {
+            DDLogError(@"Failed to write gzip data to output file: %@", gzipPath);
+            gzclose(gzOutput);
+            fclose(outputFile);
+            [input close];
+            return nil;
+        }
+    }
+    
+    gzclose(gzOutput);
+    fclose(outputFile);
+    [input close];
+    
+    return [NSURL fileURLWithPath:gzipPath];
+}
+
++(NSOrderedSet*) createReactionsSetFromString:(NSString*) reactions
+{
+    //remove all vs15 and vs16 modifiers
+    reactions = [[reactions componentsSeparatedByString:@"\ufe0e"] componentsJoinedByString:@""];
+    reactions = [[reactions componentsSeparatedByString:@"\ufe0f"] componentsJoinedByString:@""];
+    
+    //"parse" reactions (iterate over grapheme clusters as required in XEP-0444 Business Rules)
+    NSMutableOrderedSet* reactionsList = [NSMutableOrderedSet new];
+    [reactions enumerateSubstringsInRange:NSMakeRange(0, [reactions length]) options:NSStringEnumerationByComposedCharacterSequences usingBlock:^(NSString * _Nullable substring, NSRange substringRange __unused, NSRange enclosingRange __unused, BOOL * _Nonnull stop __unused) {
+        //add vs16 modifier to every emoji it is allowed
+        //see https://www.unicode.org/Public/emoji/latest/emoji-sequences.txt
+        if([_validVs16Emojis characterIsMember:[substring characterAtIndex:0]])
+            [reactionsList addObject:[substring stringByAppendingString:@"\ufe0f"]];
+        else
+            [reactionsList addObject:substring];
+    }];
+    return reactionsList;
 }
 
 @end

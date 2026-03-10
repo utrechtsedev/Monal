@@ -6,9 +6,9 @@
 //  Copyright © 2024 monal-im.org. All rights reserved.
 //
 
-#import "MLConstants.h"
-#import "HelperTools.h"
-#import "MLDelayableTimer.h"
+#import <monalxmpp/MLConstants.h>
+#import <monalxmpp/HelperTools.h>
+#import <monalxmpp/MLDelayableTimer.h>
 
 @interface MLDelayableTimer()
 {
@@ -68,7 +68,9 @@
             return;
         }
         DDLogDebug(@"Triggering timer: %@", self);
-        [_wrappedTimer fire];
+        [self scheduleBlockInRunLoop:^{
+            [self->_wrappedTimer fire];
+        }];
     }
 }
 
@@ -150,8 +152,8 @@
 //     NSCondition* condition = [NSCondition new];
 //     [condition lock];
     CFRunLoopPerformBlock([runLoop getCFRunLoop], (__bridge CFStringRef)NSDefaultRunLoopMode, ^{
-        block();
 //         [condition lock];
+        block();
 //         [condition signal];
 //         [condition unlock];
     });

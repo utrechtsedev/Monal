@@ -97,9 +97,9 @@
     <implements>
       <xmpp:SupportedXep>
         <xmpp:xep rdf:resource="https://xmpp.org/extensions/xep-0048.html" />
-        <xmpp:status>complete</xmpp:status>
+        <xmpp:status>removed</xmpp:status>
         <xmpp:version>1.2</xmpp:version>
-        <xmpp:since>5.0</xmpp:since>
+        <xmpp:since>7.0</xmpp:since>
       </xmpp:SupportedXep>
     </implements>
     <implements>
@@ -211,6 +211,14 @@
         <xmpp:version>1.1.1</xmpp:version>
         <xmpp:since>5.0</xmpp:since>
         <xmpp:note>XEP-0153: vCard-Based Avatars (implemented only for MUC profiles)</xmpp:note>
+      </xmpp:SupportedXep>
+    </implements>
+    <implements>
+      <xmpp:SupportedXep>
+        <xmpp:xep rdf:resource="https://xmpp.org/extensions/xep-0157.html" />
+        <xmpp:status>complete</xmpp:status>
+        <xmpp:version>1.1.1</xmpp:version>
+        <xmpp:since>7.0</xmpp:since>
       </xmpp:SupportedXep>
     </implements>
     <implements>
@@ -539,8 +547,9 @@
     <implements>
       <xmpp:SupportedXep>
         <xmpp:xep rdf:resource="https://xmpp.org/extensions/xep-0386.html" />
-        <xmpp:status>planned</xmpp:status>
-        <xmpp:note>XEP-0386: Bind 2.0</xmpp:note>
+        <xmpp:status>complete</xmpp:status>
+        <xmpp:version>1.0.1</xmpp:version>
+        <xmpp:since>7.0</xmpp:since>
       </xmpp:SupportedXep>
     </implements>
     <implements>
@@ -645,6 +654,14 @@
     </implements>
     <implements>
       <xmpp:SupportedXep>
+        <xmpp:xep rdf:resource="https://xmpp.org/extensions/xep-0428.html" />
+        <xmpp:status>complete</xmpp:status>
+        <xmpp:since>7.0</xmpp:since>
+        <xmpp:version>0.2.1</xmpp:version>
+      </xmpp:SupportedXep>
+    </implements>
+    <implements>
+      <xmpp:SupportedXep>
         <xmpp:xep rdf:resource="https://xmpp.org/extensions/xep-0440.html" />
         <xmpp:status>complete</xmpp:status>
         <xmpp:version>0.4.1</xmpp:version>
@@ -658,6 +675,14 @@
         <xmpp:version>0.2.0</xmpp:version>
         <xmpp:since>4.8</xmpp:since>
         <xmpp:note>Only to automatically turn on archiving if possible (setting: always)</xmpp:note>
+      </xmpp:SupportedXep>
+    </implements>
+    <implements>
+      <xmpp:SupportedXep>
+        <xmpp:xep rdf:resource="https://xmpp.org/extensions/xep-0444.html" />
+        <xmpp:status>complete</xmpp:status>
+        <xmpp:version>0.2.1</xmpp:version>
+        <xmpp:since>7.0</xmpp:since>
       </xmpp:SupportedXep>
     </implements>
     <implements>
@@ -679,9 +704,17 @@
     </implements>
     <implements>
       <xmpp:SupportedXep>
+        <xmpp:xep rdf:resource="https://xmpp.org/extensions/xep-0469.html" />
+        <xmpp:status>complete</xmpp:status>
+        <xmpp:version>0.1.0</xmpp:version>
+        <xmpp:since>7.0</xmpp:since>
+      </xmpp:SupportedXep>
+    </implements>
+    <implements>
+      <xmpp:SupportedXep>
         <xmpp:xep rdf:resource="https://xmpp.org/extensions/xep-0474.html" />
         <xmpp:status>complete</xmpp:status>
-        <xmpp:version>0.3.0</xmpp:version>
+        <xmpp:version>0.4.0</xmpp:version>
         <xmpp:since>6.0</xmpp:since>
       </xmpp:SupportedXep>
     </implements>
@@ -695,8 +728,10 @@
     </implements>
     <implements>
       <xmpp:SupportedXep>
-        <xmpp:xep rdf:resource="https://xmpp.org/extensions/xep-0158.html" />
-        <xmpp:status>planned</xmpp:status>
+        <xmpp:xep rdf:resource="https://xmpp.org/extensions/xep-0484.html" />
+        <xmpp:status>complete</xmpp:status>
+        <xmpp:version>0.2.0</xmpp:version>
+        <xmpp:since>7.0</xmpp:since>
       </xmpp:SupportedXep>
     </implements>
     <implements>
@@ -710,6 +745,22 @@
         <xmpp:xep rdf:resource="https://xmpp.org/extensions/xep-0490.html" />
         <xmpp:status>complete</xmpp:status>
         <xmpp:since>6.3</xmpp:since>
+        <xmpp:version>1.0.1</xmpp:version>
+      </xmpp:SupportedXep>
+    </implements>
+    <implements>
+      <xmpp:SupportedXep>
+        <xmpp:xep rdf:resource="https://xmpp.org/extensions/xep-0492.html" />
+        <xmpp:status>complete</xmpp:status>
+        <xmpp:since>7.0</xmpp:since>
+        <xmpp:version>0.1.0</xmpp:version>
+      </xmpp:SupportedXep>
+    </implements>
+    <implements>
+      <xmpp:SupportedXep>
+        <xmpp:xep rdf:resource="https://xmpp.org/extensions/xep-0509.html" />
+        <xmpp:status>complete</xmpp:status>
+        <xmpp:since>7.0</xmpp:since>
         <xmpp:version>0.1.0</xmpp:version>
       </xmpp:SupportedXep>
     </implements>

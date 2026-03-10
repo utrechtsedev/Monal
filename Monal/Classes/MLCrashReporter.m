@@ -15,8 +15,8 @@
 #import <KSCrash/KSCrashReportFields.h>
 #import <KSCrash/NSError+SimpleConstructor.h>
 #import <MessageUI/MessageUI.h>
-#import "MLConstants.h"
-#import "HelperTools.h"
+#import <monalxmpp/MLConstants.h>
+#import <monalxmpp/HelperTools.h>
 #import "MonalAppDelegate.h"
 #import "MLCrashReporter.h"
 
@@ -35,6 +35,10 @@
 @end
 
 @interface KSCrashReportFilterAddMLLogfile : NSObject <KSCrashReportFilter>
++(instancetype) filter;
+@end
+
+@interface KSCrashReportFilterAddProfraw : NSObject <KSCrashReportFilter>
 +(instancetype) filter;
 @end
 
@@ -62,6 +66,8 @@
     NSString* jsonName = @"JSON Report (*.json)";
     id<KSCrashReportFilter> logfileFilter = [KSCrashReportFilterAddMLLogfile filter];
     NSString* logfileName = @"Logfile (*.rawlog.gz)";
+    id<KSCrashReportFilter> profrawFilter = [KSCrashReportFilterAddProfraw filter];
+    NSString* profrawName = @"Profile (*.profraw)";
     handler.sink = [KSCrashReportFilterPipeline filterWithFilters:
                         [KSCrashReportFilterAlert filter],
                         [KSCrashReportFilterCombine filterWithFiltersAndKeys:
@@ -70,6 +76,7 @@
                             appleFilter, appleName,
                             jsonFilter, jsonName,
                             logfileFilter, logfileName,
+                            profrawFilter, profrawName,
                             nil
                         ],
                         [KSCrashReportFilterConcatenate filterWithSeparatorFmt:@PART_SEPARATOR_FORMAT keys:
@@ -78,11 +85,12 @@
                             appleName,
                             jsonName,
                             logfileName,
+                            profrawName,
                             nil
                         ],
                         [KSCrashReportFilterStringToData filter],
                         [KSCrashReportFilterGZipCompress filterWithCompressionLevel:-1],
-                        [[self alloc] init],           //this is the last filter sending out all stuff via mail
+                        [[self alloc] init],           //add this class as filter to send out all stuff via mail
                         nil
                    ];
     DDLogVerbose(@"Trying to send crash reports...");
@@ -336,6 +344,42 @@
         [filteredReports addObject:[HelperTools hexadecimalString:logfileData]];
     }
     DDLogVerbose(@"KSCrashReportFilterAddMLLogfile finished...");
+    kscrash_callCompletion(onCompletion, filteredReports, YES, nil);
+}
+
+@end
+
+@implementation KSCrashReportFilterAddProfraw
+
++(instancetype) filter
+{
+    return [[self alloc] init];
+}
+
+-(void) filterReports:(NSArray*) reports onCompletion:(KSCrashReportFilterCompletion) onCompletion
+{
+    DDLogVerbose(@"KSCrashReportFilterAddProfraw started...");
+    NSMutableArray* filteredReports = [NSMutableArray arrayWithCapacity:[reports count]];
+    for(NSDictionary* report in reports)
+    {
+        NSString* profileCopy = report[@"user"][@"profileCopy"];
+        NSData* profileData = [NSData new];
+        if(profileCopy != nil)
+        {
+            DDLogDebug(@"Adding profile copy of '%@' from '%@' to crash report...", report[@"user"][@"currentProfile"], report[@"user"][@"profileCopy"]);
+            profileData = [NSData dataWithContentsOfFile:profileCopy];
+            DDLogVerbose(@"NSData of profile copy: %@", profileData);
+            NSError* error = nil;
+            [[NSFileManager defaultManager] removeItemAtPath:profileCopy error:&error];
+            if(error != nil)
+                DDLogError(@"Failed to delete profileCopy: %@", error);
+            if(profileData == nil)
+                profileData = [NSData new];
+        }
+        DDLogVerbose(@"Converting profile data to hex...");
+        [filteredReports addObject:[HelperTools hexadecimalString:profileData]];
+    }
+    DDLogVerbose(@"KSCrashReportFilterAddProfile finished...");
     kscrash_callCompletion(onCompletion, filteredReports, YES, nil);
 }
 

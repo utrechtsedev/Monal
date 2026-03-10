@@ -1,0 +1,194 @@
+//
+//  ContactsView.swift
+//  Monal
+//
+//  Created by Matthew Fennell <matthew@fennell.dev> on 10/08/2024.
+//  Copyright © 2024 monal-im.org. All rights reserved.
+//
+
+struct ContactViewEntry: View {
+    private let contact: MLContact
+    @Binding private var selectedContactForContactDetails: MLContact?
+    private let dismissWithContact: (MLContact) -> ()
+
+    @State private var shouldPresentRemoveContactAlert: Bool = false
+
+    private var removeContactButtonText: LocalizedStringKey {
+        if (!isDeletable) {
+            return "Cannot delete notes to self"
+        }
+        return contact.isMuc ? "Remove Conversation" : "Remove Contact"
+    }
+
+    private var removeContactConfirmationTitle: LocalizedStringKey {
+        contact.isMuc ? "Leave this converstion?" : "Remove \(contact.contactJid) from contacts?"
+    }
+
+    private var removeContactConfirmationDetail: LocalizedStringKey {
+        contact.isMuc ? "" : "They will no longer see when you are online. They may not be able to access your encryption keys."
+    }
+
+    private var isDeletable: Bool {
+        //we don't need the kvo observer here, because the selfchat status won't ever change for a given MLContact singleton
+        !contact.isSelf
+    }
+
+    init (contact: MLContact, selectedContactForContactDetails: Binding<MLContact?>, dismissWithContact: @escaping (MLContact) -> ()) {
+        self.contact = contact
+        self._selectedContactForContactDetails = selectedContactForContactDetails
+        self.dismissWithContact = dismissWithContact
+    }
+
+    var body: some View {
+        Button(action: { dismissWithContact(contact) }) {
+            HStack {
+                ContactEntry(contact: contact)
+                Spacer()
+                Button {
+                    selectedContactForContactDetails = contact
+                } label: {
+                    Image(systemName: "info.circle")
+                        .imageScale(.large)
+                }
+                .accessibilityLabel("Open contact details")
+            }
+        }
+        .swipeActions(allowsFullSwipe: false) {
+            // We do not use a Button with destructive role here as we would like to display the confirmation dialog first.
+            // A destructive role would dismiss the row immediately, without waiting for the confirmation.
+            Button(removeContactButtonText) {
+                shouldPresentRemoveContactAlert = true
+            }
+            .tint(isDeletable ? .red : .gray)
+            .disabled(!isDeletable)
+        }
+        .confirmationDialog(removeContactConfirmationTitle, isPresented: $shouldPresentRemoveContactAlert, titleVisibility: .visible) {
+            Button(role: .cancel) {} label: {
+                Text("No")
+            }
+            Button(role: .destructive) {
+                MLXMPPManager.sharedInstance().remove(contact)
+            } label: {
+                Text("Yes")
+            }
+        } message: {
+            Text(removeContactConfirmationDetail)
+        }
+    }
+}
+
+struct ContactsView: View {
+    @Environment(\.colorScheme) var colorScheme
+    @ObservedObject private var contacts: Contacts
+    @State private var searchText: String = ""
+    @State private var selectedContactForContactDetails: MLContact? = nil
+    private let delegate: SheetDismisserProtocol
+    private let dismissWithContact: (MLContact) -> ()
+
+    init(contacts: Contacts, delegate: SheetDismisserProtocol, dismissWithContact: @escaping (MLContact) -> ()) {
+        self.contacts = contacts
+        self.delegate = delegate
+        self.dismissWithContact = dismissWithContact
+    }
+
+    private static func isNotSelfChatContact(contact: MLContact) -> Bool {
+        return !contact.isSelf && ContactsView.shouldDisplayContact(contact)
+    }
+    
+    private static func shouldDisplayContact(_ contact: MLContact) -> Bool {
+        
+        return contact.isSubscribedTo || contact.hasOutgoingContactRequest || contact.isSubscribedFrom
+    }
+
+    private var contactList: [MLContact] {
+        // we want to display an empty contact list if we only have a self-chat
+        // that way the image and text explaining how to add contacts will be visible
+        let withoutSelfChats = contacts.contacts.filter(ContactsView.isNotSelfChatContact)
+        if withoutSelfChats.count == 0 {
+            return []
+        }
+        return contacts.contacts
+            .filter(ContactsView.shouldDisplayContact)
+            .sorted { ContactsView.sortingCriteria($0) < ContactsView.sortingCriteria($1) }
+    }
+
+    private var searchResults: [MLContact] {
+        if searchText.isEmpty { return contactList }
+        return contactList.filter { searchMatchesContact(contact: $0, search: searchText) }
+    }
+
+    private static func sortingCriteria(_ contact: MLContact) -> (String, String) {
+        return (contact.contactDisplayName.lowercased(), contact.contactJid.lowercased())
+    }
+
+    private func searchMatchesContact(contact: MLContact, search: String) -> Bool {
+        let jid = contact.contactJid.lowercased()
+        let name = contact.contactDisplayName.lowercased()
+        let search = search.lowercased()
+
+        return jid.contains(search) || name.contains(search)
+    }
+
+    var body: some View {
+        List {
+            ForEach(searchResults, id: \.self) { contact in
+                ContactViewEntry(contact: contact, selectedContactForContactDetails: $selectedContactForContactDetails, dismissWithContact: dismissWithContact)
+                    .listRowSeparator(.hidden, edges: contact == searchResults.first ? .top : [])
+                    .alignmentGuide(.listRowSeparatorTrailing) { d in d[.trailing] }
+            }
+        }
+        .animation(.default, value: contactList)
+        .navigationTitle(Text("Contacts"))
+        .listStyle(.plain)
+        .applyClosure { view in
+            if contactList.isEmpty {
+                view
+            } else {
+                view.searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
+            }
+        }
+        .autocorrectionDisabled()
+        .textInputAutocapitalization(.never)
+        .keyboardType(.emailAddress)
+        .overlay {
+            if contactList.isEmpty {
+                ZStack {
+                    Color.contactsBackground
+                    ContentUnavailableShimView("You need friends for this ride", image: colorScheme == .dark ? "friends_dark" : "friends", description: Text("Add new contacts with the + button above. Your friends will pop up here when they can talk"))
+                }
+            } else if searchResults.isEmpty {
+                ZStack {
+                    Color.contactsBackground
+                    ContentUnavailableShimView.search(text:searchText)
+                }
+            }
+        }
+        .sheet(item: $selectedContactForContactDetails) { selectedContact in
+            AnyView(AddTopLevelNavigation(withDelegate: delegate, to: ContactDetails(delegate:delegate, contact:ObservableKVOWrapper<MLContact>(selectedContact))))
+        }
+    }
+}
+
+class Contacts: ObservableObject {
+    @Published var contacts: Set<MLContact>
+    @Published var requestCount: Int
+    private var subscriptions: Set<AnyCancellable> = Set()
+
+    init() {
+        self.contacts = Set(DataLayer.sharedInstance().contactList())
+        self.requestCount = DataLayer.sharedInstance().allContactRequests().count
+        subscriptions = [
+            NotificationCenter.default.publisher(for: NSNotification.Name(kMonalContactRefresh))
+                .receive(on: DispatchQueue.main)
+                .sink() { _ in self.refreshContacts() },
+            NotificationCenter.default.publisher(for: NSNotification.Name(kMonalContactRemoved))
+                .receive(on: DispatchQueue.main)
+                .sink() { _ in self.refreshContacts() },
+        ]
+    }
+    
+    private func refreshContacts() {
+        self.contacts = Set(DataLayer.sharedInstance().contactList())
+        self.requestCount = DataLayer.sharedInstance().allContactRequests().count
+    }
+}

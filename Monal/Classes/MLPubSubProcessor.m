@@ -8,17 +8,17 @@
 
 #import <Foundation/Foundation.h>
 
-#import "MLConstants.h"
-#import "MLPubSubProcessor.h"
-#import "MLPubSub.h"
-#import "MLHandler.h"
-#import "xmpp.h"
-#import "DataLayer.h"
-#import "MLImageManager.h"
-#import "MLNotificationQueue.h"
-#import "MLMucProcessor.h"
+#import <monalxmpp/MLConstants.h>
+#import <monalxmpp/MLPubSubProcessor.h>
+#import <monalxmpp/MLPubSub.h>
+#import <monalxmpp/MLHandler.h>
+#import <monalxmpp/xmpp.h>
+#import <monalxmpp/DataLayer.h>
+#import <monalxmpp/MLImageManager.h>
+#import <monalxmpp/MLNotificationQueue.h>
+#import <monalxmpp/MLMucProcessor.h>
 #import "XMPPIQ.h"
-#import "HelperTools.h"
+#import <monalxmpp/HelperTools.h>
 
 @interface MLPubSubProcessor()
 
@@ -62,7 +62,7 @@ $$class_handler(handleMdsFetchResult, $$ID(xmpp*, account), $$BOOL(success), $_I
 $$
 
 $$class_handler(avatarHandler, $$ID(xmpp*, account), $$ID(NSString*, jid), $$ID(NSString*, type), $_ID((NSDictionary<NSString*, MLXMLNode*>*), data))
-    MLContact* contact = [MLContact createContactFromJid:jid andAccountNo:account.accountNo];
+    MLContact* contact = [MLContact createContactFromJid:jid andAccountID:account.accountID];
     if(!contact.isSubscribedTo)
     {
         DDLogWarn(@"Ignoring incoming avatar update of user we are not subscribed to: %@", contact);
@@ -79,16 +79,16 @@ $$class_handler(avatarHandler, $$ID(xmpp*, account), $$ID(NSString*, jid), $$ID(
             {
                 DDLogInfo(@"User '%@' disabled his avatar", jid);
                 [[MLImageManager sharedInstance] setIconForContact:contact WithData:nil];
-                [[DataLayer sharedInstance] setAvatarHash:@"" forContact:jid andAccount:account.accountNo];
+                [[DataLayer sharedInstance] setAvatarHash:@"" forContact:jid andAccount:account.accountID];
                 //delete cache to make sure the image will be regenerated
-                [[MLImageManager sharedInstance] purgeCacheForContact:jid andAccount:account.accountNo];
+                [[MLImageManager sharedInstance] purgeCacheForContact:jid andAccount:account.accountID];
                 [[MLNotificationQueue currentQueue] postNotificationName:kMonalContactRefresh object:account userInfo:@{
                     @"contact": contact
                 }];
             }
             else
             {
-                NSString* currentHash = [[DataLayer sharedInstance] getAvatarHashForContact:jid andAccount:account.accountNo];
+                NSString* currentHash = [[DataLayer sharedInstance] getAvatarHashForContact:jid andAccount:account.accountID];
                 if(currentHash && [avatarHash isEqualToString:currentHash])
                 {
                     DDLogInfo(@"Avatar hash of '%@' is the same, we don't need to update our avatar image data", jid);
@@ -114,9 +114,9 @@ $$class_handler(avatarHandler, $$ID(xmpp*, account), $$ID(NSString*, jid), $$ID(
     {
         DDLogInfo(@"User %@ disabled his avatar", jid);
         [[MLImageManager sharedInstance] setIconForContact:contact WithData:nil];
-        [[DataLayer sharedInstance] setAvatarHash:@"" forContact:jid andAccount:account.accountNo];
+        [[DataLayer sharedInstance] setAvatarHash:@"" forContact:jid andAccount:account.accountID];
         //delete cache to make sure the image will be regenerated
-        [[MLImageManager sharedInstance] purgeCacheForContact:jid andAccount:account.accountNo];
+        [[MLImageManager sharedInstance] purgeCacheForContact:jid andAccount:account.accountID];
         [[MLNotificationQueue currentQueue] postNotificationName:kMonalContactRefresh object:account userInfo:@{
             @"contact": contact
         }];
@@ -149,10 +149,7 @@ $$class_handler(handleAvatarFetchResult, $$ID(xmpp*, account), $$ID(NSString*, j
         NSData* avatarData = [data[avatarHash] findFirst:@"{urn:xmpp:avatar:data}data#|base64"];
         UIImage* image = nil;
         if([[metadata findFirst:@"/@type"] hasPrefix:@"image/svg"])
-        {
-            if(@available(iOS 16.0, macCatalyst 16.0, *))
-                image = [HelperTools renderUIImageFromSVGData:avatarData];
-        }
+            image = (UIImage*)nilExtractor(PMKHang([HelperTools renderUIImageFromSVGData:avatarData]));
         else
             image = [UIImage imageWithData:avatarData];
         if(image == nil)
@@ -164,12 +161,12 @@ $$class_handler(handleAvatarFetchResult, $$ID(xmpp*, account), $$ID(NSString*, j
         if(![HelperTools isAppExtension] || image.size.width * image.size.height < 600 * 600)
         {
             NSData* imageData = [HelperTools resizeAvatarImage:image withCircularMask:YES toMaxBase64Size:256000];
-            [[MLImageManager sharedInstance] setIconForContact:[MLContact createContactFromJid:jid andAccountNo:account.accountNo] WithData:imageData];
-            [[DataLayer sharedInstance] setAvatarHash:avatarHash forContact:jid andAccount:account.accountNo];
+            [[MLImageManager sharedInstance] setIconForContact:[MLContact createContactFromJid:jid andAccountID:account.accountID] WithData:imageData];
+            [[DataLayer sharedInstance] setAvatarHash:avatarHash forContact:jid andAccount:account.accountID];
             //delete cache to make sure the image will be regenerated
-            [[MLImageManager sharedInstance] purgeCacheForContact:jid andAccount:account.accountNo];
+            [[MLImageManager sharedInstance] purgeCacheForContact:jid andAccount:account.accountID];
             [[MLNotificationQueue currentQueue] postNotificationName:kMonalContactRefresh object:account userInfo:@{
-                @"contact": [MLContact createContactFromJid:jid andAccountNo:account.accountNo]
+                @"contact": [MLContact createContactFromJid:jid andAccountID:account.accountID]
             }];
             DDLogInfo(@"Avatar of '%@' fetched and updated successfully", jid);
         }
@@ -182,7 +179,7 @@ $$class_handler(handleAvatarFetchResult, $$ID(xmpp*, account), $$ID(NSString*, j
 $$
 
 $$class_handler(rosterNameHandler, $$ID(xmpp*, account), $$ID(NSString*, jid), $$ID(NSString*, type), $_ID((NSDictionary<NSString*, MLXMLNode*>*), data))
-    MLContact* contact = [MLContact createContactFromJid:jid andAccountNo:account.accountNo];
+    MLContact* contact = [MLContact createContactFromJid:jid andAccountID:account.accountID];
     if(!contact.isSubscribedTo)
     {
         DDLogWarn(@"Ignoring incoming XEP-0172 nick update of user we are not subscribed to: %@", contact);
@@ -196,16 +193,16 @@ $$class_handler(rosterNameHandler, $$ID(xmpp*, account), $$ID(NSString*, jid), $
             if([jid isEqualToString:account.connectionProperties.identity.jid])        //own roster name
             {
                 DDLogInfo(@"Got own nickname: %@", [data[itemId] findFirst:@"{http://jabber.org/protocol/nick}nick#"]);
-                NSMutableDictionary* accountDic = [[NSMutableDictionary alloc] initWithDictionary:[[DataLayer sharedInstance] detailsForAccount:account.accountNo] copyItems:YES];
+                NSMutableDictionary* accountDic = [[NSMutableDictionary alloc] initWithDictionary:[[DataLayer sharedInstance] detailsForAccount:account.accountID] copyItems:YES];
                 accountDic[kRosterName] = [data[itemId] findFirst:@"{http://jabber.org/protocol/nick}nick#"];
                 [[DataLayer sharedInstance] updateAccounWithDictionary:accountDic];
             }
             else                                                                    //roster name of contact
             {
                 DDLogInfo(@"Got nickname of %@: %@", jid, [data[itemId] findFirst:@"{http://jabber.org/protocol/nick}nick#"]);
-                [[DataLayer sharedInstance] setFullName:[data[itemId] findFirst:@"{http://jabber.org/protocol/nick}nick#"] forContact:jid andAccount:account.accountNo];
+                [[DataLayer sharedInstance] setFullName:[data[itemId] findFirst:@"{http://jabber.org/protocol/nick}nick#"] forContact:jid andAccount:account.accountID];
                 //delete cache to make sure the image will be regenerated
-                [[MLImageManager sharedInstance] purgeCacheForContact:jid andAccount:account.accountNo];
+                [[MLImageManager sharedInstance] purgeCacheForContact:jid andAccount:account.accountID];
                 [[MLNotificationQueue currentQueue] postNotificationName:kMonalContactRefresh object:account userInfo:@{
                     @"contact": contact
                 }];
@@ -219,16 +216,16 @@ $$class_handler(rosterNameHandler, $$ID(xmpp*, account), $$ID(NSString*, jid), $
         if([jid isEqualToString:account.connectionProperties.identity.jid])        //own roster name
         {
             DDLogInfo(@"Own nickname got retracted");
-            NSMutableDictionary* accountDic = [[NSMutableDictionary alloc] initWithDictionary:[[DataLayer sharedInstance] detailsForAccount:account.accountNo] copyItems:NO];
+            NSMutableDictionary* accountDic = [[NSMutableDictionary alloc] initWithDictionary:[[DataLayer sharedInstance] detailsForAccount:account.accountID] copyItems:NO];
             accountDic[kRosterName] = @"";
             [[DataLayer sharedInstance] updateAccounWithDictionary:accountDic];
         }
         else
         {
             DDLogInfo(@"Nickname of %@ got retracted", jid);
-            [[DataLayer sharedInstance] setFullName:@"" forContact:jid andAccount:account.accountNo];
+            [[DataLayer sharedInstance] setFullName:@"" forContact:jid andAccount:account.accountID];
             //delete cache to make sure the image will be regenerated
-            [[MLImageManager sharedInstance] purgeCacheForContact:jid andAccount:account.accountNo];
+            [[MLImageManager sharedInstance] purgeCacheForContact:jid andAccount:account.accountID];
             [[MLNotificationQueue currentQueue] postNotificationName:kMonalContactRefresh object:account userInfo:@{
                 @"contact": contact
             }];
@@ -237,12 +234,6 @@ $$class_handler(rosterNameHandler, $$ID(xmpp*, account), $$ID(NSString*, jid), $
 $$
 
 $$class_handler(bookmarks2Handler, $$ID(xmpp*, account), $$ID(NSString*, jid), $$ID(NSString*, type), $_ID((NSDictionary<NSString*, MLXMLNode*>*), data))
-    if(!account.connectionProperties.supportsBookmarksCompat)
-    {
-        DDLogWarn(@"Ignoring new XEP-0402 bookmarks, server does not support syncing between XEP-0048 and XEP-0402!");
-        return;
-    }
-    
     //type will be "publish", "retract", "purge" or "delete". "publish" and "retract" will have the data dictionary filled with id --> data pairs
     //the data for "publish" is the item node with the given id, the data for "retract" is always @YES
     if(![jid isEqualToString:account.connectionProperties.identity.jid])
@@ -251,7 +242,8 @@ $$class_handler(bookmarks2Handler, $$ID(xmpp*, account), $$ID(NSString*, jid), $
         return;
     }
     
-    NSSet* ownFavorites = [[DataLayer sharedInstance] listMucsForAccount:account.accountNo];
+    NSString* clientType = [account.capsIdentity findFirst:@"/<category=client>@type"];
+    NSSet* ownFavorites = [[DataLayer sharedInstance] listMucsForAccount:account.accountID];
     
     //new/updated bookmarks
     if([type isEqualToString:@"publish"])
@@ -269,43 +261,75 @@ $$class_handler(bookmarks2Handler, $$ID(xmpp*, account), $$ID(NSString*, jid), $
             NSNumber* autojoin = [data[itemId] findFirst:@"{urn:xmpp:bookmarks:1}conference@autojoin|bool"];
             if(autojoin == nil)
                 autojoin = @NO;     //default value specified in xep
+            BOOL pinned = [data[itemId] check:@"{urn:xmpp:bookmarks:1}conference/extensions/{urn:xmpp:bookmarks-pinning:0}pinned"];
+            MLXMLNode* notifyOptions = [data[itemId] findFirst:@"{urn:xmpp:bookmarks:1}conference/extensions/{urn:xmpp:notification-settings:0}notify"];
             
             //check if this is a new entry with autojoin=true
             if(![ownFavorites containsObject:room] && [autojoin boolValue])
             {
-                DDLogInfo(@"Entering muc '%@' on account %@ because it got added to bookmarks...", room, account.accountNo);
+                DDLogInfo(@"Entering muc '%@' on account %@ because it got added to bookmarks...", room, account.accountID);
                 //make sure we update our favorites table right away, to counter any race conditions when joining multiple mucs with one bookmarks update
                 if(nick == nil)
                     nick = [account.mucProcessor calculateNickForMuc:room];
                 //this will record the desired nickname: the mucProcessor will pick that up and use it to join the muc
-                [[DataLayer sharedInstance] addMucFavorite:room forAccountId:account.accountNo andMucNick:nick];
+                [[DataLayer sharedInstance] addMucFavorite:room forAccountID:account.accountID andMucNick:nick];
                 //try to join muc, but don't perform a bookmarks update (this muc came in through a bookmark already)
                 [account.mucProcessor sendDiscoQueryFor:room withJoin:YES andBookmarksUpdate:NO];
             }
-            //check if it is a known entry that changed autojoin to false
-            else if([ownFavorites containsObject:room] && ![autojoin boolValue])
+            //check if it is a known entry...
+            else if([ownFavorites containsObject:room])
             {
-                DDLogInfo(@"Leaving muc '%@' on account %@ because not listed as autojoin=true in bookmarks...", room, account.accountNo);
-                //delete local favorites entry and leave room afterwards, but keep buddylist entry because only the autojoin flag changed
-                [account.mucProcessor leave:room withBookmarksUpdate:NO keepBuddylistEntry:YES];
-            }
-            //check for nickname changes
-            else if([ownFavorites containsObject:room] && nick != nil)
-            {
-                NSString* oldNick = [[DataLayer sharedInstance] ownNickNameforMuc:room forAccount:account.accountNo];
-                if(![nick isEqualToString:oldNick])
+                MLContact* contact = [MLContact createContactFromJid:room andAccountID:account.accountID];
+                
+                //..that changed autojoin to false
+                if(![autojoin boolValue])
                 {
-                    DDLogInfo(@"Updating muc '%@' nick on account %@ in database to nick provided by bookmarks: '%@'...", room, account.accountNo, nick);
-                    
-                    //update muc nickname in database
-                    [[DataLayer sharedInstance] updateOwnNickName:nick forMuc:room forAccount:account.accountNo];
-                    [[DataLayer sharedInstance] addMucFavorite:room forAccountId:account.accountNo andMucNick:nick];        //this will upate the already existing favorites entry
-                    
-                    //rejoin the muc (e.g. change nick)
-                    //we don't have to do a full disco because we are sure this is a real muc and we are joined already
-                    //(only real mucs are part of our local favorites list and this list is joined automatically)
-                    [account.mucProcessor sendJoinPresenceFor:room];
+                    DDLogInfo(@"Leaving muc '%@' on account %@ because not listed as autojoin=true in bookmarks...", room, account.accountID);
+                    //delete local favorites entry and leave room afterwards, but keep buddylist entry because only the autojoin flag changed
+                    [account.mucProcessor leave:room withBookmarksUpdate:NO keepBuddylistEntry:YES];
                 }
+                //...that changed nickname
+                if(nick != nil)
+                {
+                    NSString* oldNick = [[DataLayer sharedInstance] ownNickNameforMuc:room forAccount:account.accountID];
+                    if(![nick isEqualToString:oldNick])
+                    {
+                        DDLogInfo(@"Updating muc '%@' nick on account %@ in database to nick provided by bookmarks: '%@'...", room, account.accountID, nick);
+                        
+                        //update muc nickname in database
+                        [[DataLayer sharedInstance] updateOwnNickName:nick forMuc:room forAccount:account.accountID];
+                        [[DataLayer sharedInstance] addMucFavorite:room forAccountID:account.accountID andMucNick:nick];        //this will upate the already existing favorites entry
+                        
+                        //rejoin the muc (e.g. change nick)
+                        //we don't have to do a full disco because we are sure this is a real muc and we are joined already
+                        //(only real mucs are part of our local favorites list and this list is joined automatically)
+                        [account.mucProcessor sendJoinPresenceFor:room];
+                    }
+                }
+                //...that changed notification settings
+                if(notifyOptions != nil)
+                {
+                    NSString* notifyType = [notifyOptions findFirst:@"*<client-type=%@>$", clientType];
+                    if(notifyType == nil)
+                        notifyType = [notifyOptions findFirst:@"*<client-type!~.*>$"];     //match client-type attribute not present
+                    if([@"always" isEqualToString:notifyType])
+                    {
+                        [contact toggleMute:NO];
+                        [contact toggleMentionOnly:NO];
+                    }
+                    else if([@"on-mention" isEqualToString:notifyType])
+                    {
+                        [contact toggleMute:NO];
+                        [contact toggleMentionOnly:YES];
+                    }
+                    else if([@"never" isEqualToString:notifyType])
+                    {
+                        [contact toggleMute:YES];
+                        [contact toggleMentionOnly:NO];
+                    }
+                }
+                //...that changed pinned status (the check is done inside of [MLContact togglePinnedChat:]
+                [contact togglePinnedChat:pinned];
             }
         }
     }
@@ -316,7 +340,7 @@ $$class_handler(bookmarks2Handler, $$ID(xmpp*, account), $$ID(NSString*, jid), $
             NSString* room = [itemId lowercaseString];
             if([ownFavorites containsObject:room])
             {
-                DDLogInfo(@"Leaving muc '%@' on account %@ because not listed in bookmarks anymore...", room, account.accountNo);
+                DDLogInfo(@"Leaving muc '%@' on account %@ because not listed in bookmarks anymore...", room, account.accountID);
                 //delete local favorites entry and leave room afterwards
                 [account.mucProcessor leave:room withBookmarksUpdate:NO keepBuddylistEntry:NO];
             }
@@ -330,7 +354,7 @@ $$class_handler(bookmarks2Handler, $$ID(xmpp*, account), $$ID(NSString*, jid), $
         //--> remove and leave all mucs
         for(NSString* room in ownFavorites)
         {
-            DDLogInfo(@"Leaving muc '%@' on account %@ because all bookmarks got deleted...", room, account.accountNo);
+            DDLogInfo(@"Leaving muc '%@' on account %@ because all bookmarks got deleted...", room, account.accountID);
             //delete local favorites entry and leave room afterwards
             [account.mucProcessor leave:room withBookmarksUpdate:NO keepBuddylistEntry:NO];
         }
@@ -338,12 +362,6 @@ $$class_handler(bookmarks2Handler, $$ID(xmpp*, account), $$ID(NSString*, jid), $
 $$
 
 $$class_handler(handleBookmarks2FetchResult, $$ID(xmpp*, account), $$BOOL(success), $_ID(XMPPIQ*, errorIq), $_ID(NSString*, errorReason), $_ID((NSDictionary<NSString*, MLXMLNode*>*), data))
-    if(!account.connectionProperties.supportsBookmarksCompat)
-    {
-        DDLogWarn(@"Ignoring new XEP-0402 bookmarks, server does not support syncing between XEP-0048 and XEP-0402!");
-        return;
-    }
-    
     if(!success)
     {
         //item-not-found means: no bookmarks in storage --> use an empty data dict
@@ -357,12 +375,14 @@ $$class_handler(handleBookmarks2FetchResult, $$ID(xmpp*, account), $$BOOL(succes
         }
     }
     
+    NSString* clientType = [account.capsIdentity findFirst:@"/<category=client>@type"];
+    
     NSString* max_items = @"255";       //fallback for servers not supporting "max"
     if(account.connectionProperties.supportsPubSubMax)
         max_items = @"max";
     NSDictionary* infoDict = [[NSBundle mainBundle] infoDictionary];
     
-    NSSet* ownFavorites = [[DataLayer sharedInstance] listMucsForAccount:account.accountNo];
+    NSSet* ownFavorites = [[DataLayer sharedInstance] listMucsForAccount:account.accountID];
     DDLogVerbose(@"Own favorites: %@", ownFavorites);
     
     //filter passwort protected mucs and make sure jids (the item ids) are always lowercase
@@ -389,24 +409,85 @@ $$class_handler(handleBookmarks2FetchResult, $$ID(xmpp*, account), $$BOOL(succes
         NSNumber* autojoin = [item findFirst:@"{urn:xmpp:bookmarks:1}conference@autojoin|bool"];
         if(autojoin == nil)
             autojoin = @NO;     //default value specified in xep
+        BOOL pinned = [item check:@"{urn:xmpp:bookmarks:1}conference/extensions/{urn:xmpp:bookmarks-pinning:0}pinned"];
+        MLXMLNode* notifyOptions = [item findFirst:@"{urn:xmpp:bookmarks:1}conference/extensions/{urn:xmpp:notification-settings:0}notify"];
         
-        //check if the bookmark exists with autojoin==false and only update the autojoin and nick values, if true
-        if([ownFavorites containsObject:room] && ![autojoin boolValue])
+        if([ownFavorites containsObject:room])
         {
-            DDLogInfo(@"Updating autojoin of bookmarked muc '%@' on account %@ to 'true'...", room, account.accountNo);
-            
-            //add or update nickname
-            NSString* nick = [[DataLayer sharedInstance] ownNickNameforMuc:room forAccount:account.accountNo];
-            if(nick != nil)
+            //check if the bookmark exists with autojoin==false and only update the autojoin and nick values, if true
+            if(![autojoin boolValue])
             {
-                if(![item check:@"{urn:xmpp:bookmarks:1}conference/nick"])
-                    [[item findFirst:@"{urn:xmpp:bookmarks:1}conference"] addChildNode:[[MLXMLNode alloc] initWithElement:@"nick"]];
-                ((MLXMLNode*)[item findFirst:@"{urn:xmpp:bookmarks:1}conference/nick"]).data = nick;
+                DDLogInfo(@"Updating autojoin of bookmarked muc '%@' on account %@ to 'true'...", room, account.accountID);
+
+                //add or update nickname
+                NSString* nick = [[DataLayer sharedInstance] ownNickNameforMuc:room forAccount:account.accountID];
+                if(nick != nil)
+                {
+                    if(![item check:@"{urn:xmpp:bookmarks:1}conference/nick"])
+                        [[item findFirst:@"{urn:xmpp:bookmarks:1}conference"] addChildNode:[[MLXMLNode alloc] initWithElement:@"nick"]];
+                    ((MLXMLNode*)[item findFirst:@"{urn:xmpp:bookmarks:1}conference/nick"]).data = nick;
+                }
+                
+                //update autojoin value to true
+                ((MLXMLNode*)[item findFirst:@"{urn:xmpp:bookmarks:1}conference"]).attributes[@"autojoin"] = @"true";
             }
             
-            //update autojoin value to true
-            ((MLXMLNode*)[item findFirst:@"{urn:xmpp:bookmarks:1}conference"]).attributes[@"autojoin"] = @"true";
+            //sync the bookmark with the local pinned status, if they differ
+            MLContact* contact = [MLContact createContactFromJid:room andAccountID:account.accountID];
+            if(pinned != contact.isPinned)
+            {
+                if(contact.isPinned)
+                {
+                    DDLogVerbose(@"Adding <pinned> element to the bookmark of the room %@", room);
+                    if([item check:@"{urn:xmpp:bookmarks:1}conference/extensions"])
+                        [[item findFirst:@"{urn:xmpp:bookmarks:1}conference/extensions"] addChildNode:[[MLXMLNode alloc] initWithElement:@"pinned" andNamespace:@"urn:xmpp:bookmarks-pinning:0"]];
+                    else
+                        [[item findFirst:@"{urn:xmpp:bookmarks:1}conference"] addChildNode: [[MLXMLNode alloc] initWithElement:@"extensions" withAttributes:@{} andChildren:@[
+                            [[MLXMLNode alloc] initWithElement:@"pinned" andNamespace:@"urn:xmpp:bookmarks-pinning:0" withAttributes:@{} andChildren:@[] andData:nil],
+                        ] andData:nil]];
+                }
+                else
+                {
+                    DDLogVerbose(@"Removing <pinned> element from the bookmark of the room %@", room);
+                    [[item findFirst:@"{urn:xmpp:bookmarks:1}conference/extensions"] removeChildNode:[item findFirst:@"{urn:xmpp:bookmarks:1}conference/extensions/{urn:xmpp:bookmarks-pinning:0}pinned"]];
+                }
+            }
             
+            //sync the bookmark with the notification status, if they differ
+            NSString* localNotificationSetting = @"always";
+            if(contact.isMuted)
+                localNotificationSetting = @"never";
+            else if(contact.isMentionOnly)
+                localNotificationSetting = @"on-mention";
+            BOOL special = YES;
+            NSString* notifyType = [notifyOptions findFirst:@"*<client-type=%@>$", clientType];
+            if(notifyType == nil)
+            {
+                special = NO;
+                notifyType = [notifyOptions findFirst:@"*<client-type!~.*>$"];     //match client-type attribute not present
+            }
+            if(notifyOptions == nil)
+            {
+                notifyOptions = [[MLXMLNode alloc] initWithElement:@"notify" andNamespace:@"urn:xmpp:notification-settings:0"];
+                if([item check:@"{urn:xmpp:bookmarks:1}conference/extensions"])
+                    [[item findFirst:@"{urn:xmpp:bookmarks:1}conference/extensions"] addChildNode:notifyOptions];
+                else
+                    [[item findFirst:@"{urn:xmpp:bookmarks:1}conference"] addChildNode: [[MLXMLNode alloc] initWithElement:@"extensions" withAttributes:@{} andChildren:@[notifyOptions] andData:nil]];
+            }
+            //if we need to change things --> remove old settings node and add a new one reflecting our own notification settings
+            if(notifyType == nil || ![notifyType isEqualToString:localNotificationSetting])
+            {
+                MLXMLNode* newSettingNode = [[MLXMLNode alloc] initWithElement:localNotificationSetting];
+                if(special)
+                {
+                    [notifyOptions removeChildNode:[notifyOptions findFirst:@"*<client-type=%@>", clientType]];
+                    newSettingNode.attributes[@"client-type"] = clientType;
+                }
+                else
+                    [notifyOptions removeChildNode:[notifyOptions findFirst:@"*<client-type!~.*>"]];
+                [notifyOptions addChildNode:newSettingNode];
+            }
+
             //publish this bookmark item again
             [account.pubsub publishItem:item onNode:@"urn:xmpp:bookmarks:1" withConfigOptions:@{
                 @"pubsub#persist_items": @"true",
@@ -421,8 +502,14 @@ $$class_handler(handleBookmarks2FetchResult, $$ID(xmpp*, account), $$BOOL(succes
     [toAdd  minusSet:[NSSet setWithArray:[_data allKeys]]];
     for(NSString* room in toAdd)
     {
-        DDLogInfo(@"Adding muc '%@' on account %@ to bookmarks...", room, account.accountNo);
-        NSString* nick = [[DataLayer sharedInstance] ownNickNameforMuc:room forAccount:account.accountNo];
+        DDLogInfo(@"Adding muc '%@' on account %@ to bookmarks...", room, account.accountID);
+        MLContact* contact = [MLContact createContactFromJid:room andAccountID:account.accountID];
+        NSString* localNotificationSetting = @"always";
+        if(contact.isMuted)
+            localNotificationSetting = @"never";
+        else if(contact.isMentionOnly)
+            localNotificationSetting = @"on-mention";
+        NSString* nick = [[DataLayer sharedInstance] ownNickNameforMuc:room forAccount:account.accountID];
         [account.pubsub publishItem:
             [[MLXMLNode alloc] initWithElement:@"item" withAttributes:@{@"id": room} andChildren:@[
                 [[MLXMLNode alloc] initWithElement:@"conference" andNamespace:@"urn:xmpp:bookmarks:1" withAttributes:@{
@@ -430,11 +517,15 @@ $$class_handler(handleBookmarks2FetchResult, $$ID(xmpp*, account), $$BOOL(succes
                 } andChildren:@[
                     nilWrapper(nick != nil ? [[MLXMLNode alloc] initWithElement:@"nick" withAttributes:@{} andChildren:@[] andData:nick] : nil),
                     [[MLXMLNode alloc] initWithElement:@"extensions" withAttributes:@{} andChildren:@[
+                        nilWrapper(contact.isPinned ? [[MLXMLNode alloc] initWithElement:@"pinned" andNamespace:@"urn:xmpp:bookmarks-pinning:0" withAttributes:@{} andChildren:@[] andData:nil] : nil),
+                        [[MLXMLNode alloc] initWithElement:@"notify" andNamespace:@"urn:xmpp:notification-settings:0" withAttributes:@{} andChildren:@[
+                            [[MLXMLNode alloc] initWithElement:localNotificationSetting]
+                        ] andData:nil],
                         [[MLXMLNode alloc] initWithElement:@"added-by" andNamespace:@"urn:monal.im:bookmarks:info" withAttributes:@{
                             @"name": @"Monal",
                             @"version": infoDict[@"CFBundleShortVersionString"],
                             @"build": infoDict[@"CFBundleVersion"],
-                        } andChildren:@[] andData:nil]
+                        } andChildren:@[] andData:nil],
                     ] andData:nil]
                 ]andData:nil]
             ] andData:nil]
@@ -450,18 +541,18 @@ $$class_handler(handleBookmarks2FetchResult, $$ID(xmpp*, account), $$BOOL(succes
     [toRemove  minusSet:ownFavorites];
     for(NSString* room in toRemove)
     {
-        DDLogInfo(@"Removing muc '%@' on account %@ from bookmarks...", room, account.accountNo);
+        MLXMLNode* item = _data[room];
+        NSNumber* autojoin = [item findFirst:@"{urn:xmpp:bookmarks:1}conference@autojoin|bool"];
+        if(autojoin == nil)
+            autojoin = @NO;     //default value specified in xep
+        if(![autojoin boolValue])
+            continue;           //don't remove mucs that already have autojoin=false
+        DDLogInfo(@"Removing muc '%@' on account %@ from bookmarks...", room, account.accountID);
         [account.pubsub retractItemWithId:room onNode:@"urn:xmpp:bookmarks:1" andHandler:$newHandler(self, bookmarks2Retracted, $ID(room))];
     }
 $$
 
 $$class_handler(bookmarks2Published, $$ID(xmpp*, account), $$ID(NSString*, room), $$BOOL(success), $_ID(XMPPIQ*, errorIq), $_ID(NSString*, errorReason))
-    if(!account.connectionProperties.supportsBookmarksCompat)
-    {
-        DDLogWarn(@"Ignoring new XEP-0402 bookmarks, server does not support syncing between XEP-0048 and XEP-0402!");
-        return;
-    }
-    
     if(!success)
     {
         DDLogWarn(@"Could not publish bookmark for muc '%@' to pep!", room);
@@ -472,12 +563,6 @@ $$class_handler(bookmarks2Published, $$ID(xmpp*, account), $$ID(NSString*, room)
 $$
 
 $$class_handler(bookmarks2Retracted, $$ID(xmpp*, account), $$ID(NSString*, room), $$BOOL(success), $_ID(XMPPIQ*, errorIq), $_ID(NSString*, errorReason))
-    if(!account.connectionProperties.supportsBookmarksCompat)
-    {
-        DDLogWarn(@"Ignoring new XEP-0402 bookmarks, server does not support syncing between XEP-0048 and XEP-0402!");
-        return;
-    }
-    
     if(!success)
     {
         if([errorIq check:@"/<type=error>/error<type=cancel>/{urn:ietf:params:xml:ns:xmpp-stanzas}item-not-found"])
@@ -490,263 +575,6 @@ $$class_handler(bookmarks2Retracted, $$ID(xmpp*, account), $$ID(NSString*, room)
         return;
     }
     DDLogDebug(@"Retracted bookmark for muc '%@' from pep", room);
-$$
-
-$$class_handler(bookmarksHandler, $$ID(xmpp*, account), $$ID(NSString*, jid), $$ID(NSString*, type), $_ID((NSDictionary<NSString*, MLXMLNode*>*), data))
-    if(account.connectionProperties.supportsBookmarksCompat)
-    {
-        DDLogInfo(@"Ignoring old XEP-0048 bookmarks, server supports syncing between XEP-0048 and XEP-0402...");
-        return;
-    }
-    
-    if(![jid isEqualToString:account.connectionProperties.identity.jid])
-    {
-        DDLogWarn(@"Ignoring bookmarks update not coming from our own jid");
-        return;
-    }
-    
-    NSSet* ownFavorites = [[DataLayer sharedInstance] listMucsForAccount:account.accountNo];
-    
-    //new/updated bookmarks
-    if([type isEqualToString:@"publish"])
-    {
-        for(NSString* itemId in data)
-        {
-            //iterate through all conference elements provided
-            NSMutableSet* bookmarkedMucs = [NSMutableSet new];
-            for(MLXMLNode* conference in [data[itemId] find:@"{storage:bookmarks}storage/conference"])
-            {
-                //we ignore the conference name (the name will be taken from the muc itself)
-                //NSString* name = [conference findFirst:@"/@name"];
-                NSString* room = [[conference findFirst:@"/@jid"] lowercaseString];
-                //ignore non-xep-compliant entries
-                if(!room)
-                {
-                    DDLogError(@"Received non-xep-compliant bookmarks entry, ignoring: %@", conference);
-                    continue;
-                }
-                
-                //ignore password protected mucs
-                if([conference check:@"password"])
-                    continue;
-                
-                [bookmarkedMucs addObject:room];
-                NSString* nick = [conference findFirst:@"nick#"];
-                NSNumber* autojoin = [conference findFirst:@"/@autojoin|bool"];
-                if(autojoin == nil)
-                    autojoin = @NO;     //default value specified in xep
-                
-                //check if this is a new entry with autojoin=true
-                if(![ownFavorites containsObject:room] && [autojoin boolValue])
-                {
-                    DDLogInfo(@"Entering muc '%@' on account %@ because it got added to bookmarks...", room, account.accountNo);
-                    //make sure we update our favorites table right away, to counter any race conditions when joining multiple mucs with one bookmarks update
-                    if(nick == nil)
-                        nick = [account.mucProcessor calculateNickForMuc:room];
-                    //this will record the desired nickname: the mucProcessor will pick that up and use it to join the muc
-                    [[DataLayer sharedInstance] addMucFavorite:room forAccountId:account.accountNo andMucNick:nick];
-                    //try to join muc, but don't perform a bookmarks update (this muc came in through a bookmark already)
-                    [account.mucProcessor sendDiscoQueryFor:room withJoin:YES andBookmarksUpdate:NO];
-                }
-                //check if it is a known entry that changed autojoin to false
-                else if([ownFavorites containsObject:room] && ![autojoin boolValue])
-                {
-                    DDLogInfo(@"Leaving muc '%@' on account %@ because not listed as autojoin=true in bookmarks...", room, account.accountNo);
-                    //delete local favorites entry and leave room afterwards, but keep buddylist entry because only the autojoin flag changed
-                    [account.mucProcessor leave:room withBookmarksUpdate:NO keepBuddylistEntry:YES];
-                }
-                //check for nickname changes
-                else if([ownFavorites containsObject:room] && nick != nil)
-                {
-                    NSString* oldNick = [[DataLayer sharedInstance] ownNickNameforMuc:room forAccount:account.accountNo];
-                    if(![nick isEqualToString:oldNick])
-                    {
-                        DDLogInfo(@"Updating muc '%@' nick on account %@ in database to nick provided by bookmarks: '%@'...", room, account.accountNo, nick);
-                        
-                        //update muc nickname in database
-                        [[DataLayer sharedInstance] updateOwnNickName:nick forMuc:room forAccount:account.accountNo];
-                        [[DataLayer sharedInstance] addMucFavorite:room forAccountId:account.accountNo andMucNick:nick];        //this will upate the already existing favorites entry
-                        
-                        //rejoin the muc (e.g. change nick)
-                        //we don't have to do a full disco because we are sure this is a real muc and we are joined already
-                        //(only real mucs are part of our local favorites list and this list is joined automatically)
-                        [account.mucProcessor sendJoinPresenceFor:room];
-                    }
-                }
-            }
-            
-            //remove and leave all mucs removed from bookmarks
-            NSMutableSet* toLeave = [ownFavorites mutableCopy];
-            [toLeave  minusSet:bookmarkedMucs];
-            for(NSString* room in toLeave)
-            {
-                DDLogInfo(@"Leaving muc '%@' on account %@ because not listed in bookmarks anymore...", room, account.accountNo);
-                //delete local favorites entry and leave room afterwards
-                [account.mucProcessor leave:room withBookmarksUpdate:NO keepBuddylistEntry:NO];
-            }
-            
-            return;      //we only need the first pep item (there should be only one item in the first place)
-        }
-        //FALLTHROUGH to "delete all" if no item was found
-    }
-    //deleted/purged node or retracted item (e.g. all bookmarks deleted)
-    //--> remove and leave all mucs
-    for(NSString* room in ownFavorites)
-    {
-        DDLogInfo(@"Leaving muc '%@' on account %@ because all bookmarks got deleted...", room, account.accountNo);
-        //delete local favorites entry and leave room afterwards
-        [account.mucProcessor leave:room withBookmarksUpdate:NO keepBuddylistEntry:NO];
-    }
-$$
-
-$$class_handler(handleBookarksFetchResult, $$ID(xmpp*, account), $$BOOL(success), $_ID(XMPPIQ*, errorIq), $_ID(NSString*, errorReason), $_ID((NSDictionary<NSString*, MLXMLNode*>*), data))
-    if(account.connectionProperties.supportsBookmarksCompat)
-    {
-        DDLogInfo(@"Ignoring old XEP-0048 bookmarks, server supports syncing between XEP-0048 and XEP-0402...");
-        return;
-    }
-    
-    if(!success)
-    {
-        //item-not-found means: no bookmarks in storage --> use an empty data dict
-        if([errorIq check:@"error/{urn:ietf:params:xml:ns:xmpp-stanzas}item-not-found"])
-            data = @{};
-        else
-        {
-            DDLogWarn(@"Could not fetch bookmarks from pep prior to publishing!");
-            [self handleErrorWithDescription:NSLocalizedString(@"Failed to save groupchat bookmarks", @"") andAccount:account andErrorIq:errorIq andErrorReason:errorReason andIsSevere:YES];
-            return;
-        }
-    }
-    
-    BOOL changed = NO;
-    NSSet* ownFavorites = [[DataLayer sharedInstance] listMucsForAccount:account.accountNo];
-    
-    for(NSString* itemId in data)
-    {
-        //ignore non-xep-compliant data and continue as if no data was received at all
-        if(![data[itemId] check:@"{storage:bookmarks}storage"])
-        {
-            DDLogError(@"Received non-xep-compliant bookmarks data: %@", data);
-            break;
-        }
-        
-        NSMutableSet* bookmarkedMucs = [NSMutableSet new];
-        for(MLXMLNode* conference in [data[itemId] find:@"{storage:bookmarks}storage/conference"])
-        {
-            //we ignore the conference name (the name will be taken from the muc itself)
-            //NSString* name = [conference findFirst:@"/@name"];
-            NSString* room = [[conference findFirst:@"/@jid"] lowercaseString];
-            //ignore non-xep-compliant entries
-            if(!room)
-            {
-                DDLogError(@"Received non-xep-compliant bookmarks entry, ignoring: %@", conference);
-                continue;
-            }
-            [bookmarkedMucs addObject:room];
-            NSNumber* autojoin = [conference findFirst:@"/@autojoin|bool"];
-            if(autojoin == nil)
-                autojoin = @NO;     //default value specified in xep
-            
-            //check if the bookmark exists with autojoin==false and only update the autojoin and nick values, if true
-            if([ownFavorites containsObject:room] && ![autojoin boolValue])
-            {
-                DDLogInfo(@"Updating autojoin of bookmarked muc '%@' on account %@ to 'true'...", room, account.accountNo);
-                
-                //add or update nickname
-                NSString* nick = [[DataLayer sharedInstance] ownNickNameforMuc:room forAccount:account.accountNo];
-                if(nick != nil)
-                {
-                    if(![conference check:@"nick"])
-                        [conference addChildNode:[[MLXMLNode alloc] initWithElement:@"nick"]];
-                    ((MLXMLNode*)[conference findFirst:@"nick"]).data = [[DataLayer sharedInstance] ownNickNameforMuc:room forAccount:account.accountNo];
-                }
-                
-                //update autojoin value to true
-                conference.attributes[@"autojoin"] = @"true";
-                changed = YES;
-            }
-        }
-        
-        //add all mucs not yet listed in bookmarks
-        NSMutableSet* toAdd = [ownFavorites mutableCopy];
-        [toAdd  minusSet:bookmarkedMucs];
-        for(NSString* room in toAdd)
-        {
-            DDLogInfo(@"Adding muc '%@' on account %@ to bookmarks...", room, account.accountNo);
-            NSString* nick = [[DataLayer sharedInstance] ownNickNameforMuc:room forAccount:account.accountNo];
-            [[data[itemId] findFirst:@"{storage:bookmarks}storage"] addChildNode:[[MLXMLNode alloc] initWithElement:@"conference" withAttributes:@{
-                @"jid": room,
-                @"name": [[MLContact createContactFromJid:room andAccountNo:account.accountNo] contactDisplayName],
-                @"autojoin": @"true",
-            } andChildren:(nick != nil ? @[[[MLXMLNode alloc] initWithElement:@"nick" withAttributes:@{} andChildren:@[] andData:nick]] : @[]) andData:nil]];
-            changed = YES;
-        }
-        
-        //remove all mucs not listed in local favorites table
-        NSMutableSet* toRemove = [bookmarkedMucs mutableCopy];
-        [toRemove  minusSet:ownFavorites];
-        for(NSString* room in toRemove)
-        {
-            DDLogInfo(@"Removing muc '%@' on account %@ from bookmarks...", room, account.accountNo);
-            [[data[itemId] findFirst:@"{storage:bookmarks}storage"] removeChildNode:[data[itemId] findFirst:@"{storage:bookmarks}storage/conference<jid=%@>", room]];
-            changed = YES;
-        }
-        
-        //publish new bookmarks if something was changed
-        if(changed)
-            [account.pubsub publishItem:data[itemId] onNode:@"storage:bookmarks" withConfigOptions:@{
-                @"pubsub#persist_items": @"true",
-                @"pubsub#access_model": @"whitelist"
-            } andHandler:$newHandler(self, bookmarksPublished)];
-        
-        //we only need the first pep item (there should be only one item in the first place)
-        return;
-    }
-    
-    //don't publish an empty bookmarks node if there is nothing to publish at all
-    if([ownFavorites count] == 0)
-    {
-        DDLogInfo(@"neither a pep item was found, nor do we have any local muc favorites: don't publish anything");
-        return;
-    }
-    
-    DDLogInfo(@"no pep item was found: publish our bookmarks the first time");
-    NSMutableArray* conferences = [NSMutableArray new];
-    for(NSString* room in ownFavorites)
-    {
-        DDLogInfo(@"Adding muc '%@' on account %@ to bookmarks...", room, account.accountNo);
-        NSString* nick = [[DataLayer sharedInstance] ownNickNameforMuc:room forAccount:account.accountNo];
-        [conferences addObject:[[MLXMLNode alloc] initWithElement:@"conference" withAttributes:@{
-            @"jid": room,
-            @"name": [[MLContact createContactFromJid:room andAccountNo:account.accountNo] contactDisplayName],
-            @"autojoin": @"true",
-        } andChildren:(nick != nil ? @[[[MLXMLNode alloc] initWithElement:@"nick" withAttributes:@{} andChildren:@[] andData:nick]] : @[]) andData:nil]];
-    }
-    [account.pubsub publishItem:
-        [[MLXMLNode alloc] initWithElement:@"item" withAttributes:@{@"id": @"current"} andChildren:@[
-            [[MLXMLNode alloc] initWithElement:@"storage" andNamespace:@"storage:bookmarks" withAttributes:@{} andChildren:conferences andData:nil]
-        ] andData:nil]
-    onNode:@"storage:bookmarks" withConfigOptions:@{
-        @"pubsub#persist_items": @"true",
-        @"pubsub#access_model": @"whitelist"
-    } andHandler:$newHandler(self, bookmarksPublished)];
-$$
-
-$$class_handler(bookmarksPublished, $$ID(xmpp*, account), $$BOOL(success), $_ID(XMPPIQ*, errorIq), $_ID(NSString*, errorReason))
-    if(account.connectionProperties.supportsBookmarksCompat)
-    {
-        DDLogInfo(@"Ignoring old XEP-0048 bookmarks, server supports syncing between XEP-0048 and XEP-0402...");
-        return;
-    }
-    
-    if(!success)
-    {
-        DDLogWarn(@"Could not publish bookmarks to pep!");
-        [self handleErrorWithDescription:NSLocalizedString(@"Failed to save groupchat bookmarks", @"") andAccount:account andErrorIq:errorIq andErrorReason:errorReason andIsSevere:YES];
-        return;
-    }
-    DDLogDebug(@"Published bookmarks to pep");
 $$
 
 $$class_handler(rosterNamePublished, $$ID(xmpp*, account), $$BOOL(success), $_ID(XMPPIQ*, errorIq), $_ID(NSString*, errorReason))

@@ -7,15 +7,16 @@
 //
 
 #import "MLContactCell.h"
-#import "MLConstants.h"
-#import "MLContact.h"
-#import "MLMessage.h"
-#import "DataLayer.h"
+#import <monalxmpp/MLConstants.h>
+#import <monalxmpp/MLContact.h>
+#import <monalxmpp/MLMessage.h>
+#import <monalxmpp/DataLayer.h>
 #import "MLXEPSlashMeHandler.h"
-#import "HelperTools.h"
-#import "MLXMPPManager.h"
-#import "xmpp.h"
-#import "MLImageManager.h"
+#import <monalxmpp/HelperTools.h>
+#import <monalxmpp/MLXMPPManager.h>
+#import <monalxmpp/xmpp.h>
+#import <monalxmpp/MLImageManager.h>
+#import <monalxmpp/MLFiletransferInfo.h>
 #import <QuartzCore/QuartzCore.h>
 
 @interface MLContactCell()
@@ -40,7 +41,7 @@
         self.userImage.image = image;
     }];
     
-    if(contact.isGroup && contact.isMentionOnly)
+    if(contact.isMuc && contact.isMentionOnly)
     {
         self.muteBadge.hidden = YES;
         self.mentionBadge.hidden = NO;
@@ -54,40 +55,51 @@
 
 -(void) displayLastMessage:(MLMessage* _Nullable) lastMessage forContact:(MLContact*) contact
 {
-    NSString* senderOfLastGroupMsg;     // set to nick of sender in a group chat, if this is a group chat (1:1 MUST be nil)
-    if(lastMessage.isMuc)
-         senderOfLastGroupMsg = lastMessage.contactDisplayName;
-
     if(lastMessage)
     {
+        if(lastMessage.timestamp)
+        {
+            self.time.text = [self formattedDateWithSource:lastMessage.timestamp];
+            self.time.hidden = NO;
+        }
+        else
+            self.time.hidden = YES;
+        
         if(lastMessage.retracted)
         {
             NSString* retractedStatus = NSLocalizedString(@"This message got retracted", @"");
             [self showStatusTextItalic:retractedStatus withItalicRange:NSMakeRange(0, retractedStatus.length)];
-        }
-        else if([lastMessage.messageType isEqualToString:kMessageTypeUrl] && [[HelperTools defaultsDB] boolForKey:@"ShowURLPreview"])
-            [self showStatusText:NSLocalizedString(@"🔗 A Link", @"") inboundDir:lastMessage.inbound fromUser:senderOfLastGroupMsg];
-        else if([lastMessage.messageType isEqualToString:kMessageTypeFiletransfer])
-        {
-            if([lastMessage.filetransferMimeType hasPrefix:@"image/"])
-                [self showStatusText:NSLocalizedString(@"📷 An Image", @"") inboundDir:lastMessage.inbound fromUser:senderOfLastGroupMsg];
-            else if([lastMessage.filetransferMimeType hasPrefix:@"audio/"])
-                [self showStatusText:NSLocalizedString(@"🎵 An Audiomessage", @"") inboundDir:lastMessage.inbound fromUser:senderOfLastGroupMsg];
-            else if([lastMessage.filetransferMimeType hasPrefix:@"video/"])
-                [self showStatusText:NSLocalizedString(@"🎥 A Video", @"") inboundDir:lastMessage.inbound fromUser:senderOfLastGroupMsg];
-            else if([lastMessage.filetransferMimeType isEqualToString:@"application/pdf"])
-                [self showStatusText:NSLocalizedString(@"📄 A Document", @"") inboundDir:lastMessage.inbound fromUser:senderOfLastGroupMsg];
-            else
-                [self showStatusText:NSLocalizedString(@"📁 A File", @"") inboundDir:lastMessage.inbound fromUser:senderOfLastGroupMsg];
+            return;
         }
         else if ([lastMessage.messageType isEqualToString:kMessageTypeMessageDraft])
         {
             NSString* draftPreviewPrefix = NSLocalizedString(@"Draft:", @"");
             NSString* draftPreview = [NSString stringWithFormat:@"%@ %@", draftPreviewPrefix, lastMessage.messageText];
             [self showStatusTextItalic:draftPreview withItalicRange:NSMakeRange(0, draftPreviewPrefix.length)];
+            return;
         }
+        
+        NSString* senderOfLastGroupMsg;     // set to nick of sender in a group chat, if this is a group chat (1:1 MUST be nil)
+        if(lastMessage.isMuc)
+            senderOfLastGroupMsg = lastMessage.contactDisplayName;
+        
+        if([lastMessage.messageType isEqualToString:kMessageTypeUrl] && [[HelperTools defaultsDB] boolForKey:@"ShowURLPreview"])
+            [self showStatusText:NSLocalizedString(@"🔗 A Link", @"") inboundDir:lastMessage.inbound fromUser:senderOfLastGroupMsg];
         else if([lastMessage.messageType isEqualToString:kMessageTypeGeo])
             [self showStatusText:NSLocalizedString(@"📍 A Location", @"") inboundDir:lastMessage.inbound fromUser:senderOfLastGroupMsg];
+        else if([lastMessage.messageType isEqualToString:kMessageTypeFiletransfer])
+        {
+            if(lastMessage.fileInfo.isImage)
+                [self showStatusText:NSLocalizedString(@"📷 An Image", @"") inboundDir:lastMessage.inbound fromUser:senderOfLastGroupMsg];
+            else if(lastMessage.fileInfo.isAudio)
+                [self showStatusText:NSLocalizedString(@"🎵 An Audiomessage", @"") inboundDir:lastMessage.inbound fromUser:senderOfLastGroupMsg];
+            else if(lastMessage.fileInfo.isVideo)
+                [self showStatusText:NSLocalizedString(@"🎥 A Video", @"") inboundDir:lastMessage.inbound fromUser:senderOfLastGroupMsg];
+            else if(lastMessage.fileInfo.isPDF)
+                [self showStatusText:NSLocalizedString(@"📄 A Document", @"") inboundDir:lastMessage.inbound fromUser:senderOfLastGroupMsg];
+            else
+                [self showStatusText:NSLocalizedString(@"📁 A File", @"") inboundDir:lastMessage.inbound fromUser:senderOfLastGroupMsg];
+        }
         else
         {
             if([lastMessage.messageText hasPrefix:@"/me "])
@@ -100,13 +112,6 @@
                 [self showStatusText:lastMessage.messageText inboundDir:lastMessage.inbound fromUser:senderOfLastGroupMsg];
             }
         }
-        if(lastMessage.timestamp)
-        {
-            self.time.text = [self formattedDateWithSource:lastMessage.timestamp];
-            self.time.hidden = NO;
-        }
-        else
-            self.time.hidden = YES;
     }
     else
     {

@@ -7,9 +7,9 @@
 //
 
 #import <Network/Network.h>
-#import "MLConstants.h"
-#import "MLStream.h"
-#import "HelperTools.h"
+#import <monalxmpp/MLConstants.h>
+#import <monalxmpp/MLStream.h>
+#import <monalxmpp/HelperTools.h>
 #import <monalxmpp/monalxmpp-Swift.h>
 
 @class MLCrypto;
@@ -437,6 +437,7 @@
         sec_protocol_options_set_tls_false_start_enabled(options, 1);
         sec_protocol_options_set_min_tls_protocol_version(options, tls_protocol_version_TLSv12);
         //sec_protocol_options_set_max_tls_protocol_version(options, tls_protocol_version_TLSv12);
+        sec_protocol_options_set_tls_sct_enabled(options, 1);
         sec_protocol_options_set_tls_resumption_enabled(options, 1);
         sec_protocol_options_set_tls_tickets_enabled(options, 1);
         sec_protocol_options_set_tls_renegotiation_enabled(options, 0);
@@ -520,9 +521,8 @@
     //needed to activate tcp fast open with apple's internal tls framer
     nw_parameters_set_fast_open_enabled(parameters, YES);
     //use dnssec if configured
-    if(@available(iOS 16.0, macCatalyst 16.0, *))
-        if([[HelperTools defaultsDB] boolForKey: @"useDnssecForAllConnections"])
-            nw_parameters_set_requires_dnssec_validation(parameters, YES);
+    if([[HelperTools defaultsDB] boolForKey: @"useDnssecForAllConnections"])
+        nw_parameters_set_requires_dnssec_validation(parameters, YES);
     
     //create and configure connection object
     nw_endpoint_t endpoint = nw_endpoint_create_host([host cStringUsingEncoding:NSUTF8StringEncoding], [[port stringValue] cStringUsingEncoding:NSUTF8StringEncoding]);
@@ -854,6 +854,18 @@
     }
 }
 
+-(BOOL) acceptedTlsEarlyData
+{
+    @synchronized(self.shared_state) {
+        MLAssert([self streamStatus] >= NSStreamStatusOpen && [self streamStatus] < NSStreamStatusClosed, @"Stream must be open to call this method!", (@{@"streamStatus": @([self streamStatus])}));
+        MLAssert(self.shared_state.hasTLS, @"Stream must have TLS negotiated to call this method!");
+        nw_protocol_metadata_t p_metadata = nw_connection_copy_protocol_metadata(self.shared_state.connection, nw_protocol_copy_tls_definition());
+        MLAssert(nw_protocol_metadata_is_tls(p_metadata), @"Protocol metadata is not TLS!");
+        sec_protocol_metadata_t s_metadata = nw_tls_copy_sec_protocol_metadata(p_metadata);
+        return sec_protocol_metadata_get_early_data_accepted(s_metadata);
+    }
+}
+
 -(NSData*) channelBindingData_TLSExporter
 {
     @synchronized(self.shared_state) {
@@ -903,7 +915,7 @@
             return [HelperTools sha256:cert];
         }
         else if([@"1.2.840.10045.4.1" isEqualToString:signatureAlgo])           //ecdsa-with-SHA1
-            return [HelperTools sha256:cert];
+            return [HelperTools sha256:cert];       //use sha256 as per RFC 5929
         else if([@"1.2.840.10045.4.3.1" isEqualToString:signatureAlgo])         //ecdsa-with-SHA224  (not supported, return sha256, will fail cb)
         {
             DDLogError(@"Using sha256 for unsupported OID %@ (ecdsa-with-SHA224)", signatureAlgo);
@@ -917,7 +929,7 @@
             return [HelperTools sha256:cert];
         }
         else if([@"1.2.840.10045.4.3.4" isEqualToString:signatureAlgo])         //ecdsa-with-SHA512
-            return [HelperTools sha256:cert];
+            return [HelperTools sha512:cert];
         else if([@"1.3.6.1.5.5.7.6.32" isEqualToString:signatureAlgo])          //id-ecdsa-with-shake128  (not supported, return sha256, will fail cb)
         {
             DDLogError(@"Using sha256 for unsupported OID %@ (id-ecdsa-with-shake128)", signatureAlgo);

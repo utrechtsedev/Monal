@@ -17,7 +17,7 @@ If you want to  use the latest stable versions, search for Monal in the iOS or O
 
 ## Support Chat (MUC) and Wiki
 
-You can join this public chat (MUC) via XMPP: [monal@chat.yax.im](xmpp:monal@chat.yax.im?join)
+You can join this public chat (MUC) via XMPP, please stick to our [Code of Conduct](CODE_OF_CONDUCT.md): [monal@chat.yax.im](xmpp:monal@chat.yax.im?join)
 
 Find general information in the [Monal Wiki](https://github.com/monal-im/Monal/wiki).
 
@@ -35,13 +35,15 @@ Here you can read about further [support of the development](https://github.com/
 
 ### Translations
 
-We host and manage translations via [Weblate](https://hosted.weblate.org/engage/monal/).
+Translations of the app itself as well as the appstore description and even the changelog displayed inside the appstore
+are hosted and managed via [Weblate](https://hosted.weblate.org/engage/monal/).
+Feel free to translate Monal to your language!  
 
 [![Detailed translation status](https://hosted.weblate.org/widgets/monal/-/multi-auto.svg)](https://hosted.weblate.org/engage/monal/?utm_source=widget)
 
 ### Platform information
 
-Monal always supports the two latest MacOS and iOS major releases.
+Monal always supports the two latest major releases of macOS and iOS.
 
 ### Supported XEPs
 
@@ -62,9 +64,10 @@ Take a look at this list to get information on [supported XEPs by Monal](https:/
 Monal is licensed under the BSD license. Any code contributions should be compatible with that license.  ** NO GPL ** .  By contributing to this project, you agree that your code is not GPL or any similarly restrictive license. You agree that your code can be used to publish in App stores such as Apple's that use DRM.
 
 ### Pull Requests
-We take pull requests. Please use the develop branch to make changes. Please take a look at:
+We take pull requests. Please use the develop branch to make changes and stick to our [Code of Conduct](CODE_OF_CONDUCT.md). Please take a look at:
 
-- [Overview: Tasks and Issues](https://github.com/monal-im/Monal/issues/322) 
+- [Building Monal](https://github.com/monal-im/Monal/wiki/Building-Monal)
+- [Issues with a Help wanted label](https://github.com/monal-im/Monal/issues?q=is%3Aissue+is%3Aopen+label%3A%22%3Asuperhero%3A+Help+wanted%22)
 - [Support Monal](https://github.com/monal-im/Monal/issues/363)
 
 Monal is licensed under the BSD license. Any code contributions should be compatible with that license.  ** NO GPL ** .  By contributing to this project, you agree that your code is not GPL or any similarly restrictive license. You agree that your code can be used to publish in App stores such as Apple's that use DRM.

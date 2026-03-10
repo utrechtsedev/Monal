@@ -9,13 +9,7 @@
 struct PasswordMigration: View {
     let delegate: SheetDismisserProtocol
     @State var needingMigration: [Int:[String:NSObject]]
-#if IS_ALPHA
-    let appLogoId = "AlphaAppLogo"
-#elseif IS_QUICKSY
-    let appLogoId = "QuicksyAppLogo"
-#else
     let appLogoId = "AppLogo"
-#endif
     
     init(delegate:SheetDismisserProtocol, needingMigration:[[String:NSObject]]) {
         self.delegate = delegate
@@ -116,7 +110,7 @@ struct PasswordMigration: View {
                                 DataLayer.sharedInstance().updateAccoun(with:dic)
                             }
                         }
-                        NotificationCenter.default.post(name:Notification.Name("kMonalRefresh"), object:nil);
+                        NotificationCenter.default.post(name:Notification.Name(kMonalRefresh), object:nil);
                         self.delegate.dismiss()
                     }, label: {
                         Text("Done")
@@ -124,7 +118,6 @@ struct PasswordMigration: View {
                 }
             }
         }
-        .accentColor(monalGreen)
     }
 }
 

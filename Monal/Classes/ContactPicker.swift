@@ -17,15 +17,15 @@ struct ContactPickerEntry: View {
         ZStack(alignment: .topLeading) {
             HStack(alignment: .center) {
                 if(isExistingMember) {
-                    Image(systemName: "checkmark.circle")
+                    Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.gray)
                 } else if(isPicked) {
-                    Image(systemName: "checkmark.circle")
-                        .foregroundColor(.blue)
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.accentColor)
                 } else {
                     Image(systemName: "circle")
                 }
-                ContactEntry(contact: contact)
+                ContactEntry(contact: contact.obj)
             }
         }
     }
@@ -34,7 +34,6 @@ struct ContactPickerEntry: View {
 struct ContactPicker: View {
     typealias completionType = (OrderedSet<ObservableKVOWrapper<MLContact>>)->Void
     let account: xmpp
-    @Environment(\.presentationMode) private var presentationMode
     @Binding var returnedContacts: OrderedSet<ObservableKVOWrapper<MLContact>>
     @State var selectedContacts: OrderedSet<ObservableKVOWrapper<MLContact>>
     @State var searchText = ""
@@ -78,7 +77,7 @@ struct ContactPicker: View {
     private var allContacts: OrderedSet<ObservableKVOWrapper<MLContact>> {
         //build list of all possible contacts on this account (excluding selfchat and other mucs)
         var contactsTmp: OrderedSet<ObservableKVOWrapper<MLContact>> = OrderedSet()
-        for contact in DataLayer.sharedInstance().possibleGroupMembers(forAccount: account.accountNo) {
+        for contact in DataLayer.sharedInstance().possibleGroupMembers(forAccount: account.accountID) {
             contactsTmp.append(ObservableKVOWrapper(contact))
         }
         return contactsTmp
@@ -102,7 +101,7 @@ struct ContactPicker: View {
     var body: some View {
         if(allContacts.isEmpty) {
             Text("No contacts to show :(")
-                .navigationTitle("Contact Lists")
+                .navigationTitle(Text("Contact Lists"))
         } else {
             List(searchResults) { contact in
                 let contactIsSelected = self.selectedContacts.contains(contact);
@@ -119,13 +118,7 @@ struct ContactPicker: View {
                         }
                     }
             }
-            .applyClosure { view in
-                if #available(iOS 15.0, *) {
-                    view.searchable(text: $searchText, placement: .automatic, prompt: nil)
-                } else {
-                    view
-                }
-            }
+            .searchable(text: $searchText, placement: .automatic, prompt: nil)
             .listStyle(.inset)
             .navigationBarTitle(Text("Contact Selection"), displayMode: .inline)
             .onDisappear {

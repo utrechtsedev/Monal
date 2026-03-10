@@ -12,30 +12,23 @@ struct EditGroupSubject: View {
     @State private var subject: String
 
     @Environment(\.presentationMode) var presentationMode
-    //@Environment(\.dismiss) var dismiss
 
     init(contact: ObservableKVOWrapper<MLContact>) {
-        MLAssert(contact.isGroup, "contact must be a muc")
+        MLAssert(contact.isMuc, "contact must be a muc")
         
         _subject = State(wrappedValue: contact.obj.groupSubject)
         _contact = StateObject(wrappedValue: contact)
-        self.account = MLXMPPManager.sharedInstance().getConnectedAccount(forID: contact.accountId)! as xmpp
+        self.account = contact.obj.account! as xmpp
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack {
                 Form {
                     Section(header: Text("Group Description (optional)")) {
                         TextEditor(text: $subject)
                             .multilineTextAlignment(.leading)
-                            .applyClosure { view in
-                                if #available(iOS 16.0, *) {
-                                    view.lineLimit(10...50)
-                                } else {
-                                    view
-                                }
-                            }
+                            .lineLimit(10...50)
                     }
                 }
             }
