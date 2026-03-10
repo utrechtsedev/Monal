@@ -934,6 +934,19 @@ class SwiftuiInterface : NSObject {
         host.preferredContentSize = host.sizeThatFits(in: CGSize(width: 400, height: 600))
         return host
     }
+
+    @objc(makeNewChatViewWithDismisser:onButton:)
+    func makeNewChatView(dismisser: @escaping (MLContact) -> (), button: UIBarButtonItem?) -> UIViewController {
+        let delegate = SheetDismisserProtocol()
+        let host = UIHostingController(rootView: AnyView(EmptyView()))
+        let newChatView = NewChatView(contacts: Contacts(), delegate: delegate, dismissWithContact: dismisser)
+        delegate.host = host
+        host.rootView = AnyView(AddTopLevelNavigation(withDelegate: delegate, to: newChatView))
+        host.modalPresentationStyle = .popover
+        host.popoverPresentationController?.sourceItem = button
+        host.preferredContentSize = host.sizeThatFits(in: CGSize(width: 400, height: 600))
+        return host
+    }
     
     @objc(makeContactsTabView)
     func makeContactsTabView() -> UIViewController {

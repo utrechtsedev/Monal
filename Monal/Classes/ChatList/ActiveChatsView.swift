@@ -267,7 +267,7 @@ class ActiveChatsCoordinator: NSObject, ObservableObject {
 
         let newChat = UIAction(
             title: NSLocalizedString("New Chat", comment: ""),
-            image: UIImage(systemName: "message")
+            image: UIImage(systemName: "message.fill")
         ) { [weak self] _ in
             self?.showContacts()
         }
@@ -915,7 +915,7 @@ class ActiveChatsCoordinator: NSObject, ObservableObject {
                 DDLogVerbose("Got selected contact from contactlist ui: \(selectedContact)")
                 self.presentChat(withContact: selectedContact)
             }
-            let contactsView = SwiftuiInterface().makeContactsView(dismisser: callback, button: self.composeButton)
+            let contactsView = SwiftuiInterface().makeNewChatView(dismisser: callback, button: self.composeButton)
             self.presentVC(contactsView, animated: true) { resolve(nil) }
         }
     }
@@ -1153,7 +1153,7 @@ struct ActiveChatsView: View {
         .listRowSeparatorTint(Color(UIColor.separator))
         .alignmentGuide(.listRowSeparatorTrailing) { d in d[.trailing] }
         .listRowSeparator(isFirst ? .hidden : .automatic, edges: .top)
-        .frame(height: 60)
+        .frame(height: 76)
         .background(
             coordinator.isSelectingChats
                 ? (isChecked ? Color.accentColor.opacity(0.1) : Color.clear)
@@ -1239,11 +1239,11 @@ struct ContactCellView: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(alignment: .top, spacing: 12) {
             Image(uiImage: MLImageManager.sharedInstance().getIconFor(contact.obj) ?? UIImage())
                 .resizable()
                 .scaledToFill()
-                .frame(width: 50, height: 50)
+                .frame(width: 55, height: 55)
                 .clipShape(Circle())
                 .padding(.leading, 12)
                 .id(colorScheme)
@@ -1264,7 +1264,7 @@ struct ContactCellView: View {
                     messageText
                         .font(.system(size: 14))
                         .foregroundColor(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
                     Spacer()
                     if (contact.unreadCount as NSNumber?)?.intValue ?? 0 > 0 {
                         Text("\((contact.unreadCount as NSNumber?)?.intValue ?? 0)")
@@ -1279,7 +1279,7 @@ struct ContactCellView: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 8)
     }
 
     @ViewBuilder
@@ -1301,7 +1301,7 @@ struct ContactCellView: View {
             return NSLocalizedString("Yesterday", comment: "")
         } else {
             let formatter = DateFormatter()
-            formatter.dateStyle = .short
+            formatter.dateFormat = "dd-MM-yy"
             return formatter.string(from: date)
         }
     }
@@ -1393,14 +1393,14 @@ class ActiveChatsHostingController: UIViewController, UISearchResultsUpdating {
         // Set up ellipsis menu
         let markAllReadAction = UIAction(
             title: NSLocalizedString("Mark all as read", comment: ""),
-            image: UIImage(systemName: "envelope.open")
+            image: UIImage(systemName: "envelope.open.fill")
         ) { [weak self] _ in
             self?.coordinator.markAllAsRead()
         }
 
         let selectChatsAction = UIAction(
             title: NSLocalizedString("Select chats", comment: ""),
-            image: UIImage(systemName: "checkmark.circle")
+            image: UIImage(systemName: "checkmark.circle.fill")
         ) { [weak self] _ in
             self?.coordinator.toggleSelectionMode()
         }
