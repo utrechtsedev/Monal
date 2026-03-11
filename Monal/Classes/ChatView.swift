@@ -317,7 +317,10 @@ struct ChatView: View {
                     }
                 } else {
                     DDLogVerbose("Got backscrolling mam response: \(returnedMessages.count) messages: \(String(describing:returnedMessages))")
-                    self.messages.insert(contentsOf: returnedMessages.map {ChatViewMessage($0)}, at: 0)
+                    // When backscrolling in 1-1 chats, the oldest stanzaId may not correspond to the earliest
+                    // message we have, because messages we send don't have a stanzaId => There's a risk of
+                    // getting duplicate messages in the messages array => we need to deduplicate.
+                    self.messages = OrderedSet(returnedMessages.map {ChatViewMessage($0)} + self.messages).elements
                 }
             }
             .catch { error in
@@ -421,7 +424,7 @@ struct ChatView: View {
                 case .delete:
                     Task { @MainActor in
                         await Task.detached(priority: .userInitiated) {
-                            DataLayer.sharedInstance().deleteMessageHistoryLocally(mlMessage.messageDBId)
+                            mlMessage.deleteLocally()
                         }.value
 
                         self.messages.removeAll(where: {$0.id == message.id})
@@ -622,6 +625,7 @@ struct ChatView: View {
                                     .resizable()
                                     .scaledToFill()
                                     .frame(width: 35, height: 35)
+                                    .clipShape(Circle())
                                     .id(colorScheme)
 
                                 VStack(alignment: .leading, spacing: 0) {
@@ -953,9 +957,9 @@ class ChatViewUser: ExyteChat.User {
         }
         set {}
     }
-    override var avatarData: Data? {
+    override var avatarImage: UIImage? {
         get {
-            return (innerContact.avatar as UIImage?)?.pngData()
+            return innerContact.avatar as UIImage?
         }
         set {}
     }

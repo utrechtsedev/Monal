@@ -21,7 +21,7 @@
 #import <monalxmpp/MLOMEMO.h>
 
 #import <monalxmpp/MLStream.h>
-#import <monalxmpp/MLPipe.h>
+#import <monalxmpp/MLDelayedDealloc.h>
 #import <monalxmpp/MLProcessLock.h>
 #import <monalxmpp/DataLayer.h>
 #import <monalxmpp/HelperTools.h>
@@ -855,6 +855,8 @@ static NSRegularExpression* fastTokenRemovalRegex;
 -(void) unfreeze
 {
     @synchronized(self) {
+        NSCondition* condition = [NSCondition new];
+        [condition lock];
         DDLogInfo(@"Unfreezing account: %@", self);
         
         //make sure we don't have any race conditions by dispatching this to our receive queue
@@ -876,6 +878,11 @@ static NSRegularExpression* fastTokenRemovalRegex;
                 [self unfreezeParseQueue];
                 
                 [self unfreezeSendQueue];
+                
+                //unblock waiting outer thread
+                [condition lock];
+                [condition signal];
+                [condition unlock];
             }
         }];
         unfreezeOperation.queuePriority = NSOperationQueuePriorityVeryHigh;     //make sure this will become the first operation executed once unfrozen
@@ -883,6 +890,10 @@ static NSRegularExpression* fastTokenRemovalRegex;
         
         //unfreeze receive queue and execute block added above
         self->_receiveQueue.suspended = NO;
+        
+        //wait for completion signal
+        [condition wait];
+        [condition unlock];
     }
 }
 
@@ -1029,20 +1040,10 @@ static NSRegularExpression* fastTokenRemovalRegex;
 
             //reset smacks state to sane values (this can be done even if smacks is not supported)
             [self initSM3];
-            self.unAckedStanzas = stanzas;
+            [self replaceUnackedStanzasWith:stanzas];
             
             //inform all old iq handlers of invalidation and clear _iqHandlers dictionary afterwards
-            @synchronized(self->_iqHandlers) {
-                for(NSString* iqid in [self->_iqHandlers allKeys])
-                {
-                    DDLogWarn(@"Invalidating iq handler for iq id '%@'", iqid);
-                    if(self->_iqHandlers[iqid][@"handler"] != nil)
-                        $invalidate(self->_iqHandlers[iqid][@"handler"], $ID(account, self), $ID(reason, @"disconnect"));
-                    else if(self->_iqHandlers[iqid][@"errorHandler"])
-                        ((monal_iq_handler_t)self->_iqHandlers[iqid][@"errorHandler"])(nil);
-                }
-                self->_iqHandlers = [NSMutableDictionary new];
-            }
+            [self invalidateIQHandlersWithReason:@"disconnect"];
             
             //invalidate pubsub queue (*after* iq handlers that also might invalidate a result handler of the queued operation)
             [self.pubsub invalidateQueue];
@@ -1130,6 +1131,7 @@ static NSRegularExpression* fastTokenRemovalRegex;
                             ((monal_iq_handler_t)data[@"errorHandler"])(nil);
                     }
                     [self->_iqHandlers removeObjectForKey:iqid];
+                    [MLDelayedDealloc delayFor:data];
                 }
             }
         }
@@ -1164,20 +1166,10 @@ static NSRegularExpression* fastTokenRemovalRegex;
 
                 //reset smacks state to sane values (this can be done even if smacks is not supported)
                 [self initSM3];
-                self.unAckedStanzas = stanzas;
+                [self replaceUnackedStanzasWith:stanzas];
                 
                 //inform all old iq handlers of invalidation and clear _iqHandlers dictionary afterwards
-                @synchronized(self->_iqHandlers) {
-                    for(NSString* iqid in [self->_iqHandlers allKeys])
-                    {
-                        DDLogWarn(@"Invalidating iq handler for iq id '%@'", iqid);
-                        if(self->_iqHandlers[iqid][@"handler"] != nil)
-                            $invalidate(self->_iqHandlers[iqid][@"handler"], $ID(account, self), $ID(reason, @"disconnect"));
-                        else if(self->_iqHandlers[iqid][@"errorHandler"])
-                            ((monal_iq_handler_t)self->_iqHandlers[iqid][@"errorHandler"])(nil);
-                    }
-                    self->_iqHandlers = [NSMutableDictionary new];
-                }
+                [self invalidateIQHandlersWithReason:@"disconnect"];
                 
                 //invalidate pubsub queue (*after* iq handlers that also might invalidate a result handler of the queued operation)
                 [self.pubsub invalidateQueue];
@@ -1373,6 +1365,27 @@ static NSRegularExpression* fastTokenRemovalRegex;
     {
         [[DataLayer sharedInstance] persistState:newState forAccount:self.accountID];
         [self readState];               //better safe than sorry
+    }
+}
+
+-(void) invalidateIQHandlersWithReason:(NSString*) reason
+{
+    //inform all old iq handlers of invalidation and clear _iqHandlers dictionary afterwards
+    @synchronized(_iqHandlers) {
+        //make sure this works even if the invalidation handlers add a new iq to the list
+        NSMutableDictionary* handlersCopy = [_iqHandlers mutableCopy];
+        [_iqHandlers removeAllObjects];
+        
+        for(NSString* iqid in handlersCopy)
+        {
+            DDLogWarn(@"Invalidating iq handler for iq id '%@'", iqid);
+            if(handlersCopy[iqid][@"handler"] != nil)
+                $invalidate(handlersCopy[iqid][@"handler"], $ID(account, self), $ID(reason));
+            else if(handlersCopy[iqid][@"errorHandler"])
+                ((monal_iq_handler_t)handlersCopy[iqid][@"errorHandler"])(nil);
+        }
+        
+        [MLDelayedDealloc delayFor:handlersCopy];
     }
 }
 
@@ -1684,7 +1697,7 @@ static NSRegularExpression* fastTokenRemovalRegex;
         self.lastOutboundStanza = [NSNumber numberWithInteger:[self.lastOutboundStanza integerValue] - [self.unAckedStanzas count]];
         //Send appends to the unacked stanzas. Not removing it now will create an infinite loop.
         //It may also result in mutation on iteration
-        [self.unAckedStanzas removeAllObjects];
+        [self replaceUnackedStanzasWith:[NSMutableArray new]];
         for(NSDictionary* dic in sendCopy)
             [self send:(XMPPStanza*)[dic objectForKey:kStanza]];
         DDLogInfo(@"Done resending unacked stanzas...");
@@ -1812,7 +1825,7 @@ static NSRegularExpression* fastTokenRemovalRegex;
             }
 
             [iterationArray removeObjectsInArray:discard];
-            self.unAckedStanzas = iterationArray;
+            [self replaceUnackedStanzasWith:iterationArray];
 
             //persist these changes (but only if we actually made some changes)
             if([discard count])
@@ -2611,10 +2624,12 @@ static NSRegularExpression* fastTokenRemovalRegex;
             DDLogInfo(@"Got SASL1 Success");
             DDLogInfo(@"TLS early data accepted: %@", bool2str([((MLStream*)self->_oStream) acceptedTlsEarlyData]));
             
+            //increment state
             self->_accountState = kStateLoggedIn;
             [[MLNotificationQueue currentQueue] postNotificationName:kMLIsLoggedInNotice object:self];
             [self accountStatusChanged];
             
+            //cleanup
             _usableServersList = [NSMutableArray new];       //reset list to start again with the highest SRV priority on next connect
             if(_loginTimer)
             {
@@ -2845,9 +2860,6 @@ static NSRegularExpression* fastTokenRemovalRegex;
             DDLogInfo(@"Saving channel-binding types list: %@", channelBindings);
             self.connectionProperties.channelBindingTypes = channelBindings;
             
-            //update user identity using authorization-identifier, including support for fullJids (as specified by BIND2)
-            [self.connectionProperties.identity bindJid:[parsedStanza findFirst:@"authorization-identifier#"] onAccount:self];
-            
             //record SDDP support
             self.connectionProperties.supportsSSDP = self->_scramHandler.ssdpSupported;
             
@@ -2866,6 +2878,12 @@ static NSRegularExpression* fastTokenRemovalRegex;
                 }] forService:kMonalHtTokenKeychainName account:self.accountID.stringValue];
             }
             
+            //increment state
+            self->_accountState = kStateLoggedIn;
+            [[MLNotificationQueue currentQueue] postNotificationName:kMLIsLoggedInNotice object:self];
+            [self accountStatusChanged];
+            
+            //clean up
             self->_scramHandler = nil;
             self->_htHandler = nil;
             self->_fastTokenRequested = nil;
@@ -2887,12 +2905,12 @@ static NSRegularExpression* fastTokenRemovalRegex;
             //NOTE: we don't need to pipeline anything here, because SASL2 sends out the new stream features immediately without a stream restart
             _cachedStreamFeaturesAfterAuth = nil;       //make sure we don't accidentally try to do pipelining
             
+            //update user identity using authorization-identifier, including support for fullJids (as specified by BIND2)
+            [self.connectionProperties.identity bindJid:[parsedStanza findFirst:@"authorization-identifier#"] onAccount:self];
+            
             //only increment account state if we are still trying to login (calling bindJid could have triggered a disconnect)
-            if(self->_accountState == kStateHasStream)
+            if(self->_accountState >= kStateHasStream)
             {
-                self->_accountState = kStateLoggedIn;
-                [self accountStatusChanged];
-                
                 //SASL2 inlined resume
                 if(self.resuming && [parsedStanza check:@"{urn:xmpp:sm:3}resumed"])
                 {
@@ -2964,7 +2982,7 @@ static NSRegularExpression* fastTokenRemovalRegex;
                 }
             }
             else
-                DDLogWarn(@"Not setting accountState to kStateLoggedIn, because we are no longer in kStateHasStream!");
+                DDLogWarn(@"Ignoring SASL2 inlined elements, because we are no longer connected!");
         }
         else if([parsedStanza check:@"/{urn:xmpp:sasl:2}continue"])
         {
@@ -4230,7 +4248,7 @@ static NSRegularExpression* fastTokenRemovalRegex;
             self.lastHandledOutboundStanza = [dic objectForKey:@"lastHandledOutboundStanza"];
             self.lastOutboundStanza = [dic objectForKey:@"lastOutboundStanza"];
             NSArray* stanzas = [dic objectForKey:@"unAckedStanzas"];
-            self.unAckedStanzas = [stanzas mutableCopy];
+            [self replaceUnackedStanzasWith:[stanzas mutableCopy]];
             self.streamID = [dic objectForKey:@"streamID"];
             if([dic objectForKey:@"isDoingFullReconnect"])
             {
@@ -4260,6 +4278,10 @@ static NSRegularExpression* fastTokenRemovalRegex;
                     _iqHandlers[iqid] = [persistentIqHandlers[iqid] mutableCopy];
                     persistentIqHandlerDescriptions[iqid] = [NSString stringWithFormat:@"%@: %@", persistentIqHandlers[iqid][@"timeout"], persistentIqHandlers[iqid][@"handler"]];
                 }
+                
+                //this might take a long time since it throws away all handlers and their associated data, which might be deeply nested MLXMLNodes
+                //--> move deallocation into a background thread
+                [MLDelayedDealloc delayFor:handlersCopy];
             }
             
             @synchronized(self->_reconnectionHandlers) {
@@ -4453,11 +4475,22 @@ static NSRegularExpression* fastTokenRemovalRegex;
         self.lastHandledInboundStanza = [NSNumber numberWithInteger:0];
         self.lastHandledOutboundStanza = [NSNumber numberWithInteger:0];
         self.lastOutboundStanza = [NSNumber numberWithInteger:0];
-        self.unAckedStanzas = [NSMutableArray new];
+        [self replaceUnackedStanzasWith:[NSMutableArray new]];
         self.streamID = nil;
         _smacksAckHandler = [NSMutableArray new];
         DDLogDebug(@"initSM3 done");
     }
+}
+
+-(NSMutableArray*) replaceUnackedStanzasWith:(NSMutableArray*) newUnackedStanzas
+{
+    @synchronized(_stateLockObject) {
+        //this might take a long time since it throws away all self.unAckedStanzas and thus calls dealloc on each of them in each nesting level
+        //--> move deallocation into a background thread
+        [MLDelayedDealloc delayFor:self.unAckedStanzas];
+        self.unAckedStanzas = newUnackedStanzas;
+    }
+    return newUnackedStanzas;
 }
 
 -(void) bindResource:(NSString*) resource
@@ -4487,22 +4520,7 @@ static NSRegularExpression* fastTokenRemovalRegex;
     //delete old resources because we get new presences once we're done initializing the session
     [[DataLayer sharedInstance] resetContactsForAccount:self.accountID];
     
-    //inform all old iq handlers of invalidation and clear _iqHandlers dictionary afterwards
-    @synchronized(_iqHandlers) {
-        //make sure this works even if the invalidation handlers add a new iq to the list
-        NSMutableDictionary* handlersCopy = [_iqHandlers mutableCopy];
-        [_iqHandlers removeAllObjects];
-        
-        for(NSString* iqid in handlersCopy)
-        {
-            DDLogWarn(@"Invalidating iq handler for iq id '%@'", iqid);
-            if(handlersCopy[iqid][@"handler"] != nil)
-                $invalidate(handlersCopy[iqid][@"handler"], $ID(account, self), $ID(reason, @"bind"));
-            else if(handlersCopy[iqid][@"errorHandler"])
-                ((monal_iq_handler_t)handlersCopy[iqid][@"errorHandler"])(nil);
-        }
-        
-    }
+    [self invalidateIQHandlersWithReason:@"bind"];
     
     //invalidate pubsub queue (a pubsub operation will be either invalidated by an iq handler above OR by the invalidation here, but never twice!)
     [self.pubsub invalidateQueue];
@@ -5358,7 +5376,7 @@ static NSRegularExpression* fastTokenRemovalRegex;
                 break;
             }
             DDLogInfo(@"%@ Stream %@ encountered eof, trying to reconnect via parse queue in 1 second", [stream class], stream);
-            //use a timer to make sure the incoming data was pushed *through* the MLPipe and reached the parseQueue
+            //use a timer to make sure the incoming data was pushed *through* the rust xml parser and reached the parseQueue
             //already when pushing our reconnect block onto the parseQueue
             //this timer will only be created once on every connect cycle (and removed from our timers list on reconnect/disconnect)
             [self addTimerToCancelOnDisconnect:createTimer(1.0, (^{

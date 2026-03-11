@@ -217,6 +217,9 @@
 		9341BC6C2F4FBF4700FCD32B /* ActiveChatsBridgeHelper.h in Headers */ = {isa = PBXBuildFile; fileRef = 9341BC692F4FBEC100FCD32B /* ActiveChatsBridgeHelper.h */; };
 		9342E6B32F50EE670065EAE2 /* ActiveChatsBridgeHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = 9341BC6A2F4FBEE700FCD32B /* ActiveChatsBridgeHelper.m */; };
 		9371C49B2F4F3EF100668BA9 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9371C49A2F4F3EF100668BA9 /* SettingsView.swift */; };
+		9371C4A02F60FF0000668BA9 /* AccountDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9371C49F2F60FF0000668BA9 /* AccountDetailView.swift */; };
+		939954672F60EE9E00314852 /* MLDelayedDealloc.h in Headers */ = {isa = PBXBuildFile; fileRef = 84EC7FBB2F5A9458008ACC3F /* MLDelayedDealloc.h */; };
+		939954682F60EEA300314852 /* MLDelayedDealloc.m in Sources */ = {isa = PBXBuildFile; fileRef = 84EC7FBC2F5A9458008ACC3F /* MLDelayedDealloc.m */; };
 		93D2AE402F55E8330074E42B /* NewChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93D2AE3F2F55E8330074E42B /* NewChatView.swift */; };
 		952EBC802BAF72F300183DBF /* DebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 952EBC7F2BAF72F300183DBF /* DebugView.swift */; };
 		BE8B63D2491B1E5582965A8F /* Pods_monalxmpp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5B9C86E0A568734587FE9BA2 /* Pods_monalxmpp.framework */; };
@@ -242,8 +245,6 @@
 		C1850EB825F38A2D003D506A /* MonalUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1850EB725F38A2D003D506A /* MonalUITests.swift */; };
 		C1850EC625F3C5EB003D506A /* TestHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1850EC525F3C5EB003D506A /* TestHelper.swift */; };
 		C18967C72B81F61B0073C7C5 /* ChannelMemberList.swift in Sources */ = {isa = PBXBuildFile; fileRef = C18967C62B81F61B0073C7C5 /* ChannelMemberList.swift */; };
-		C18E757A245E8AE900AE8FB7 /* MLPipe.h in Headers */ = {isa = PBXBuildFile; fileRef = C18E7578245E8AE900AE8FB7 /* MLPipe.h */; };
-		C18E757C245E8AE900AE8FB7 /* MLPipe.m in Sources */ = {isa = PBXBuildFile; fileRef = C18E7579245E8AE900AE8FB7 /* MLPipe.m */; };
 		C1943A4C25309A9D0036172F /* MLReloadCell.m in Sources */ = {isa = PBXBuildFile; fileRef = C1943A4B25309A9D0036172F /* MLReloadCell.m */; };
 		C1A80DA424D9552400B99E01 /* MLChatViewHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = C1A80DA324D9552400B99E01 /* MLChatViewHelper.m */; };
 		C1B940EA26144AF500E9D290 /* AESGCMTest.m in Sources */ = {isa = PBXBuildFile; fileRef = C1B940E926144AF500E9D290 /* AESGCMTest.m */; };
@@ -664,6 +665,8 @@
 		84E5AF1A2EE63FCF00FF1E4A /* MLReactionsEntry.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MLReactionsEntry.h; sourceTree = "<group>"; };
 		84E8870A2EEADD34006A61FC /* HT.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HT.h; sourceTree = "<group>"; };
 		84E8870B2EEADD34006A61FC /* HT.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = HT.m; sourceTree = "<group>"; };
+		84EC7FBB2F5A9458008ACC3F /* MLDelayedDealloc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MLDelayedDealloc.h; sourceTree = "<group>"; };
+		84EC7FBC2F5A9458008ACC3F /* MLDelayedDealloc.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MLDelayedDealloc.m; sourceTree = "<group>"; };
 		84F194C32C0FE70900F0A994 /* es-AR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "es-AR"; path = "external/es-AR.lproj/Main.strings"; sourceTree = "<group>"; };
 		84F194C42C0FE74500F0A994 /* es-AR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "es-AR"; path = "external/es-AR.lproj/Settings.strings"; sourceTree = "<group>"; };
 		84F194C52C0FE78B00F0A994 /* es-AR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "es-AR"; path = "external/es-AR.lproj/iosShare.strings"; sourceTree = "<group>"; };
@@ -680,6 +683,7 @@
 		9341BC692F4FBEC100FCD32B /* ActiveChatsBridgeHelper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ActiveChatsBridgeHelper.h; sourceTree = "<group>"; };
 		9341BC6A2F4FBEE700FCD32B /* ActiveChatsBridgeHelper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ActiveChatsBridgeHelper.m; sourceTree = "<group>"; };
 		9371C49A2F4F3EF100668BA9 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		9371C49F2F60FF0000668BA9 /* AccountDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountDetailView.swift; sourceTree = "<group>"; };
 		93D2AE3F2F55E8330074E42B /* NewChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewChatView.swift; sourceTree = "<group>"; };
 		952EBC7F2BAF72F300183DBF /* DebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugView.swift; sourceTree = "<group>"; };
 		9705AFFB59AF72A9B79C1D7B /* Pods-MonalXMPPUnitTests.adhoc.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MonalXMPPUnitTests.adhoc.xcconfig"; path = "Target Support Files/Pods-MonalXMPPUnitTests/Pods-MonalXMPPUnitTests.adhoc.xcconfig"; sourceTree = "<group>"; };
@@ -740,8 +744,6 @@
 		C1850EB925F38A2D003D506A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		C1850EC525F3C5EB003D506A /* TestHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestHelper.swift; sourceTree = "<group>"; };
 		C18967C62B81F61B0073C7C5 /* ChannelMemberList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChannelMemberList.swift; sourceTree = "<group>"; };
-		C18E7578245E8AE900AE8FB7 /* MLPipe.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MLPipe.h; sourceTree = "<group>"; };
-		C18E7579245E8AE900AE8FB7 /* MLPipe.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MLPipe.m; sourceTree = "<group>"; };
 		C1943A4A25309A9D0036172F /* MLReloadCell.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MLReloadCell.h; sourceTree = "<group>"; };
 		C1943A4B25309A9D0036172F /* MLReloadCell.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MLReloadCell.m; sourceTree = "<group>"; };
 		C1A80DA224D9552400B99E01 /* MLChatViewHelper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MLChatViewHelper.h; sourceTree = "<group>"; };
@@ -1097,6 +1099,7 @@
 			isa = PBXGroup;
 			children = (
 				9371C49A2F4F3EF100668BA9 /* SettingsView.swift */,
+				9371C49F2F60FF0000668BA9 /* AccountDetailView.swift */,
 				2644D4971FF29E5600F46AB5 /* MLSettingsTableViewController.h */,
 				2644D4981FF29E5600F46AB5 /* MLSettingsTableViewController.m */,
 				26B0CA8721AE2E3C0080B133 /* MLSoundsTableViewController.h */,
@@ -1336,6 +1339,8 @@
 		26F7BB3A1115F8A300712672 /* tools */ = {
 			isa = PBXGroup;
 			children = (
+				84EC7FBB2F5A9458008ACC3F /* MLDelayedDealloc.h */,
+				84EC7FBC2F5A9458008ACC3F /* MLDelayedDealloc.m */,
 				8418B5612C7ECFD6006FAF60 /* HelperTools+Quicksy_CountryCodes.h */,
 				8418B5622C7ECFD6006FAF60 /* HelperTools+Quicksy_CountryCodes.m */,
 				8418B55B2C7EC6B7006FAF60 /* Quicksy_Country.h */,
@@ -1354,8 +1359,6 @@
 				540BD0D124D8D1F20087A743 /* IPC.h */,
 				541E4CBB254AA08600FD7B28 /* MLSQLite.h */,
 				540A3FAC24D674BD0008965D /* MLSQLite.m */,
-				C18E7579245E8AE900AE8FB7 /* MLPipe.m */,
-				C18E7578245E8AE900AE8FB7 /* MLPipe.h */,
 				C1AAC3E224B5EF4100BB15D6 /* HelperTools.h */,
 				C1AAC3E324B5EF4100BB15D6 /* HelperTools.m */,
 				540E139F24CDCDB30038FDA0 /* MLProcessLock.m */,
@@ -1600,6 +1603,7 @@
 				C1C839DD24F15DF800BBCF17 /* MLOMEMO.h in Headers */,
 				9341BC6C2F4FBF4700FCD32B /* ActiveChatsBridgeHelper.h in Headers */,
 				84E5AF1B2EE63FCF00FF1E4A /* MLReactionsEntry.h in Headers */,
+				939954672F60EE9E00314852 /* MLDelayedDealloc.h in Headers */,
 				340F0CA52D2425E1006224D0 /* MLLogFileManager.h in Headers */,
 				541E4CBE254AA0B600FD7B28 /* MLHandler.h in Headers */,
 				340F0CA42D2425D9006224D0 /* MLXMPPIdentity.h in Headers */,
@@ -1636,7 +1640,6 @@
 				54A22D2D26185E7E00B56EAD /* MLNotificationQueue.h in Headers */,
 				849DFCFA2EEBC1ED008821AF /* MLNotificationManager.h in Headers */,
 				5427C94C276A6BC4003217D5 /* UIColor+Extension.h in Headers */,
-				C18E757A245E8AE900AE8FB7 /* MLPipe.h in Headers */,
 				5455BC3424EB776F0024D80F /* MLUDPLogger.h in Headers */,
 				544656BD25349133006B2953 /* XMPPDataForm.h in Headers */,
 				541B6AB5262BC9040038B936 /* MLStream.h in Headers */,
@@ -2221,6 +2224,7 @@
 				C18967C72B81F61B0073C7C5 /* ChannelMemberList.swift in Sources */,
 				C114D13D2B15B903000FB99F /* ContactEntry.swift in Sources */,
 				9371C49B2F4F3EF100668BA9 /* SettingsView.swift in Sources */,
+				9371C4A02F60FF0000668BA9 /* AccountDetailView.swift in Sources */,
 				841B6F1A297B18720074F9B7 /* AccountPicker.swift in Sources */,
 				3D65B791272350F0005A30F4 /* SwiftuiHelpers.swift in Sources */,
 				C1A80DA424D9552400B99E01 /* MLChatViewHelper.m in Sources */,
@@ -2334,6 +2338,7 @@
 				54179CC0251CBAFA008F398E /* XMPPStanza.m in Sources */,
 				26CC57CB23A0892800ABB92A /* MLPresenceProcessor.m in Sources */,
 				26CC57A423A086AA00ABB92A /* MLXMPPServer.m in Sources */,
+				939954682F60EEA300314852 /* MLDelayedDealloc.m in Sources */,
 				540A3FAD24D674BD0008965D /* MLSQLite.m in Sources */,
 				26CC57CA23A0892800ABB92A /* MLIQProcessor.m in Sources */,
 				26CC57D323A08D7100ABB92A /* DataLayer.m in Sources */,
@@ -2365,7 +2370,6 @@
 				389E298C25E901CA009A5268 /* MLAudioRecoderManager.m in Sources */,
 				84C1CD522A8F617F007076ED /* MLStreamRedirect.m in Sources */,
 				26CC57C923A0892800ABB92A /* MLMessageProcessor.m in Sources */,
-				C18E757C245E8AE900AE8FB7 /* MLPipe.m in Sources */,
 				8418B5642C7ECFD6006FAF60 /* HelperTools+Quicksy_CountryCodes.m in Sources */,
 				26CC57D523A08D7100ABB92A /* MLSignalStore.m in Sources */,
 				C1C839DE24F15DF800BBCF17 /* MLOMEMO.m in Sources */,

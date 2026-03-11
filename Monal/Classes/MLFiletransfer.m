@@ -61,6 +61,11 @@ static NSObject* _hardlinkingSyncObject;
         DDLogError(@"historyId %@ does not yield an MLMessage object, aborting", historyId);
         return;
     }
+    if(msg.retracted || msg.deletedLocally)
+    {
+        DDLogWarn(@"Canceling mimeType check because the message was retracted or deleted locally. historyId = %@", historyId);
+        return;
+    }
     url = [self genCanonicalUrl:msg.messageText];
     @synchronized(_expectedDownloadSizes) {
         if(_expectedDownloadSizes[url] == nil)
@@ -85,6 +90,12 @@ static NSObject* _hardlinkingSyncObject;
 
         NSURLSession* session = [HelperTools createEphemeralURLSession];
         [[session dataTaskWithRequest:request completionHandler:^(NSData* _Nullable data __unused, NSURLResponse* _Nullable response, NSError* _Nullable error) {
+            if(msg.retracted || msg.deletedLocally)
+            {
+                DDLogDebug(@"Ignoring mimeType/size check results because the corresponding message was retracted or deleted while fetching the headers. historyId = %@", historyId);
+                [self markAsComplete:historyId];
+                return;
+            }
             if(error != nil)
             {
                 DDLogError(@"Failed to fetch headers of %@ at %@: %@", msg, url, error);
@@ -186,6 +197,14 @@ static NSObject* _hardlinkingSyncObject;
         // set app defined description for download size checks
         [session setSessionDescription:url];
         NSURLSessionDownloadTask* task = [session downloadTaskWithURL:[NSURL URLWithString:url] completionHandler:^(NSURL* _Nullable location, NSURLResponse* _Nullable response, NSError* _Nullable error) {
+            if(msg.retracted || msg.deletedLocally)
+            {
+                DDLogDebug(@"Discarding downloaded file because its message was retracted or deleted during the download. historyId = %@", historyId);
+                // No need to remove the attachment thumbnail because it hasn't been generated.
+                [_fileManager removeItemAtPath:location.path error:nil];
+                [self markAsComplete:historyId];
+                return;
+            }
             if(error)
             {
                 DDLogError(@"File download for %@ failed: %@", msg, error);
@@ -500,15 +519,17 @@ $$
 {
     if(![msg.messageType isEqualToString:kMessageTypeFiletransfer])
         return;
-    DDLogInfo(@"Deleting file for url %@", msg.messageText);
     MLFiletransferInfo* info = msg.fileInfo;
-    DDLogDebug(@"Deleting file in cache: %@", info.cacheFilePath);
-    [_fileManager removeItemAtPath:info.cacheFilePath error:nil];
+    if(info.downloadState < DownloadStateComplete)
+        return;
+    DDLogInfo(@"Deleting file for url %@", msg.messageText);
     if([info.mimeType hasPrefix:@"video/"])
     {
         DDLogVerbose(@"Deleting video thumbnail stored at %@", msg.fileInfo.thumbnailURL.path);
         [_fileManager removeItemAtPath:msg.fileInfo.thumbnailURL.path error:nil];
     }
+    DDLogDebug(@"Deleting file in cache: %@", info.cacheFilePath);
+    [_fileManager removeItemAtPath:info.cacheFilePath error:nil];
 }
 
 +(MLHandler*) prepareDataUpload:(NSData*) data

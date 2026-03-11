@@ -617,7 +617,7 @@ static void notification_center_logging(CFNotificationCenterRef center, void* ob
 +(NSError*) getNSErrorFrom:(XMPPStanza*) stanza withDescription:(NSString*) description
 {
     NSString* errorMessage = [HelperTools extractXMPPError:stanza withDescription:description];
-    return [NSError errorWithDomain:@"Monal" code:0 userInfo:@{NSLocalizedDescriptionKey: errorMessage}];
+    return [NSError errorWithDomain:@"Monal" code:0 userInfo:@{NSLocalizedDescriptionKey: errorMessage, @"stanza": stanza}];
 }
 
 +(void) initSystem
@@ -782,16 +782,18 @@ static void notification_center_logging(CFNotificationCenterRef center, void* ob
             NSCondition* condition = [NSCondition new];
             [condition lock];
             NSThread* newRunloopThread = [[NSThread alloc] initWithBlock:^{
-                //we don't need an @synchronized block around this because the @synchronized block of the outer thread
-                //waits until we signal our condition (e.g. no other thread can race with us)
-                NSRunLoop* localLoop = runloops[@(identifier)] = [NSRunLoop currentRunLoop];
-                [condition lock];
-                [condition signal];
-                [condition unlock];
-                while(YES)
-                {
-                    [localLoop run];
-                    usleep(10000);          //sleep 10ms if we ever return from our runloop to not consume too much cpu
+                @autoreleasepool {
+                    //we don't need an @synchronized block around this because the @synchronized block of the outer thread
+                    //waits until we signal our condition (e.g. no other thread can race with us)
+                    NSRunLoop* localLoop = runloops[@(identifier)] = [NSRunLoop currentRunLoop];
+                    [condition lock];
+                    [condition signal];
+                    [condition unlock];
+                    while(YES)
+                    {
+                        [localLoop run];
+                        usleep(10000);          //sleep 10ms if we ever return from our runloop to not consume too much cpu
+                    }
                 }
             }];
             //configure and start thread

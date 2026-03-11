@@ -28,9 +28,7 @@ struct SettingsView: View {
             // MARK: Accounts Section
             Section {
                 ForEach(viewModel.accounts) { account in
-                    Button {
-                        viewModel.editAccount(account)
-                    } label: {
+                    NavigationLink(destination: LazyClosureView(AccountDetailView(accountNo: account.accountNo))) {
                         AccountRowView(account: account)
                     }
                 }
@@ -165,6 +163,22 @@ struct SettingsView: View {
                     .contentShape(Rectangle())
                 }
                 .foregroundColor(.primary)
+
+                if let account = viewModel.accounts.first {
+                    Button {
+                        viewModel.editAccount(account)
+                    } label: {
+                        HStack {
+                            Text("Account Management (Debug)")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(.secondary)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .foregroundColor(.primary)
+                }
                 #else
                 if viewModel.showDebugRow {
                     Button {
@@ -255,7 +269,7 @@ class SettingsViewModel: ObservableObject {
     @Published var showDebugRow: Bool = false
 
     init() {
-        for name in [kMonalFinishedCatchup, kMonalConnectivityChange] {
+        for name in [kMonalFinishedCatchup, kMonalConnectivityChange, kMonalContactRefresh] {
             NotificationCenter.default.addObserver(
                 self,
                 selector: #selector(handleAccountUpdate),
