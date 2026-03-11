@@ -112,9 +112,9 @@ static void DumpMemoryGraph(NSSet* objects);
 static inline __attribute__((always_inline)) NSArray* ContainerChildren(NSValue* obj)
 {
     if([(__bridge id)[obj pointerValue] isKindOfClass:[NSArray class]])
-        return obj;
+        return (__bridge NSArray*)[obj pointerValue];
     if([(__bridge id)[obj pointerValue] isKindOfClass:[NSSet class]])
-        return [obj allObjects];
+        return [(__bridge NSSet*)[obj pointerValue] allObjects];
     if([(__bridge id)[obj pointerValue] isKindOfClass:[NSDictionary class]])
         return [[(__bridge NSDictionary*)[obj pointerValue] allKeys] arrayByAddingObjectsFromArray:[(__bridge NSDictionary*)[obj pointerValue] allValues]];
     return @[];
@@ -188,9 +188,7 @@ static inline __attribute__((always_inline)) NSMutableSet* IvarChildren(NSValue*
                     if(propertyIsWeak(prop))
                         isWeak = YES;
                     
-                    //id ivarValue = object_getIvar(obj, ivars[i]);
-                    void* ivarValue = NULL;
-                    object_getInstanceVariable((__bridge id)[obj pointerValue], ivarName, &ivarValue);
+                    id ivarValue = object_getIvar((__bridge id)[obj pointerValue], ivars[i]);
                     NSValue* ivarWrapper = [NSValue valueWithNonretainedObject:ivarValue];
 #ifdef DEBUG_DEALLOC_DEBUGGING
                     if(ivarValue && isWeak)
@@ -213,7 +211,7 @@ static inline __attribute__((always_inline)) NSMutableSet* IvarChildren(NSValue*
     return children;
 }
 
-static inline NSString* NodeName(NSValue _obj)
+static inline NSString* NodeName(NSValue* _obj)
 {
     void* obj = [_obj pointerValue];
     return [NSString stringWithFormat:@"%s_%p_%lu --> %@", class_getName(object_getClass((__bridge id)obj)), obj, CFGetRetainCount((CFTypeRef)obj), (__bridge id)obj];
@@ -228,7 +226,7 @@ static inline __attribute__((always_inline)) __unused void DumpMemoryGraph(NSMut
         {
             NSMutableSet* targets = [NSMutableSet set];
             NSMutableSet* printableTargets = [NSMutableSet set];
-            for(id child in IvarChildren([obj pointerValue]))
+            for(id child in IvarChildren(obj))
                 if(child != obj && [objects containsObject:child])
                 {
                     [targets addObject:child];
