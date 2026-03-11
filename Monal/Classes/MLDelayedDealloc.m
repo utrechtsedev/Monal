@@ -64,7 +64,9 @@ static void DumpMemoryGraph(NSSet* objects);
                         count--;
                         requeuedCount++;
 #ifdef DEBUG
-                        [retainedSet addObject:entry];
+                        //use NSValue to pass a pointer of the object around without ever retaining/releasing it
+                        //this is safe because we know the object is alive until we set deallocCopy = nil below
+                        [retainedSet addObject:[NSValue valueWithNonretainedObject:entry]];
                         //DDLogDebug(@"Requeued deallocation with retain count %lu (%lu) of: %p %@", retainCount, CFGetRetainCount((__bridge CFTypeRef)entry), entry, entry);
 #endif
                     }
@@ -107,14 +109,14 @@ static void DumpMemoryGraph(NSSet* objects);
 
 //****************************** FOR DEBUGGING ******************************
 #ifdef DEBUG
-static inline __attribute__((always_inline)) NSArray* ContainerChildren(id obj)
+static inline __attribute__((always_inline)) NSArray* ContainerChildren(NSValue* obj)
 {
-    if([obj isKindOfClass:[NSArray class]])
+    if([(__bridge id)[obj pointerValue] isKindOfClass:[NSArray class]])
         return obj;
-    if([obj isKindOfClass:[NSSet class]])
+    if([(__bridge id)[obj pointerValue] isKindOfClass:[NSSet class]])
         return [obj allObjects];
-    if([obj isKindOfClass:[NSDictionary class]])
-        return [[(NSDictionary*)obj allKeys] arrayByAddingObjectsFromArray:[(NSDictionary*)obj allValues]];
+    if([(__bridge id)[obj pointerValue] isKindOfClass:[NSDictionary class]])
+        return [[(__bridge NSDictionary*)[obj pointerValue] allKeys] arrayByAddingObjectsFromArray:[(__bridge NSDictionary*)[obj pointerValue] allValues]];
     return @[];
 }
 
@@ -152,13 +154,13 @@ static inline __attribute__((always_inline)) BOOL propertyIsWeak(objc_property_t
     return retval;
 }
 
-static inline __attribute__((always_inline)) NSMutableSet* IvarChildren(id obj)
+static inline __attribute__((always_inline)) NSMutableSet* IvarChildren(NSValue* obj)
 {
     NSMutableSet* children = [NSMutableSet new];
     [children addObjectsFromArray:ContainerChildren(obj)];      //if we are a container
     if([children count] == 0)                                   //if we aren't a container
     {
-        Class cls = object_getClass(obj);
+        Class cls = object_getClass((__bridge id)[obj pointerValue]);
         while(cls)
         {
             unsigned int count = 0;
@@ -186,18 +188,21 @@ static inline __attribute__((always_inline)) NSMutableSet* IvarChildren(id obj)
                     if(propertyIsWeak(prop))
                         isWeak = YES;
                     
-                    id ivarValue = object_getIvar(obj, ivars[i]);
+                    //id ivarValue = object_getIvar(obj, ivars[i]);
+                    void* ivarValue = NULL;
+                    object_getInstanceVariable((__bridge id)[obj pointerValue], ivarName, &ivarValue);
+                    NSValue* ivarWrapper = [NSValue valueWithNonretainedObject:ivarValue];
 #ifdef DEBUG_DEALLOC_DEBUGGING
                     if(ivarValue && isWeak)
-                        DDLogError(@"WEAK IVAR[%u](%s::%s): %@", i, ivarType, ivarName, ivarValue);
+                        DDLogError(@"WEAK IVAR[%u]: %s %s", i, ivarType, ivarName);
 #endif
                     if(ivarValue && !isWeak)
                     {
 #ifdef DEBUG_DEALLOC_DEBUGGING
-                        DDLogError(@"STRONG IVAR[%u](%s::%s): %@", i, ivarType, ivarName, ivarValue);
+                        DDLogError(@"STRONG IVAR[%u]: %s %s", i, ivarType, ivarName);
 #endif
-                        [children addObjectsFromArray:@[ivarValue]];
-                        [children addObjectsFromArray:ContainerChildren(ivarValue)];
+                        [children addObjectsFromArray:@[ivarWrapper]];
+                        [children addObjectsFromArray:ContainerChildren(ivarWrapper)];
                     }
                 }
             }
@@ -208,9 +213,10 @@ static inline __attribute__((always_inline)) NSMutableSet* IvarChildren(id obj)
     return children;
 }
 
-static inline NSString* NodeName(id obj)
+static inline NSString* NodeName(NSValue _obj)
 {
-    return [NSString stringWithFormat:@"%s_%p_%lu --> %@", class_getName(object_getClass(obj)), obj, CFGetRetainCount((__bridge CFTypeRef)obj), obj];
+    void* obj = [_obj pointerValue];
+    return [NSString stringWithFormat:@"%s_%p_%lu --> %@", class_getName(object_getClass((__bridge id)obj)), obj, CFGetRetainCount((CFTypeRef)obj), (__bridge id)obj];
 }
 
 static inline __attribute__((always_inline)) __unused void DumpMemoryGraph(NSMutableSet* objects)
@@ -222,7 +228,7 @@ static inline __attribute__((always_inline)) __unused void DumpMemoryGraph(NSMut
         {
             NSMutableSet* targets = [NSMutableSet set];
             NSMutableSet* printableTargets = [NSMutableSet set];
-            for(id child in IvarChildren(obj))
+            for(id child in IvarChildren([obj pointerValue]))
                 if(child != obj && [objects containsObject:child])
                 {
                     [targets addObject:child];
