@@ -625,6 +625,7 @@ struct ChatView: View {
                                     .resizable()
                                     .scaledToFill()
                                     .frame(width: 35, height: 35)
+                                    .clipShape(Circle())
                                     .id(colorScheme)
 
                                 VStack(alignment: .leading, spacing: 0) {

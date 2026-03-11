@@ -217,6 +217,7 @@
 		9341BC6C2F4FBF4700FCD32B /* ActiveChatsBridgeHelper.h in Headers */ = {isa = PBXBuildFile; fileRef = 9341BC692F4FBEC100FCD32B /* ActiveChatsBridgeHelper.h */; };
 		9342E6B32F50EE670065EAE2 /* ActiveChatsBridgeHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = 9341BC6A2F4FBEE700FCD32B /* ActiveChatsBridgeHelper.m */; };
 		9371C49B2F4F3EF100668BA9 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9371C49A2F4F3EF100668BA9 /* SettingsView.swift */; };
+		9371C4A02F60FF0000668BA9 /* AccountDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9371C49F2F60FF0000668BA9 /* AccountDetailView.swift */; };
 		939954672F60EE9E00314852 /* MLDelayedDealloc.h in Headers */ = {isa = PBXBuildFile; fileRef = 84EC7FBB2F5A9458008ACC3F /* MLDelayedDealloc.h */; };
 		939954682F60EEA300314852 /* MLDelayedDealloc.m in Sources */ = {isa = PBXBuildFile; fileRef = 84EC7FBC2F5A9458008ACC3F /* MLDelayedDealloc.m */; };
 		93D2AE402F55E8330074E42B /* NewChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93D2AE3F2F55E8330074E42B /* NewChatView.swift */; };
@@ -682,6 +683,7 @@
 		9341BC692F4FBEC100FCD32B /* ActiveChatsBridgeHelper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ActiveChatsBridgeHelper.h; sourceTree = "<group>"; };
 		9341BC6A2F4FBEE700FCD32B /* ActiveChatsBridgeHelper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ActiveChatsBridgeHelper.m; sourceTree = "<group>"; };
 		9371C49A2F4F3EF100668BA9 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		9371C49F2F60FF0000668BA9 /* AccountDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountDetailView.swift; sourceTree = "<group>"; };
 		93D2AE3F2F55E8330074E42B /* NewChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewChatView.swift; sourceTree = "<group>"; };
 		952EBC7F2BAF72F300183DBF /* DebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugView.swift; sourceTree = "<group>"; };
 		9705AFFB59AF72A9B79C1D7B /* Pods-MonalXMPPUnitTests.adhoc.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MonalXMPPUnitTests.adhoc.xcconfig"; path = "Target Support Files/Pods-MonalXMPPUnitTests/Pods-MonalXMPPUnitTests.adhoc.xcconfig"; sourceTree = "<group>"; };
@@ -1097,6 +1099,7 @@
 			isa = PBXGroup;
 			children = (
 				9371C49A2F4F3EF100668BA9 /* SettingsView.swift */,
+				9371C49F2F60FF0000668BA9 /* AccountDetailView.swift */,
 				2644D4971FF29E5600F46AB5 /* MLSettingsTableViewController.h */,
 				2644D4981FF29E5600F46AB5 /* MLSettingsTableViewController.m */,
 				26B0CA8721AE2E3C0080B133 /* MLSoundsTableViewController.h */,
@@ -2221,6 +2224,7 @@
 				C18967C72B81F61B0073C7C5 /* ChannelMemberList.swift in Sources */,
 				C114D13D2B15B903000FB99F /* ContactEntry.swift in Sources */,
 				9371C49B2F4F3EF100668BA9 /* SettingsView.swift in Sources */,
+				9371C4A02F60FF0000668BA9 /* AccountDetailView.swift in Sources */,
 				841B6F1A297B18720074F9B7 /* AccountPicker.swift in Sources */,
 				3D65B791272350F0005A30F4 /* SwiftuiHelpers.swift in Sources */,
 				C1A80DA424D9552400B99E01 /* MLChatViewHelper.m in Sources */,
